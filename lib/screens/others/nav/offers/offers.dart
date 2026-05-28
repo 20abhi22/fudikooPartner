@@ -12,6 +12,7 @@ import 'package:fudiko/models/offer/offer-update-model.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/services/offer-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/tab_back_handler.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class Offers extends StatefulWidget {
@@ -49,7 +50,7 @@ class _StickyFilterBarDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-class _OffersState extends State<Offers> {
+class _OffersState extends State<Offers> implements TabBackHandler {
   final bool hasItem = true;
   bool isOpen = false;
   bool isEditOpen = false;
@@ -382,6 +383,19 @@ class _OffersState extends State<Offers> {
     super.dispose();
   }
 
+  @override
+  bool handleBack() {
+    if (isOpen || isEditOpen || isDeletePressed) {
+      setState(() {
+        isOpen = false;
+        isEditOpen = false;
+        isDeletePressed = false;
+      });
+      return true;
+    }
+    return false;
+  }
+
   String formatTimeOfDay(TimeOfDay time) {
     final int hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
     final String paddedHour = hour.toString().padLeft(2, '0');
@@ -466,7 +480,9 @@ class _OffersState extends State<Offers> {
                   width: 75.w,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isDeletePressed ? Colors.grey.shade400 : Colors.white,
+                    color: isDeletePressed
+                        ? Colors.grey.shade400
+                        : Colors.white,
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(
@@ -1611,8 +1627,8 @@ class _OffersState extends State<Offers> {
                   height: 30.h,
                   decoration: BoxDecoration(
                     color: time.period == DayPeriod.am
-                        ?  const Color.fromARGB(255, 150, 148, 148)
-                        : const Color(0xFF53534F) ,
+                        ? const Color.fromARGB(255, 150, 148, 148)
+                        : const Color(0xFF53534F),
                     borderRadius: BorderRadius.only(
                       topRight: Radius.circular(10.r),
                       bottomRight: Radius.circular(10.r),

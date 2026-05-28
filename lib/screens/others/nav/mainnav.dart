@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/components/apptext.dart';
@@ -24,6 +25,7 @@ import 'package:fudiko/screens/others/services.dart';
 import 'package:fudiko/screens/others/totalOrders.dart';
 import 'package:fudiko/services/profile-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/tab_back_handler.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class MainNavPage extends StatefulWidget {
@@ -39,6 +41,11 @@ class _MainNavPageState extends State<MainNavPage> {
   int currentIndex = 0;
   bool isDrawerOpen = false;
   late List<Widget> screens;
+  DateTime? _lastBackPressedAt;
+  final List<GlobalKey<State<StatefulWidget>>> _tabKeys = List.generate(
+    5,
+    (_) => GlobalKey<State<StatefulWidget>>(),
+  );
   PartnerProfileModel? _partnerProfile;
   final PartnerService _partnerService = PartnerService();
   bool _banquetEnabled = true;
@@ -61,6 +68,7 @@ class _MainNavPageState extends State<MainNavPage> {
     }
     setState(() {
       currentIndex = index;
+      _lastBackPressedAt = null;
     });
   }
 
@@ -130,6 +138,7 @@ class _MainNavPageState extends State<MainNavPage> {
   Widget build(BuildContext context) {
     screens = [
       Reservation(
+        key: _tabKeys[0],
         onDrawerTap: () {
           setState(() {
             isDrawerOpen = !isDrawerOpen;
@@ -138,6 +147,7 @@ class _MainNavPageState extends State<MainNavPage> {
         partnerProfile: _partnerProfile,
       ),
       Banquet(
+        key: _tabKeys[1],
         onDrawerTap: () {
           setState(() {
             isDrawerOpen = !isDrawerOpen;
@@ -146,6 +156,7 @@ class _MainNavPageState extends State<MainNavPage> {
         partnerProfile: _partnerProfile,
       ),
       Offers(
+        key: _tabKeys[2],
         onDrawerTap: () {
           setState(() {
             isDrawerOpen = !isDrawerOpen;
@@ -154,6 +165,7 @@ class _MainNavPageState extends State<MainNavPage> {
         partnerProfile: _partnerProfile,
       ),
       Catering(
+        key: _tabKeys[3],
         onDrawerTap: () {
           setState(() {
             isDrawerOpen = !isDrawerOpen;
@@ -162,6 +174,7 @@ class _MainNavPageState extends State<MainNavPage> {
         partnerProfile: _partnerProfile,
       ),
       TakeAway(
+        key: _tabKeys[4],
         onDrawerTap: () {
           setState(() {
             isDrawerOpen = !isDrawerOpen;
@@ -171,289 +184,349 @@ class _MainNavPageState extends State<MainNavPage> {
       ),
       // Profile(),
     ];
-    return Scaffold(
-      floatingActionButton:
-          isDrawerOpen || currentIndex == 2 || currentIndex == 4
-          ? null
-          : GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => Scanner()),
-                );
-              },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackNavigation();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                Expanded(
+                  child: IndexedStack(index: currentIndex, children: screens),
+                ),
+                Bottomnav(
+                  selectedIndex: currentIndex,
+                  onTabSelected: onTabChanged,
+                  banquetEnabled: _banquetEnabled,
+                  cateringEnabled: _cateringEnabled,
+                  takeawayEnabled: _takeawayEnabled,
+                ),
+              ],
+            ),
+            if (!isDrawerOpen && currentIndex != 2 )
+              Positioned(
+                left: MediaQuery.of(context).size.width - (MediaQuery.of(context).size.width *.3),
+                right: 0.w,
+                bottom: 80.h,
+                child: Center(child: _scannerButton()),
+              ),
+            if (isDrawerOpen)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      isDrawerOpen = false;
+                    });
+                  },
+                  child: Container(color: Colors.black.withValues(alpha: 0.4)),
+                ),
+              ),
+
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              top: 0,
+              bottom: 0,
+              right: isDrawerOpen
+                  ? 0
+                  : -MediaQuery.of(context).size.width * 0.75,
               child: Container(
-                height: 60.h,
-                width: 60.02.w,
-                decoration: BoxDecoration(
+                width: MediaQuery.of(context).size.width * 0.75,
+                decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20.r),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
+                      color: Colors.black26,
                       blurRadius: 10,
-                      offset: Offset(4, 4),
+                      offset: Offset(-4, 0),
                     ),
                   ],
                 ),
-                child: Center(
+                child: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 3.0),
-                    child: Image.asset(
-                      'assets/images/scanner2.png',
-                      height: 56.h,
-                      width: 60.w,
-                      fit: BoxFit.contain,
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 50.h),
+                          Divider(thickness: 1, color: Colors.grey, height: 1),
+                          SizedBox(height: 10.h),
+                          _drawerItem(
+                            "Profile",
+                            drawerProfileIcon,
+                            RestaurantProfile(),
+                            // color: Color(0xFF333333)
+                          ),
+                          SizedBox(height: 10.h),
+                          Divider(thickness: 1, color: Colors.grey, height: 1),
+                          SizedBox(height: 50.h),
+                          AppText(
+                            text: "Settings",
+                            size: 15,
+                            fontWeight: FontWeight.w600,
+                            color: appTextColor2,
+                          ),
+                          SizedBox(height: 10.h),
+                          Divider(thickness: 1, color: Colors.grey, height: 1),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 10.w),
+                            child: Column(
+                              children: [
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "Change Password",
+                                  drawerChangePasswordIcon,
+                                  ChangePassword(),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "Notifications",
+                                  drawerNotificationIcon,
+                                  NotificationPage(),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "Languages",
+                                  drawerTranslateIcon,
+                                  Languages(),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "Analytics",
+                                  drawerAnalyticsIcon,
+                                  TotalOrders(),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "Service",
+                                  drawerServiceIcon,
+                                  ServicePage(),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                                _drawerItem("Promotions", drawerPromotionIcon),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          SizedBox(height: 50.h),
+                          AppText(
+                            text: "Information",
+                            size: 15,
+                            fontWeight: FontWeight.w600,
+                            color: appTextColor2,
+                          ),
+                          SizedBox(height: 10.h),
+                          Divider(thickness: 1, color: Colors.grey, height: 1),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 10.w),
+                            child: Column(
+                              children: [
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "About the App",
+                                  drawerAboutIcon,
+                                  AboutPage(),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "Badge Earnings",
+                                  drawerHelpIcon,
+                                  BadgeInfo(),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "Documentation",
+                                  drawerDocumentIcon,
+                                  AgreementPage(),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "Support",
+                                  drawerCustomerIcon,
+                                  ContactPage(),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Colors.grey,
+                                  height: 1,
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 50.h),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 10.h),
+                            child: Column(
+                              children: [
+                                Divider(
+                                  thickness: 1,
+                                  color: Color(0xFFFA2929),
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                                _drawerItem(
+                                  "Log Out",
+                                  drawerLogoutIcon,
+                                  Login(),
+                                  Color(0xFFFA2929),
+                                ),
+                                SizedBox(height: 10.h),
+                                Divider(
+                                  thickness: 1,
+                                  color: Color(0xFFFA2929),
+                                  height: 1,
+                                ),
+                                SizedBox(height: 10.h),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Expanded(child: screens[currentIndex]),
-              Bottomnav(
-                selectedIndex: currentIndex,
-                onTabSelected: onTabChanged,
-                banquetEnabled: _banquetEnabled,
-                cateringEnabled: _cateringEnabled,
-                takeawayEnabled: _takeawayEnabled,
-              ),
-            ],
-          ),
-          if (isDrawerOpen)
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    isDrawerOpen = false;
-                  });
-                },
-                child: Container(color: Colors.black.withValues(alpha: 0.4)),
-              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleBackNavigation() {
+    if (isDrawerOpen) {
+      setState(() {
+        isDrawerOpen = false;
+        _lastBackPressedAt = null;
+      });
+      return;
+    }
+
+    final currentTabState = _tabKeys[currentIndex].currentState;
+    final handledByTab = currentTabState is TabBackHandler
+        ? (currentTabState as TabBackHandler).handleBack()
+        : false;
+    if (handledByTab) {
+      _lastBackPressedAt = null;
+      return;
+    }
+
+    if (currentIndex != 0) {
+      setState(() {
+        currentIndex = 0;
+        _lastBackPressedAt = null;
+      });
+      return;
+    }
+
+    final now = DateTime.now();
+    final shouldExit =
+        _lastBackPressedAt != null &&
+        now.difference(_lastBackPressedAt!) < const Duration(seconds: 2);
+
+    if (shouldExit) {
+      SystemNavigator.pop();
+      return;
+    }
+
+    _lastBackPressedAt = now;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Press back again to exit')));
+  }
+
+  Widget _scannerButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Scanner()),
+        );
+      },
+      child: Container(
+        height: 60.h,
+        width: 60.02.w,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20.r),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 10,
+              offset: Offset(4, 4),
             ),
-
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            top: 0,
-            bottom: 0,
-            right: isDrawerOpen ? 0 : -MediaQuery.of(context).size.width * 0.75,
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.75,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: Offset(-4, 0),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 50.h),
-                        Divider(thickness: 1, color: Colors.grey, height: 1),
-                        SizedBox(height: 10.h),
-                        _drawerItem(
-                          "Profile",
-                          drawerProfileIcon,
-                          RestaurantProfile(),
-                          // color: Color(0xFF333333)
-                        ),
-                        SizedBox(height: 10.h),
-                        Divider(thickness: 1, color: Colors.grey, height: 1),
-                        SizedBox(height: 50.h),
-                        AppText(
-                          text: "Settings",
-                          size: 15,
-                          fontWeight: FontWeight.w600,
-                          color: appTextColor2,
-                        ),
-                        SizedBox(height: 10.h),
-                        Divider(thickness: 1, color: Colors.grey, height: 1),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10.w),
-                          child: Column(
-                            children: [
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "Change Password",
-                                drawerChangePasswordIcon,
-                                ChangePassword(),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "Notifications",
-                                drawerNotificationIcon,
-                                NotificationPage(),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "Languages",
-                                drawerTranslateIcon,
-                                Languages(),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "Analytics",
-                                drawerAnalyticsIcon,
-                                TotalOrders(),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "Service",
-                                drawerServiceIcon,
-                                ServicePage(),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                              _drawerItem("Promotions", drawerPromotionIcon),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        SizedBox(height: 50.h),
-                        AppText(
-                          text: "Information",
-                          size: 15,
-                          fontWeight: FontWeight.w600,
-                          color: appTextColor2,
-                        ),
-                        SizedBox(height: 10.h),
-                        Divider(thickness: 1, color: Colors.grey, height: 1),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10.w),
-                          child: Column(
-                            children: [
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "About the App",
-                                drawerAboutIcon,
-                                AboutPage(),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "Badge Earnings",
-                                drawerHelpIcon,
-                                BadgeInfo(),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "Documentation",
-                                drawerDocumentIcon,
-                                AgreementPage(),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "Support",
-                                drawerCustomerIcon,
-                                ContactPage(),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Colors.grey,
-                                height: 1,
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: 50.h),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10.h),
-                          child: Column(
-                            children: [
-                              Divider(
-                                thickness: 1,
-                                color: Color(0xFFFA2929),
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                              _drawerItem(
-                                "Log Out",
-                                drawerLogoutIcon,
-                                Login(),
-                                Color(0xFFFA2929),
-                              ),
-                              SizedBox(height: 10.h),
-                              Divider(
-                                thickness: 1,
-                                color: Color(0xFFFA2929),
-                                height: 1,
-                              ),
-                              SizedBox(height: 10.h),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          ],
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 3.0),
+            child: Image.asset(
+              'assets/images/scanner2.png',
+              height: 56.h,
+              width: 60.w,
+              fit: BoxFit.contain,
             ),
           ),
-        ],
+        ),
       ),
     );
   }

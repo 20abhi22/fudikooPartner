@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/tab_back_handler.dart';
 
 class TakeAway extends StatefulWidget {
   final VoidCallback? onDrawerTap;
@@ -13,7 +14,7 @@ class TakeAway extends StatefulWidget {
   State<TakeAway> createState() => _TakeAwayState();
 }
 
-class _TakeAwayState extends State<TakeAway> {
+class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
   String selectedStatus = "All Orders";
   String _previousStatus = "All Orders";
   bool hasData = false;
@@ -26,6 +27,15 @@ class _TakeAwayState extends State<TakeAway> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  bool handleBack() {
+    if (_isSearchClicked) {
+      _closeSearch();
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -156,7 +166,7 @@ class _TakeAwayState extends State<TakeAway> {
       builder: (context, constraints) {
         final double expandedHeight = 60.h;
         final double collapsedHeight = 78.h;
-        final double searchButtonWidth = 50.w;
+        final double searchButtonWidth = 60.w;
 
         return AnimatedContainer(
           duration: _searchAnimationDuration,
@@ -454,8 +464,8 @@ class _AnimatedSearchField extends StatelessWidget {
                 return Center(
                   child: Image.asset(
                     "assets/images/search_icon.png",
-                    width: 24.w,
-                    height: 24.w,
+                    width: 20.w,
+                    height: 20.w,
                     fit: BoxFit.contain,
                   ),
                 );

@@ -22,6 +22,7 @@ import 'package:fudiko/services/reservation-service.dart';
 import 'package:fudiko/services/offer-service.dart';
 import 'package:fudiko/models/offer/offer-list-model.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/tab_back_handler.dart';
 
 class Reservation extends StatefulWidget {
   final VoidCallback? onDrawerTap;
@@ -32,7 +33,9 @@ class Reservation extends StatefulWidget {
   State<Reservation> createState() => _ReservationState();
 }
 
-class _ReservationState extends State<Reservation> with WidgetsBindingObserver {
+class _ReservationState extends State<Reservation>
+    with WidgetsBindingObserver
+    implements TabBackHandler {
   String selectedStatus = "Processing";
   String _previousStatus = "Processing";
   String selectedStatusReason = "Date or Time is not available";
@@ -98,6 +101,23 @@ class _ReservationState extends State<Reservation> with WidgetsBindingObserver {
       _isInForeground = false;
       _stopPolling();
     }
+  }
+
+  @override
+  bool handleBack() {
+    if (isSearchClicked) {
+      _closeSearch();
+      return true;
+    }
+
+    if (isOpen) {
+      setState(() {
+        isOpen = false;
+      });
+      return true;
+    }
+
+    return false;
   }
 
   void _startPolling() {
@@ -1200,7 +1220,7 @@ class _ReservationState extends State<Reservation> with WidgetsBindingObserver {
       builder: (context, constraints) {
         final double expandedHeight = 60.h;
         final double collapsedHeight = 68.h;
-        final double searchButtonWidth = 50.w;
+        final double searchButtonWidth = 60.w;
 
         return AnimatedContainer(
           duration: _searchAnimationDuration,
@@ -1879,8 +1899,8 @@ class _AnimatedSearchField extends StatelessWidget {
                 return Center(
                   child: Image.asset(
                     "assets/images/search_icon.png",
-                    width: 24.w,
-                    height: 24.w,
+                    width: 20.w,
+                    height: 20.w,
                     fit: BoxFit.contain,
                   ),
                 );

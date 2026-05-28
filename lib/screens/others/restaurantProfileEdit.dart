@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/appdropdown.dart';
@@ -29,6 +30,8 @@ class _RestaurantProfileEditState extends State<RestaurantProfileEdit> {
   final TextEditingController _nameController = TextEditingController();
   final MapService _mapService = MapService();
   Timer? _locationSearchDebounce;
+  static final BitmapDescriptor _orangeMarker =
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
   String? _selectedEstablishmentType;
   String _resolvedLocationText = '';
   bool _isSearchingLocations = false;
@@ -54,6 +57,7 @@ class _RestaurantProfileEditState extends State<RestaurantProfileEdit> {
         Marker(
           markerId: const MarkerId('selected'),
           position: _selectedLocation,
+          icon: _orangeMarker,
         ),
       };
     } else if (_locationController.text.isNotEmpty) {
@@ -107,7 +111,11 @@ class _RestaurantProfileEditState extends State<RestaurantProfileEdit> {
         _selectedLocation = latLng;
         _resolvedLocationText = address;
         _markers = {
-          Marker(markerId: const MarkerId('selected'), position: latLng),
+          Marker(
+            markerId: const MarkerId('selected'),
+            position: latLng,
+            icon: _orangeMarker,
+          ),
         };
       });
       _mapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 15));
@@ -120,7 +128,11 @@ class _RestaurantProfileEditState extends State<RestaurantProfileEdit> {
     setState(() {
       _selectedLocation = latLng;
       _markers = {
-        Marker(markerId: const MarkerId('selected'), position: latLng),
+        Marker(
+          markerId: const MarkerId('selected'),
+          position: latLng,
+          icon: _orangeMarker,
+        ),
       };
     });
 
@@ -171,7 +183,11 @@ class _RestaurantProfileEditState extends State<RestaurantProfileEdit> {
       _locationController.text = place;
       _resolvedLocationText = place;
       _markers = {
-        Marker(markerId: const MarkerId('selected'), position: latLng),
+        Marker(
+          markerId: const MarkerId('selected'),
+          position: latLng,
+          icon: _orangeMarker,
+        ),
       };
     });
     _mapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 15));
@@ -236,7 +252,11 @@ class _RestaurantProfileEditState extends State<RestaurantProfileEdit> {
     setState(() {
       _selectedLocation = latLng;
       _markers = {
-        Marker(markerId: const MarkerId('selected'), position: latLng),
+        Marker(
+          markerId: const MarkerId('selected'),
+          position: latLng,
+          icon: _orangeMarker,
+        ),
       };
       _resolvedLocationText = placeName;
       _isSearchingLocations = false;
@@ -262,7 +282,11 @@ class _RestaurantProfileEditState extends State<RestaurantProfileEdit> {
         _resolvedLocationText = locationText;
         _locationSuggestions = [];
         _markers = {
-          Marker(markerId: const MarkerId('selected'), position: latLng),
+          Marker(
+            markerId: const MarkerId('selected'),
+            position: latLng,
+            icon: _orangeMarker,
+          ),
         };
       });
       _mapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 15));
@@ -423,7 +447,7 @@ class _RestaurantProfileEditState extends State<RestaurantProfileEdit> {
                             child: SizedBox(
                               height: 18,
                               width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CupertinoActivityIndicator(radius: 8),
                             ),
                           ),
                         ),
@@ -563,10 +587,13 @@ class _MapPickerPageState extends State<_MapPickerPage> {
   final TextEditingController _placeSearchController = TextEditingController();
   final MapService _mapService = MapService();
   Timer? _placeSearchDebounce;
+  static final BitmapDescriptor _orangeMarker =
+      BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
   late LatLng _pickedLocation;
   late String _placeName;
   bool _isGeocoding = false;
   bool _isSearchingPlaces = false;
+  bool _isFetchingCurrentLocation = false;
   List<MapPlacesResponse> _placeSuggestions = [];
   Set<Marker> _markers = {};
 
@@ -592,6 +619,12 @@ class _MapPickerPageState extends State<_MapPickerPage> {
   }
 
   Future<void> _getCurrentLocation() async {
+    if (_isFetchingCurrentLocation) return;
+
+    setState(() {
+      _isFetchingCurrentLocation = true;
+    });
+
     try {
       geolocator.LocationPermission permission =
           await geolocator.Geolocator.requestPermission();
@@ -614,6 +647,12 @@ class _MapPickerPageState extends State<_MapPickerPage> {
     } catch (e) {
       debugPrint('Location error: $e');
       await _reverseGeocode(_pickedLocation);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetchingCurrentLocation = false;
+        });
+      }
     }
   }
 
@@ -716,6 +755,7 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         Marker(
           markerId: const MarkerId('picked'),
           position: latLng,
+          icon: _orangeMarker,
           draggable: true,
           onDragEnd: (newPos) async {
             setState(() => _pickedLocation = newPos);
@@ -790,37 +830,37 @@ class _MapPickerPageState extends State<_MapPickerPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: _placeSearchController,
-                    textInputAction: TextInputAction.search,
-                    onChanged: _onPlaceSearchChanged,
-                    decoration: InputDecoration(
-                      hintText: 'Search place',
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: Colors.orange,
-                      ),
-                      suffixIcon: _isSearchingPlaces
-                          ? const Padding(
-                              padding: EdgeInsets.all(14),
-                              child: SizedBox(
-                                height: 16,
-                                width: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            )
-                          : const Icon(Icons.location_city_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14.r),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: const Color(0xFFF5F5F5),
-                      contentPadding: EdgeInsets.symmetric(vertical: 12.h),
-                    ),
-                  ),
+                  // TextField(
+                  //   controller: _placeSearchController,
+                  //   textInputAction: TextInputAction.search,
+                  //   onChanged: _onPlaceSearchChanged,
+                  //   decoration: InputDecoration(
+                  //     hintText: 'Search place',
+                  //     prefixIcon: const Icon(
+                  //       Icons.search,
+                  //       color: Colors.orange,
+                  //     ),
+                  //     suffixIcon: _isSearchingPlaces
+                  //         ? const Padding(
+                  //             padding: EdgeInsets.all(14),
+                  //             child: SizedBox(
+                  //               height: 16,
+                  //               width: 16,
+                  //               child: CircularProgressIndicator(
+                  //                 strokeWidth: 2,
+                  //               ),
+                  //             ),
+                  //           )
+                  //         : const Icon(Icons.location_city_outlined),
+                  //     border: OutlineInputBorder(
+                  //       borderRadius: BorderRadius.circular(14.r),
+                  //       borderSide: BorderSide.none,
+                  //     ),
+                  //     filled: true,
+                  //     fillColor: const Color(0xFFF5F5F5),
+                  //     contentPadding: EdgeInsets.symmetric(vertical: 12.h),
+                  //   ),
+                  // ),
                   if (_placeSuggestions.isNotEmpty) ...[
                     SizedBox(height: 8.h),
                     Container(
@@ -871,8 +911,9 @@ class _MapPickerPageState extends State<_MapPickerPage> {
                             ? const SizedBox(
                                 height: 16,
                                 width: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                                child: CupertinoActivityIndicator(
+                                  radius: 7,
+                                  color: Colors.orange,
                                 ),
                               )
                             : Text(
@@ -889,9 +930,24 @@ class _MapPickerPageState extends State<_MapPickerPage> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: _getCurrentLocation,
-                      icon: const Icon(Icons.my_location),
-                      label: const Text('Use current location'),
+                      onPressed: _isFetchingCurrentLocation
+                          ? null
+                          : _getCurrentLocation,
+                      icon: _isFetchingCurrentLocation
+                          ? SizedBox(
+                              width: 18.w,
+                              height: 18.w,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.orange,
+                              ),
+                            )
+                          : const Icon(Icons.my_location),
+                      label: Text(
+                        _isFetchingCurrentLocation
+                            ? 'Fetching location...'
+                            : 'Use current location',
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.orange,
                         side: const BorderSide(color: Colors.orange),

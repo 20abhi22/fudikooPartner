@@ -13,6 +13,7 @@ import 'package:fudiko/models/banquet/sent-enquiry-model.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/services/banquet-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/tab_back_handler.dart';
 
 class Banquet extends StatefulWidget {
   final VoidCallback? onDrawerTap;
@@ -23,7 +24,7 @@ class Banquet extends StatefulWidget {
   State<Banquet> createState() => _BanquetState();
 }
 
-class _BanquetState extends State<Banquet> {
+class _BanquetState extends State<Banquet> implements TabBackHandler {
   String selectedStatus = "All Enquiries";
   String _previousStatus = "All Enquiries";
   bool isDeleteClicked = false;
@@ -170,6 +171,23 @@ class _BanquetState extends State<Banquet> {
         _searchResults = [];
       });
     }
+  }
+
+  @override
+  bool handleBack() {
+    if (_isSearchClicked) {
+      _closeSearch();
+      return true;
+    }
+
+    if (isDeleteClicked) {
+      setState(() {
+        isDeleteClicked = false;
+      });
+      return true;
+    }
+
+    return false;
   }
 
   Future<void> _fetchEnquiries() async {
@@ -1153,7 +1171,7 @@ class _BanquetState extends State<Banquet> {
       builder: (context, constraints) {
         final double collapsedHeight = 107.h;
         final double expandedHeight = 60.h;
-        final double searchButtonWidth = 53.w;
+        final double searchButtonWidth = 60.w;
 
         return AnimatedContainer(
           duration: _searchAnimationDuration,
@@ -1291,8 +1309,8 @@ class _AnimatedSearchField extends StatelessWidget {
                 return Center(
                   child: Image.asset(
                     "assets/images/search_icon.png",
-                    width: 24.w,
-                    height: 24.w,
+                    width: 20.w,
+                    height: 20.w,
                     fit: BoxFit.contain,
                   ),
                 );
