@@ -1,0 +1,2944 @@
+{
+  "info": {
+    "_postman_id": "26f2b1e2-4390-4f0f-9626-470515e2638f",
+    "name": "Foodikko Partner",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "6302950"
+  },
+  "item": [
+    {
+      "name": "Registration",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "email",
+              "value": "suhail.elegantcarve@gmail.com",
+              "type": "text",
+              "uuid": "e8d66c8e-5b29-475a-bc32-af6f6b3bcfac"
+            },
+            {
+              "key": "username",
+              "value": "suhail",
+              "type": "text",
+              "uuid": "5ddd1172-872f-47e8-b8be-ff67b1b29578"
+            },
+            {
+              "key": "password",
+              "value": "suhail@1123",
+              "type": "text",
+              "uuid": "1cf57182-47f7-40a4-9e69-088a063c7b45"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/register",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "username",
+              "value": "suhail",
+              "type": "text"
+            },
+            {
+              "key": "password",
+              "value": "suhail@1123",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/login",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Partner Registration",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "name",
+              "value": "Shawarma Shack",
+              "type": "text",
+              "uuid": "5ada08bb-c65b-4f23-a4a3-7ae3057be12e"
+            },
+            {
+              "key": "type",
+              "value": "Restaurant",
+              "type": "text",
+              "uuid": "dd2f20fc-fb97-47fe-ae77-389b8d162fec"
+            },
+            {
+              "key": "address",
+              "value": "Khaleej Mall, CV Jn., Ponnani ",
+              "type": "text",
+              "uuid": "bc699494-32ac-41b4-9d29-2298f49a0681"
+            },
+            {
+              "key": "phone",
+              "value": "9988778899",
+              "type": "text",
+              "uuid": "87da5429-804e-4f8d-a4d1-abb9850ce078"
+            },
+            {
+              "key": "lat",
+              "value": "10.7823208",
+              "type": "text",
+              "uuid": "1fffa6cc-5980-4d4f-8d50-e8bf63654a89"
+            },
+            {
+              "key": "lng",
+              "value": "75.9405902",
+              "type": "text",
+              "uuid": "9bd8dd1d-cedc-4b87-ba66-3bd52565ece7"
+            },
+            {
+              "key": "description",
+              "value": "",
+              "type": "text",
+              "uuid": "9ad421d4-8f51-4044-b1da-f3289ae89704"
+            },
+            {
+              "key": "available_dishes",
+              "value": "Chicken Shawarma Roll, Chicken Shawarma Plate",
+              "type": "text",
+              "uuid": "479776e6-146a-41d4-920d-05f8c2357697"
+            },
+            {
+              "key": "banquet_service",
+              "value": "1",
+              "type": "text"
+            },
+            {
+              "key": "takeaway_service",
+              "value": "1",
+              "type": "text",
+              "uuid": "64d4069a-0320-4e24-ad14-d8ab8e25d791"
+            },
+            {
+              "key": "delivery_service",
+              "value": "1",
+              "type": "text",
+              "uuid": "dae35441-3d53-4ed5-989b-d8575245c06f"
+            },
+            {
+              "key": "delivery_service_area",
+              "value": "Ponnani",
+              "type": "text",
+              "uuid": "a4f65784-7a0d-49f9-b402-2a51ddedcdcc"
+            },
+            {
+              "key": "restaurant_type",
+              "value": "Non Veg",
+              "type": "text",
+              "uuid": "ce2d933e-4e94-4db9-89fe-40d2c35f7e16"
+            },
+            {
+              "key": "image",
+              "type": "file",
+              "uuid": "e7c9328a-cc33-41bb-a85f-c180f64b9a45",
+              "src": "/Users/suhail/Downloads/1628255235611.jpg"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/complete-registration",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "complete-registration"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Restaurant Update",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "name",
+              "value": "Shawarma Shack",
+              "type": "text",
+              "uuid": "5ada08bb-c65b-4f23-a4a3-7ae3057be12e"
+            },
+            {
+              "key": "type",
+              "value": "Restaurant",
+              "type": "text",
+              "uuid": "dd2f20fc-fb97-47fe-ae77-389b8d162fec"
+            },
+            {
+              "key": "address",
+              "value": "Khaleej Mall, CV Jn., Ponnani ",
+              "type": "text",
+              "uuid": "bc699494-32ac-41b4-9d29-2298f49a0681"
+            },
+            {
+              "key": "phone",
+              "value": "9988778899",
+              "type": "text",
+              "uuid": "87da5429-804e-4f8d-a4d1-abb9850ce078"
+            },
+            {
+              "key": "lat",
+              "value": "10.7823208",
+              "type": "text",
+              "uuid": "1fffa6cc-5980-4d4f-8d50-e8bf63654a89"
+            },
+            {
+              "key": "lng",
+              "value": "75.9405902",
+              "type": "text",
+              "uuid": "9bd8dd1d-cedc-4b87-ba66-3bd52565ece7"
+            },
+            {
+              "key": "description",
+              "value": "",
+              "type": "text",
+              "uuid": "9ad421d4-8f51-4044-b1da-f3289ae89704"
+            },
+            {
+              "key": "available_dishes",
+              "value": "Chicken Shawarma Roll, Chicken Shawarma Plate",
+              "type": "text",
+              "uuid": "479776e6-146a-41d4-920d-05f8c2357697"
+            },
+            {
+              "key": "restaurant_type",
+              "value": "Non Veg",
+              "type": "text",
+              "uuid": "ce2d933e-4e94-4db9-89fe-40d2c35f7e16"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/update",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "update"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Partner Update Services",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "banquet_service",
+              "value": "1",
+              "type": "text"
+            },
+            {
+              "key": "takeaway_service",
+              "value": "1",
+              "type": "text",
+              "uuid": "64d4069a-0320-4e24-ad14-d8ab8e25d791"
+            },
+            {
+              "key": "delivery_service",
+              "value": "1",
+              "type": "text",
+              "uuid": "dae35441-3d53-4ed5-989b-d8575245c06f"
+            },
+            {
+              "key": "delivery_service_area",
+              "value": "Ponnani",
+              "type": "text",
+              "uuid": "a4f65784-7a0d-49f9-b402-2a51ddedcdcc"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/update-services",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "update-services"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Partner Get Services",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/services",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "services"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Partner Analytics",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "start_date",
+              "value": "2026-05-01",
+              "type": "text"
+            },
+            {
+              "key": "end_date",
+              "value": "2026-05-29",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/analytics",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "analytics"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Restaurant Images Add",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "image",
+              "type": "file",
+              "uuid": "e7c9328a-cc33-41bb-a85f-c180f64b9a45",
+              "src": "/Users/suhail/Downloads/1628255235611.jpg"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/restaurant-images/create",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "restaurant-images",
+            "create"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Partner Profile",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "1|mOBDdbRRsP4PqNpRKlAsr4CaTgoc6BMAox6RoJyDbb62a07a",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": []
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/profile",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "profile"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Send Verification OTP",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/send-otp",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "send-otp"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Verify OTP",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "otp",
+              "value": "1212",
+              "description": "Test OTP is always 1212",
+              "type": "text",
+              "uuid": "6f28532e-3de5-470e-a332-f957efaa04d7"
+            },
+            {
+              "key": "otp_id",
+              "value": "cd1a0db6-a623-45a1-bee4-a205b361fe20",
+              "type": "text",
+              "uuid": "4235ef5e-aba3-4e12-9361-eed9a7d9e14b"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/verify-otp",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "verify-otp"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Forget Password - Find User",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "username",
+              "value": "suhu3515",
+              "type": "text"
+            },
+            {
+              "key": "email",
+              "value": "suhu3515@gmail.com",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/find-user",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "find-user"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Change Password",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "password",
+              "value": "suhail123",
+              "type": "text",
+              "uuid": "35c790d5-4685-4675-b454-380d53bed4a4"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/change-password",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "change-password"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Create Offer",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "discount_percentage",
+              "value": "50",
+              "type": "text",
+              "uuid": "94328ecc-14eb-4947-8f06-884830d2169a"
+            },
+            {
+              "key": "applicable_for",
+              "value": "entire_menu",
+              "type": "text",
+              "uuid": "b53d9856-f529-4071-a15e-8870595f0781"
+            },
+            {
+              "key": "dine_type",
+              "value": "Dine In,Take Away",
+              "description": "Pass values like this, (if there are more seperate by comma (,)",
+              "type": "text",
+              "uuid": "f4fbca49-eb3c-4a0e-8592-33f2886775da"
+            },
+            {
+              "key": "start_time",
+              "value": "10:00 AM",
+              "description": "Format hh:mm aa",
+              "type": "text",
+              "uuid": "e0c2cd22-e2ec-4995-8168-f2e15f91a167"
+            },
+            {
+              "key": "end_time",
+              "value": "11:50 PM",
+              "description": "Format hh:mm aa",
+              "type": "text",
+              "uuid": "56778ab7-273c-488a-b528-03c34592591c"
+            },
+            {
+              "key": "active_days",
+              "value": "Mon,Wed,Fri",
+              "description": "First 3 letters, multiple seperate by comma",
+              "type": "text",
+              "uuid": "1606a467-932f-4ad0-ab4f-dfea2e861914"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/offers/create",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "offers",
+            "create"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Update Offer",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "discount_percentage",
+              "value": "50",
+              "type": "text",
+              "uuid": "94328ecc-14eb-4947-8f06-884830d2169a"
+            },
+            {
+              "key": "applicable_for",
+              "value": "entire_menu",
+              "type": "text",
+              "uuid": "b53d9856-f529-4071-a15e-8870595f0781"
+            },
+            {
+              "key": "dine_type",
+              "value": "Dine In,Take Away",
+              "description": "Pass values like this, (if there are more seperate by comma (,)",
+              "type": "text",
+              "uuid": "f4fbca49-eb3c-4a0e-8592-33f2886775da"
+            },
+            {
+              "key": "start_time",
+              "value": "10:00 AM",
+              "description": "Format hh:mm aa",
+              "type": "text",
+              "uuid": "e0c2cd22-e2ec-4995-8168-f2e15f91a167"
+            },
+            {
+              "key": "end_time",
+              "value": "11:50 PM",
+              "description": "Format hh:mm aa",
+              "type": "text",
+              "uuid": "56778ab7-273c-488a-b528-03c34592591c"
+            },
+            {
+              "key": "active_days",
+              "value": "Mon,Wed,Fri",
+              "description": "First 3 letters, multiple seperate by comma",
+              "type": "text",
+              "uuid": "1606a467-932f-4ad0-ab4f-dfea2e861914"
+            },
+            {
+              "key": "offer_id",
+              "value": "5299e4f6-0d80-4515-be00-ccc02c38b4231",
+              "type": "text",
+              "uuid": "43e3d1f4-f27c-4f64-afe2-f3a6c3deeee7"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/offers/update",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "offers",
+            "update"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "List Offers",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/offers/all",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "offers",
+            "all"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Active Offers",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/offers/active",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "offers",
+            "active"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Inactive Offers",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/offers/inactive",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "offers",
+            "inactive"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Offer Status Change",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "offer_id",
+              "value": "53d87267-09a8-4b9e-8461-8e25e17fd15b",
+              "type": "text",
+              "uuid": "3084e984-2228-4014-918a-77a4ad74c44b"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/offers/update-status",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "offers",
+            "update-status"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Offer Details",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "offer_id",
+              "value": "53d87267-09a8-4b9e-8461-8e25e17fd15b",
+              "type": "text",
+              "uuid": "35c790d5-4685-4675-b454-380d53bed4a4"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/offers/show",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "offers",
+            "show"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Offer Delete",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "offer_id",
+              "value": "53d87267-09a8-4b9e-8461-8e25e17fd15b",
+              "type": "text",
+              "uuid": "35c790d5-4685-4675-b454-380d53bed4a4"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/offers/delete",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "offers",
+            "delete"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PDF Menu - Upload",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "menu_name",
+              "value": "Test Menu",
+              "type": "text",
+              "uuid": "f126bc27-e40e-45b4-9a67-7a21017f1aab"
+            },
+            {
+              "key": "pdf_file",
+              "type": "file",
+              "uuid": "7413d149-b91d-4b97-aa1a-f22bd4d27e31",
+              "src": "/Users/suhail/Downloads/dummy.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/pdf-menus/upload",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "pdf-menus",
+            "upload"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PDF Menu - Update",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "menu_id",
+              "value": "141366d8-4897-4c6e-9baf-46ad14b30839",
+              "type": "text",
+              "uuid": "35c790d5-4685-4675-b454-380d53bed4a4"
+            },
+            {
+              "key": "menu_name",
+              "value": "Test 1",
+              "type": "text",
+              "uuid": "097232c5-7662-4ace-ae63-c471bf8cbb94"
+            },
+            {
+              "key": "pdf_file",
+              "type": "file",
+              "uuid": "05020a12-6e77-47ef-a18d-717c93d12d73",
+              "src": "/Users/suhail/Downloads/dummy.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/pdf-menus/update",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "pdf-menus",
+            "update"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PDF Menu - Delete",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "menu_id",
+              "value": "141366d8-4897-4c6e-9baf-46ad14b30839",
+              "type": "text",
+              "uuid": "35c790d5-4685-4675-b454-380d53bed4a4"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/pdf-menus/delete",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "pdf-menus",
+            "delete"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PDF Menu - List",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/pdf-menus/all",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "pdf-menus",
+            "all"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Individual Menu - List",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/individual-menus/all",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "individual-menus",
+            "all"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Individual Menu - Create",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "item_name",
+              "value": "Biryani",
+              "type": "text",
+              "uuid": "ec131e21-ce5e-42f1-b54d-cd20a7a26ffa"
+            },
+            {
+              "key": "item_price",
+              "value": "120",
+              "type": "text",
+              "uuid": "4664ea7b-9b23-4efb-b1eb-b49ab57bb54b"
+            },
+            {
+              "key": "item_description",
+              "value": "Test",
+              "type": "text",
+              "uuid": "23080c8d-85a5-4922-9ad6-8fea3945c245"
+            },
+            {
+              "key": "item_image",
+              "type": "file",
+              "uuid": "a4f01941-cfb9-403d-8a61-aae18947c879",
+              "src": "/Users/suhail/Desktop/Screenshot 2025-06-30 at 11.12.15 AM.png"
+            },
+            {
+              "key": "item_category",
+              "value": "Main Course",
+              "type": "text",
+              "uuid": "beddff93-ce44-46de-a874-9bf096d2f28d"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/individual-menus/create",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "individual-menus",
+            "create"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Individual Menu - Update",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "item_name",
+              "value": "Chicken Biryani",
+              "type": "text",
+              "uuid": "ec131e21-ce5e-42f1-b54d-cd20a7a26ffa"
+            },
+            {
+              "key": "item_price",
+              "value": "100",
+              "type": "text",
+              "uuid": "4664ea7b-9b23-4efb-b1eb-b49ab57bb54b"
+            },
+            {
+              "key": "item_description",
+              "value": "Test",
+              "type": "text",
+              "uuid": "23080c8d-85a5-4922-9ad6-8fea3945c245"
+            },
+            {
+              "key": "item_image",
+              "type": "file",
+              "uuid": "a4f01941-cfb9-403d-8a61-aae18947c879",
+              "src": "/Users/suhail/Desktop/Screenshot 2025-06-30 at 11.12.15 AM.png"
+            },
+            {
+              "key": "item_category",
+              "value": "Main Course",
+              "type": "text",
+              "uuid": "beddff93-ce44-46de-a874-9bf096d2f28d"
+            },
+            {
+              "key": "menu_id",
+              "value": "46306590-2601-4f51-9e4f-ecc8f8bec881",
+              "type": "text",
+              "uuid": "4ba29f90-7bec-4d0f-94d5-75d142064f43"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/individual-menus/update",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "individual-menus",
+            "update"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Individual Menu - Delete",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "menu_id",
+              "value": "46306590-2601-4f51-9e4f-ecc8f8bec881",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/individual-menus/delete",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "individual-menus",
+            "delete"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Google Maps Search",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "otp",
+              "value": "1212",
+              "description": "Test OTP is always 1212",
+              "type": "text",
+              "uuid": "6f28532e-3de5-470e-a332-f957efaa04d7"
+            },
+            {
+              "key": "otp_id",
+              "value": "844c0e8f-55be-46e1-a9ce-17969a0a3b7c",
+              "type": "text",
+              "uuid": "4235ef5e-aba3-4e12-9361-eed9a7d9e14b"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/places/search?input=Shawarma Shack",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "places",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "input",
+              "value": "Shawarma Shack"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Google Maps Place Details",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "otp",
+              "value": "1212",
+              "description": "Test OTP is always 1212",
+              "type": "text",
+              "uuid": "6f28532e-3de5-470e-a332-f957efaa04d7"
+            },
+            {
+              "key": "otp_id",
+              "value": "844c0e8f-55be-46e1-a9ce-17969a0a3b7c",
+              "type": "text",
+              "uuid": "4235ef5e-aba3-4e12-9361-eed9a7d9e14b"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/places/details?place_id=ChIJGR2dqDG8pzsRsO9qV_QGEvg",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "places",
+            "details"
+          ],
+          "query": [
+            {
+              "key": "place_id",
+              "value": "ChIJGR2dqDG8pzsRsO9qV_QGEvg"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reservations - Processing",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/reservations/processing",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "reservations",
+            "processing"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reservations - Confirmed",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/reservations/confirmed",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "reservations",
+            "confirmed"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reservations - Completed",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/reservations/completed?start_date=2026-01-01&end_date=2026-05-03",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "reservations",
+            "completed"
+          ],
+          "query": [
+            {
+              "key": "start_date",
+              "value": "2026-01-01",
+              "type": "text"
+            },
+            {
+              "key": "end_date",
+              "value": "2026-05-03",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reservations - Cancelled",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/reservations/cancelled",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "reservations",
+            "cancelled"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reservations - Search",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api/partner/reservations/search?id=003216",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "reservations",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "003216"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reservations - Update Status",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reservation_id",
+              "value": "cc71f8ca-9166-45e6-8a64-826d44d2e47b",
+              "type": "text",
+              "uuid": "bbc786df-9e6f-454c-af59-7569cabc4fb7"
+            },
+            {
+              "key": "status",
+              "value": "Confirmed",
+              "type": "text",
+              "uuid": "b7a17b42-be3f-417e-9ffa-c4bf9cd5b899"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/reservations/update-status",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "reservations",
+            "update-status"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reservations - Complete",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reservation_id",
+              "value": "cc71f8ca-9166-45e6-8a64-826d44d2e47b",
+              "type": "text",
+              "uuid": "bbc786df-9e6f-454c-af59-7569cabc4fb7"
+            },
+            {
+              "key": "bill_amount",
+              "value": "1265",
+              "type": "text",
+              "uuid": "b7a17b42-be3f-417e-9ffa-c4bf9cd5b899"
+            },
+            {
+              "key": "bill_image",
+              "type": "file",
+              "uuid": "b3b31ce3-693d-4555-bd4f-5add53aa6105",
+              "src": "/C:/Users/elega/Downloads/bill.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/reservations/complete",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "reservations",
+            "complete"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Device Token (Firebase Notifications)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "device_token",
+              "value": "sjkdkksdsdnsmkdmskdnsjdnsnjdsn",
+              "type": "text",
+              "uuid": "392633b4-bfcf-4030-af16-2739d21895fe"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/device-token",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "device-token"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "All Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/all",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "all"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Confirmed Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/confirmed",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "confirmed"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Completed Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/completed",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "completed"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Saved Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/saved",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "saved"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Enquiries Search",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/search?id=003216",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "003216"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Deleted Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/deleted",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "deleted"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Enquiry",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/delete",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "delete"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Save Enquiry",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/save",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "save"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Show Enquiry",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/show",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "show"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Offer Discount -  Enquiry (Reply)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            },
+            {
+              "key": "amount",
+              "value": "1500",
+              "type": "text"
+            },
+            {
+              "key": "extra_offer",
+              "value": "5% off on drinks",
+              "type": "text"
+            },
+            {
+              "key": "comments",
+              "value": "Get better deals when you change it as reservation",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/offer-discount",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "offer-discount"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "All Sent Enquiries Replies",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/sent",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "sent"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Offered Discount -  Enquiry",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/delete-sent",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "delete-sent"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Enquiries - Complete",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reservation_id",
+              "value": "cc71f8ca-9166-45e6-8a64-826d44d2e47b",
+              "type": "text",
+              "uuid": "bbc786df-9e6f-454c-af59-7569cabc4fb7"
+            },
+            {
+              "key": "bill_amount",
+              "value": "1265",
+              "type": "text",
+              "uuid": "b7a17b42-be3f-417e-9ffa-c4bf9cd5b899"
+            },
+            {
+              "key": "bill_image",
+              "type": "file",
+              "uuid": "b3b31ce3-693d-4555-bd4f-5add53aa6105",
+              "src": "/C:/Users/elega/Downloads/bill.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/enquiry/reservation/complete",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "enquiry",
+            "reservation",
+            "complete"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "All Catering Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/all",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "all"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Confirmed Catering Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/confirmed",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "confirmed"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Completed Catering Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/completed",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "completed"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Saved Catering Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/saved",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "saved"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Deleted Catering Enquiries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/deleted",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "deleted"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Catering Enquiries Search",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/search?id=003216",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "id",
+              "value": "003216"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Catering Enquiry",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/delete",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "delete"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Save Catering Enquiry",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/save",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "save"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Show Catering Enquiry",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/show",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "show"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Offer Discount -  Catering Enquiry (Reply)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            },
+            {
+              "key": "amount",
+              "value": "1500",
+              "type": "text"
+            },
+            {
+              "key": "extra_offer",
+              "value": "5% off on drinks",
+              "type": "text"
+            },
+            {
+              "key": "comments",
+              "value": "Get better deals when you change it as reservation",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/offer-discount",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "offer-discount"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "All Sent Catering Enquiries Replies",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/sent",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "sent"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Offered Discount -  Catering Enquiry",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "enquiry_id",
+              "value": "2e3s-s42md-3dm3-dmd",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/delete-sent",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "delete-sent"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Catering Enquiries - Complete",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reservation_id",
+              "value": "cc71f8ca-9166-45e6-8a64-826d44d2e47b",
+              "type": "text",
+              "uuid": "bbc786df-9e6f-454c-af59-7569cabc4fb7"
+            },
+            {
+              "key": "bill_amount",
+              "value": "1265",
+              "type": "text",
+              "uuid": "b7a17b42-be3f-417e-9ffa-c4bf9cd5b899"
+            },
+            {
+              "key": "bill_image",
+              "type": "file",
+              "uuid": "b3b31ce3-693d-4555-bd4f-5add53aa6105",
+              "src": "/C:/Users/elega/Downloads/bill.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/catering-enquiry/reservation/complete",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "catering-enquiry",
+            "reservation",
+            "complete"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Save Notification Settings",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "remind_orders_in_10_mins",
+              "value": "1",
+              "type": "text"
+            },
+            {
+              "key": "party_orders",
+              "value": "0",
+              "type": "text",
+              "uuid": "dd58a0d7-edb3-4ce8-bf30-cdc91d5753d2"
+            },
+            {
+              "key": "remind_confirmed_orders",
+              "value": "1",
+              "type": "text",
+              "uuid": "41e1402d-a266-4281-83cb-06e18f406ad0"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/notification-settings/store",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "notification-settings",
+            "store"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Notification Settings",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/notification-settings",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "notification-settings"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseURL",
+      "value": "https://fudikko.bitwissenddev.in",
+      "type": "default"
+    }
+  ]
+}
