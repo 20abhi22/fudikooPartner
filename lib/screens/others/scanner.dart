@@ -1,75 +1,18 @@
-// lib/screens/others/scanner.dart
-// Only the _showResultDialog change is needed — rest of the file stays as-is.
-// Replace the "Done" TextButton's onPressed with the snippet below.
-
-// ── Inside _showResultDialog ────────────────────────────────────────────────
-//
-// Replace:
-//
-//   onPressed: () {
-//     Navigator.pop(context);
-//     Navigator.pushReplacement(
-//       context,
-//       MaterialPageRoute(builder: (context) => const Scanner2()),
-//     );
-//   },
-//
-// With:
-//
-//   onPressed: () {
-//     Navigator.pop(context);
-//     Navigator.pushReplacement(
-//       context,
-//       MaterialPageRoute(
-//         builder: (context) => Scanner2(
-//           reservationId: _scannedCode!,
-//           scannerType: ScannerType.restaurant, // change per flow
-//         ),
-//       ),
-//     );
-//   },
-//
-// ── Also fix firstOrNull ────────────────────────────────────────────────────
-//
-// Replace:
-//   final barcode = capture.barcodes.firstOrNull;
-//
-// With:
-//   final barcode = capture.barcodes.isNotEmpty ? capture.barcodes.first : null;
-//
-// ── Also fix tap-to-start ──────────────────────────────────────────────────
-//
-// Replace:
-//   onTap: () => setState(() => _isScanning = true),
-//
-// With:
-//   onTap: () async {
-//     setState(() => _isScanning = true);
-//     await _controller.start();
-//   },
-//
-// ── Also fix Scan Again ────────────────────────────────────────────────────
-//
-// Replace:
-//   _controller.start();
-//
-// With:
-//   await _controller.start();
-// And make onPressed async:
-//   onPressed: () async { ... }
-
-// ── Full corrected scanner.dart ─────────────────────────────────────────────
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/services/scanner_service.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fudiko/screens/others/scanner2.dart';
 
 class Scanner extends StatefulWidget {
-  const Scanner({super.key});
+  final ScannerType scannerType;
+
+  const Scanner({super.key, this.scannerType = ScannerType.restaurant});
 
   @override
   State<Scanner> createState() => _ScannerState();
@@ -77,9 +20,13 @@ class Scanner extends StatefulWidget {
 
 class _ScannerState extends State<Scanner> {
   final MobileScannerController _controller = MobileScannerController();
+  final ScannerVerificationService _verificationService =
+      ScannerVerificationService();
   bool _isScanning = false;
   bool _torchOn = false;
+  bool _isResolvingCode = false;
   String? _scannedCode;
+  _ScanPayload? _scanPayload;
 
   @override
   void dispose() {
@@ -88,8 +35,9 @@ class _ScannerState extends State<Scanner> {
   }
 
   Future<void> _pickFromGallery() async {
-    final XFile? image = await ImagePicker()
-        .pickImage(source: ImageSource.gallery);
+    final XFile? image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
     if (image == null) return;
 
     final result = await _controller.analyzeImage(image.path);
@@ -103,24 +51,96 @@ class _ScannerState extends State<Scanner> {
 
     final code = result.barcodes.first.rawValue;
     if (code != null) {
-      setState(() => _scannedCode = code);
-      _showResultDialog(code);
+      await _handleScannedCode(code);
     }
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (_scannedCode != null) return;
+    if (_scannedCode != null || _isResolvingCode) return;
     // firstOrNull requires package:collection — use isNotEmpty instead
-    final barcode =
-        capture.barcodes.isNotEmpty ? capture.barcodes.first : null;
+    final barcode = capture.barcodes.isNotEmpty ? capture.barcodes.first : null;
     if (barcode?.rawValue != null) {
-      setState(() => _scannedCode = barcode!.rawValue);
       _controller.stop();
-      _showResultDialog(_scannedCode!);
+      _handleScannedCode(barcode!.rawValue!);
     }
   }
 
-  void _showResultDialog(String code) {
+  Future<bool> _handleScannedCode(String code) async {
+    setState(() => _isResolvingCode = true);
+
+    final payload = await _resolveScanPayload(code);
+
+    if (!mounted) return false;
+    setState(() => _isResolvingCode = false);
+
+    if (payload == null) {
+      if (_isScanning) await _controller.start();
+      if (!mounted) return false;
+      setState(() => _scannedCode = null);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Invalid QR code")));
+      return false;
+    }
+
+    setState(() {
+      _scannedCode = code;
+      _scanPayload = payload;
+    });
+    _showResultDialog(payload);
+    return true;
+  }
+
+  Future<_ScanPayload?> _resolveScanPayload(String code) async {
+    final verificationUrl = _verificationUrlFromQrCode(code);
+    if (verificationUrl != null) {
+      final result = await _verificationService.verify(verificationUrl);
+      switch (result) {
+        case ScannerVerifySuccess(:final data):
+          return _ScanPayload.fromVerifiedJson(
+            data,
+            fallbackType: widget.scannerType,
+          );
+        case ScannerVerifyFailure(:final message):
+          if (!mounted) return null;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
+          return null;
+      }
+    }
+
+    final localPayload = _ScanPayload.fromQrCode(
+      code,
+      fallbackType: widget.scannerType,
+    );
+    return localPayload;
+  }
+
+  String? _verificationUrlFromQrCode(String code) {
+    final trimmed = code.trim();
+    final uri = Uri.tryParse(trimmed);
+    if (uri != null &&
+        uri.hasScheme &&
+        uri.host.isNotEmpty &&
+        uri.path.contains('verify')) {
+      return trimmed;
+    }
+
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map) {
+        final verificationUrl = decoded['verification_url']?.toString().trim();
+        if (verificationUrl != null && verificationUrl.isNotEmpty) {
+          return verificationUrl;
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  void _showResultDialog(_ScanPayload payload) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -145,7 +165,7 @@ class _ScannerState extends State<Scanner> {
               ),
               SizedBox(height: 10.h),
               AppText(
-                text: code,
+                text: payload.displayText,
                 size: 14,
                 fontWeight: FontWeight.w500,
                 color: appTextColor2,
@@ -158,7 +178,10 @@ class _ScannerState extends State<Scanner> {
                     child: TextButton(
                       onPressed: () async {
                         Navigator.pop(context);
-                        setState(() => _scannedCode = null);
+                        setState(() {
+                          _scannedCode = null;
+                          _scanPayload = null;
+                        });
                         await _controller.start();
                       },
                       child: Text(
@@ -170,13 +193,15 @@ class _ScannerState extends State<Scanner> {
                   Expanded(
                     child: TextButton(
                       onPressed: () {
+                        final scan = _scanPayload;
+                        if (scan == null) return;
                         Navigator.pop(context);
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                             builder: (_) => Scanner2(
-                              reservationId: _scannedCode!,
-                              scannerType: ScannerType.restaurant,
+                              reservationId: scan.reservationUuid,
+                              scannerType: scan.scannerType,
                             ),
                           ),
                         );
@@ -250,7 +275,9 @@ class _ScannerState extends State<Scanner> {
                 ),
                 SizedBox(height: 50.h),
                 AppText(
-                  text: _isScanning
+                  text: _isResolvingCode
+                      ? "Verifying coupon..."
+                      : _isScanning
                       ? "Point camera at QR code"
                       : "Tap to start scanning",
                   size: 16,
@@ -299,5 +326,99 @@ class _ScannerState extends State<Scanner> {
         ],
       ),
     );
+  }
+}
+
+class _ScanPayload {
+  final String reservationUuid;
+  final String displayText;
+  final ScannerType scannerType;
+
+  const _ScanPayload({
+    required this.reservationUuid,
+    required this.displayText,
+    required this.scannerType,
+  });
+
+  static _ScanPayload? fromQrCode(
+    String rawCode, {
+    required ScannerType fallbackType,
+  }) {
+    final trimmed = rawCode.trim();
+    if (trimmed.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map) {
+        final json = Map<String, dynamic>.from(decoded);
+        final reservationRaw = json['reservation'];
+        final reservation = reservationRaw is Map
+            ? Map<String, dynamic>.from(reservationRaw)
+            : null;
+
+        final uuid = reservation?['uuid']?.toString().trim();
+        if (uuid == null || uuid.isEmpty) return null;
+
+        final type =
+            _scannerTypeFromQrType(json['type']?.toString()) ?? fallbackType;
+        final reservationId = reservation?['reservation_id']?.toString();
+
+        return _ScanPayload(
+          reservationUuid: uuid,
+          scannerType: type,
+          displayText: reservationId == null || reservationId.isEmpty
+              ? uuid
+              : reservationId,
+        );
+      }
+    } catch (_) {
+      // Older QR codes may contain only the UUID.
+    }
+
+    return _ScanPayload(
+      reservationUuid: trimmed,
+      scannerType: fallbackType,
+      displayText: trimmed,
+    );
+  }
+
+  static _ScanPayload? fromVerifiedJson(
+    Map<String, dynamic> json, {
+    required ScannerType fallbackType,
+  }) {
+    final reservationRaw = json['reservation'];
+    final reservation = reservationRaw is Map
+        ? Map<String, dynamic>.from(reservationRaw)
+        : null;
+
+    final uuid = reservation?['uuid']?.toString().trim();
+    if (uuid == null || uuid.isEmpty) return null;
+
+    final type =
+        _scannerTypeFromQrType(json['type']?.toString()) ?? fallbackType;
+    final reservationId = reservation?['reservation_id']?.toString();
+
+    return _ScanPayload(
+      reservationUuid: uuid,
+      scannerType: type,
+      displayText: reservationId == null || reservationId.isEmpty
+          ? uuid
+          : reservationId,
+    );
+  }
+
+  static ScannerType? _scannerTypeFromQrType(String? type) {
+    switch (type?.trim().toLowerCase()) {
+      case 'reservation':
+        return ScannerType.restaurant;
+      case 'enquiry':
+        return ScannerType.banquet;
+      case 'catering-enquiry':
+      case 'catering_enquiry':
+      case 'catering':
+        return ScannerType.catering;
+      default:
+        return null;
+    }
   }
 }

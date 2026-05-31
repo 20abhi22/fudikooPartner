@@ -41,10 +41,10 @@ class _Scanner2State extends State<Scanner2> {
 
   // Pick the correct service based on scanner type
   BaseScannerService get _service => switch (widget.scannerType) {
-        ScannerType.restaurant => RestaurantScannerService(),
-        ScannerType.banquet => BanquetScannerService(),
-        ScannerType.catering => CateringScannerService(),
-      };
+    ScannerType.restaurant => RestaurantScannerService(),
+    ScannerType.banquet => BanquetScannerService(),
+    ScannerType.catering => CateringScannerService(),
+  };
 
   @override
   void dispose() {
@@ -135,15 +135,22 @@ class _Scanner2State extends State<Scanner2> {
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => MainNavPage()),
+        MaterialPageRoute(
+          builder: (_) => MainNavPage(initialIndex: _homeTabIndex),
+        ),
         (route) => false,
       );
     });
   }
 
+  int get _homeTabIndex => switch (widget.scannerType) {
+    ScannerType.restaurant => 0,
+    ScannerType.banquet => 1,
+    ScannerType.catering => 3,
+  };
+
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────────
@@ -278,10 +285,7 @@ class _BillPreview extends StatelessWidget {
             child: Image.file(File(imagePath), fit: BoxFit.cover),
           ),
         ),
-        TextButton(
-          onPressed: onRemove,
-          child: const Text('Remove photo'),
-        ),
+        TextButton(onPressed: onRemove, child: const Text('Remove photo')),
       ],
     );
   }

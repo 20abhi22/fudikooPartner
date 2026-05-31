@@ -81,7 +81,7 @@ final String commentIcon = 'assets/icons/inbox/comment_icon.png';
 //meucard icons
 final String uploadIcon = 'assets/icons/common/upload_menu.png';
 
-final Color banquetTagIconColor = Color(0xFF4D4D4D);
+final Color banquetTagIconColor = Color.fromARGB(255, 0, 0, 0);
 final Color banquetOfferIconColor = Color(0xFF73B256);
 final Color offerTextColor = Color(0xFFFF8319);
 final Color offerPageTextColor = Color(0xFF1E1E1A);

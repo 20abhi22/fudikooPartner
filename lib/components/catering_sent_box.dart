@@ -33,7 +33,9 @@ class CateringSentBox extends StatelessWidget {
 
     for (final pattern in ["yyyy-MM-dd", "dd-MM-yyyy", "MM/dd/yyyy"]) {
       try {
-        return DateFormat(format).format(DateFormat(pattern).parseStrict(rawDate));
+        return DateFormat(
+          format,
+        ).format(DateFormat(pattern).parseStrict(rawDate));
       } catch (_) {}
     }
 
@@ -48,7 +50,9 @@ class CateringSentBox extends StatelessWidget {
 
     for (final pattern in ["HH:mm:ss", "HH:mm", "hh:mm a", "h:mm a"]) {
       try {
-        return DateFormat('hh:mm a').format(DateFormat(pattern).parseStrict(rawTime));
+        return DateFormat(
+          'hh:mm a',
+        ).format(DateFormat(pattern).parseStrict(rawTime));
       } catch (_) {}
     }
 
@@ -107,44 +111,46 @@ class CateringSentBox extends StatelessWidget {
                                     ),
                                   ),
                                   SizedBox(width: 5.w),
+
                                   // TO THIS
+                                  Flexible(
+                                    child: FutureBuilder<String>(
+                                      future: TranslatorService.translate(
+                                        'rupees Per Person',
+                                      ),
+                                      builder: (context, snapshot) {
+                                        final translated =
+                                            snapshot.data ??
+                                            'rupees Per Person';
 
-Flexible(
-  child: FutureBuilder<String>(
-    future: TranslatorService.translate(
-      'rupees Per Person',
-    ),
-    builder: (context, snapshot) {
-      final translated =
-          snapshot.data ?? 'rupees Per Person';
+                                        return Row(
+                                          children: [
+                                            AppText(
+                                              text: enquiry!.amount,
+                                              size: 14,
+                                              fontWeight: FontWeight.w400,
+                                              color: appTextColor5,
+                                            ),
 
-      return Row(
-        children: [
-          AppText(
-            text: enquiry!.amount,
-            size: 14,
-            fontWeight: FontWeight.w400,
-            color: appTextColor5,
-          ),
+                                            SizedBox(width: 3.w),
 
-          SizedBox(width: 3.w),
-
-          AppText(
-            text: translated,
-            size: 14,
-            fontWeight: FontWeight.w400,
-            color: appTextColor5,
-          ),
-        ],
-      );
-    },
-  ),
-),
+                                            AppText(
+                                              text: translated,
+                                              size: 14,
+                                              fontWeight: FontWeight.w400,
+                                              color: appTextColor5,
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
                                 ],
                               )
                             : SizedBox.shrink(),
                         SizedBox(height: 10.h),
-                        enquiry?.extraOffer != null && enquiry!.extraOffer.isNotEmpty
+                        enquiry?.extraOffer != null &&
+                                enquiry!.extraOffer.isNotEmpty
                             ? Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -162,7 +168,7 @@ Flexible(
                                   SizedBox(width: 5.w),
                                   Flexible(
                                     child: AppText(
-                                      text:enquiry!.extraOffer,
+                                      text: enquiry!.extraOffer,
                                       size: 14.sp,
                                       fontWeight: FontWeight.w500,
                                       color: appTextColor5,
@@ -172,7 +178,8 @@ Flexible(
                               )
                             : SizedBox.shrink(),
                         SizedBox(height: 10.h),
-                        enquiry?.comments != null && enquiry!.comments.isNotEmpty
+                        enquiry?.comments != null &&
+                                enquiry!.comments.isNotEmpty
                             ? Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -193,7 +200,7 @@ Flexible(
                                       text: enquiry!.comments,
                                       size: 15.sp,
                                       fontWeight: FontWeight.w400,
-                                        color: appTextColor5,
+                                      color: appTextColor5,
                                       softWrap: true,
                                     ),
                                   ),

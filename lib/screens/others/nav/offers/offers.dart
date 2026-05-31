@@ -504,273 +504,275 @@ class _OffersState extends State<Offers> implements TabBackHandler {
               ),
             ),
       body: !isOpen && !isEditOpen
-          ? Stack(
-              children: [
-                if (isLoading)
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height.h,
-                    width: MediaQuery.of(context).size.width.w,
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                CustomScrollView(
-                  slivers: [
-                    // Banner that scrolls away
-                    SliverAppBar(
-                      backgroundColor: appSecondaryBackgroundColor,
-                      elevation: 0,
-                      pinned: false,
-                      floating: false,
-                      toolbarHeight: 0,
-                      collapsedHeight: 0,
-                      expandedHeight: 150.h,
-                      flexibleSpace: FlexibleSpaceBar(
-                        background: Padding(
-                          padding: EdgeInsets.only(
-                            left: 20.w,
-                            right: 20.w,
-                            top: 20.h,
-                          ),
-                          child: _offerBanner(),
-                        ),
-                      ),
+          ? SafeArea(
+            child: Stack(
+                children: [
+                  if (isLoading)
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height.h,
+                      width: MediaQuery.of(context).size.width.w,
+                      child: const Center(child: CircularProgressIndicator()),
                     ),
-                    // Filter bar that becomes sticky
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _StickyFilterBarDelegate(
-                        child: Container(
-                          color: Colors.transparent,
-                          padding: EdgeInsets.only(
-                            left: 75.w,
-                            right: 75.w,
-                            top: 10.h,
-                            bottom: 10.h,
-                          ),
-                          child: SizedBox(
-                            width: 250.w,
-                            child: AppFilterDropDown(
-                              fieldBorderRadius: 6.r,
-                              hint: selectedOption,
-                              iconImage: "assets/images/filter_icon.png",
-                              // icon: Icons.tune,
-                              toogleDropdown: () {
-                                showModalBottomSheet(
-                                  backgroundColor: Colors.white,
-                                  context: context,
-                                  isScrollControlled: true,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(10.r),
-                                    ),
-                                  ),
-                                  builder: (context) {
-                                    return Padding(
-                                      padding: EdgeInsets.all(30.w),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            width: 40.w,
-                                            height: 5.h,
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[300],
-                                              borderRadius:
-                                                  BorderRadius.circular(10.r),
-                                            ),
-                                          ),
-                                          SizedBox(height: 16.h),
-                                          Container(
-                                            width: MediaQuery.of(
-                                              context,
-                                            ).size.width,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(20.r),
-                                            ),
-                                            padding: EdgeInsets.all(16.w),
-                                            child: Column(
-                                              children: [
-                                                Divider(
-                                                  color: Colors.grey[200],
-                                                ),
-                                                SizedBox(height: 10.h),
-                                                GestureDetector(
-                                                  onTap: () async {
-                                                    setState(() {
-                                                      selectedOption = "Active";
-                                                    });
-                                                    Navigator.pop(context);
-                                                    await getOffers();
-                                                  },
-                                                  child: AppText(
-                                                    text: "Active",
-                                                    size: 15,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: Colors.black,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 10.h),
-                                                Divider(
-                                                  color: Colors.grey[200],
-                                                ),
-                                                SizedBox(height: 10.h),
-                                                GestureDetector(
-                                                  onTap: () async {
-                                                    setState(() {
-                                                      selectedOption =
-                                                          "InActive";
-                                                    });
-                                                    Navigator.pop(context);
-                                                    await getOffers();
-                                                  },
-                                                  child: AppText(
-                                                    text: "InActive",
-                                                    size: 15,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: Colors.black,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 10.h),
-                                                Divider(
-                                                  color: Colors.grey[200],
-                                                ),
-                                                SizedBox(height: 10.h),
-                                                GestureDetector(
-                                                  onTap: () async {
-                                                    setState(() {
-                                                      selectedOption =
-                                                          "Both Active & InActive";
-                                                    });
-                                                    Navigator.pop(context);
-                                                    await getOffers();
-                                                  },
-                                                  child: AppText(
-                                                    text:
-                                                        "Both Active & InActive",
-                                                    size: 15,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: Colors.black,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 10.h),
-                                                Divider(
-                                                  color: Colors.grey[200],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Content list
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 20.w, right: 20.w),
-                        child: SizedBox(height: 10.h),
-                      ),
-                    ),
-                    if (hasItem)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 20.w, right: 20.w),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  AppText(
-                                    text: "Total",
-                                    size: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF9C7777),
-                                  ),
-                                  AppText(
-                                    text: " ${offerList.length}",
-                                    size: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFFC91919),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 25.h),
-                            ],
-                          ),
-                        ),
-                      ),
-                    if (offerList.isNotEmpty)
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final offer = offerList[index];
-                          return Padding(
+                  CustomScrollView(
+                    slivers: [
+                      // Banner that scrolls away
+                      SliverAppBar(
+                        backgroundColor: appSecondaryBackgroundColor,
+                        elevation: 0,
+                        pinned: false,
+                        floating: false,
+                        toolbarHeight: 0,
+                        collapsedHeight: 0,
+                        expandedHeight: 150.h,
+                        flexibleSpace: FlexibleSpaceBar(
+                          background: Padding(
                             padding: EdgeInsets.only(
                               left: 20.w,
                               right: 20.w,
-                              bottom: 16.h,
+                              top: 20.h,
                             ),
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedOffer = offer;
-                                });
-                                showOfferDetailModal(context, selectedOffer!);
-                              },
-                              child: OfferCard(
-                                percentage: offer.discountPercentage,
-                                applicableFor: offer.applicableFor,
-                                dineType: offer.dineType,
-                                startTime: offer.startTime,
-                                endTime: offer.endTime,
-                                activeDays: offer.activeDays,
-                                status: offer.status,
-                                uuid: offer.uuid,
-                                url: 'assets/images/discountbanner2.png',
-                                deleteOnTap: () {
-                                  setState(() {
-                                    isDeletePressed = !isDeletePressed;
-                                    selecteduuid = offer.uuid;
-                                  });
-                                },
-                                editOnTap: () {
-                                  setState(() {
-                                    isEditingPressed = !isEditingPressed;
-                                    selectedOffer = offer;
-                                    selecteduuid = offer.uuid;
-                                    isEditOpen = !isEditOpen;
-                                  });
-                                  _setDefaultsFromOffer();
-                                },
-                              ),
-                            ),
-                          );
-                        }, childCount: offerList.length),
-                      )
-                    else if (!isLoading)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 20.w, right: 20.w),
-                          child: AppText(
-                            text: "No Offers in $selectedOption section",
-                            size: 15,
-                            fontWeight: FontWeight.w600,
-                            color: appTextColor2,
+                            child: _offerBanner(),
                           ),
                         ),
                       ),
-                    SliverToBoxAdapter(child: SizedBox(height: 30.h)),
-                  ],
-                ),
-                if (isDeletePressed) _deleteWidget(),
-              ],
-            )
+                      // Filter bar that becomes sticky
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _StickyFilterBarDelegate(
+                          child: Container(
+                            color: Colors.transparent,
+                            padding: EdgeInsets.only(
+                              left: 75.w,
+                              right: 75.w,
+                              top: 10.h,
+                              bottom: 10.h,
+                            ),
+                            child: SizedBox(
+                              width: 250.w,
+                              child: AppFilterDropDown(
+                                fieldBorderRadius: 6.r,
+                                hint: selectedOption,
+                                iconImage: "assets/images/filter_icon.png",
+                                // icon: Icons.tune,
+                                toogleDropdown: () {
+                                  showModalBottomSheet(
+                                    backgroundColor: Colors.white,
+                                    context: context,
+                                    isScrollControlled: true,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(10.r),
+                                      ),
+                                    ),
+                                    builder: (context) {
+                                      return Padding(
+                                        padding: EdgeInsets.all(30.w),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 40.w,
+                                              height: 5.h,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[300],
+                                                borderRadius:
+                                                    BorderRadius.circular(10.r),
+                                              ),
+                                            ),
+                                            SizedBox(height: 16.h),
+                                            Container(
+                                              width: MediaQuery.of(
+                                                context,
+                                              ).size.width,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(20.r),
+                                              ),
+                                              padding: EdgeInsets.all(16.w),
+                                              child: Column(
+                                                children: [
+                                                  Divider(
+                                                    color: Colors.grey[200],
+                                                  ),
+                                                  SizedBox(height: 10.h),
+                                                  GestureDetector(
+                                                    onTap: () async {
+                                                      setState(() {
+                                                        selectedOption = "Active";
+                                                      });
+                                                      Navigator.pop(context);
+                                                      await getOffers();
+                                                    },
+                                                    child: AppText(
+                                                      text: "Active",
+                                                      size: 15,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 10.h),
+                                                  Divider(
+                                                    color: Colors.grey[200],
+                                                  ),
+                                                  SizedBox(height: 10.h),
+                                                  GestureDetector(
+                                                    onTap: () async {
+                                                      setState(() {
+                                                        selectedOption =
+                                                            "InActive";
+                                                      });
+                                                      Navigator.pop(context);
+                                                      await getOffers();
+                                                    },
+                                                    child: AppText(
+                                                      text: "InActive",
+                                                      size: 15,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 10.h),
+                                                  Divider(
+                                                    color: Colors.grey[200],
+                                                  ),
+                                                  SizedBox(height: 10.h),
+                                                  GestureDetector(
+                                                    onTap: () async {
+                                                      setState(() {
+                                                        selectedOption =
+                                                            "Both Active & InActive";
+                                                      });
+                                                      Navigator.pop(context);
+                                                      await getOffers();
+                                                    },
+                                                    child: AppText(
+                                                      text:
+                                                          "Both Active & InActive",
+                                                      size: 15,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 10.h),
+                                                  Divider(
+                                                    color: Colors.grey[200],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Content list
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.only(left: 20.w, right: 20.w),
+                          child: SizedBox(height: 10.h),
+                        ),
+                      ),
+                      if (hasItem)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 20.w, right: 20.w),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    AppText(
+                                      text: "Total",
+                                      size: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF9C7777),
+                                    ),
+                                    AppText(
+                                      text: " ${offerList.length}",
+                                      size: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFFC91919),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 25.h),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (offerList.isNotEmpty)
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate((context, index) {
+                            final offer = offerList[index];
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                left: 20.w,
+                                right: 20.w,
+                                bottom: 16.h,
+                              ),
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedOffer = offer;
+                                  });
+                                  showOfferDetailModal(context, selectedOffer!);
+                                },
+                                child: OfferCard(
+                                  percentage: offer.discountPercentage,
+                                  applicableFor: offer.applicableFor,
+                                  dineType: offer.dineType,
+                                  startTime: offer.startTime,
+                                  endTime: offer.endTime,
+                                  activeDays: offer.activeDays,
+                                  status: offer.status,
+                                  uuid: offer.uuid,
+                                  url: 'assets/images/discountbanner2.png',
+                                  deleteOnTap: () {
+                                    setState(() {
+                                      isDeletePressed = !isDeletePressed;
+                                      selecteduuid = offer.uuid;
+                                    });
+                                  },
+                                  editOnTap: () {
+                                    setState(() {
+                                      isEditingPressed = !isEditingPressed;
+                                      selectedOffer = offer;
+                                      selecteduuid = offer.uuid;
+                                      isEditOpen = !isEditOpen;
+                                    });
+                                    _setDefaultsFromOffer();
+                                  },
+                                ),
+                              ),
+                            );
+                          }, childCount: offerList.length),
+                        )
+                      else if (!isLoading)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 20.w, right: 20.w),
+                            child: AppText(
+                              text: "No Offers in $selectedOption section",
+                              size: 15,
+                              fontWeight: FontWeight.w600,
+                              color: appTextColor2,
+                            ),
+                          ),
+                        ),
+                      SliverToBoxAdapter(child: SizedBox(height: 30.h)),
+                    ],
+                  ),
+                  if (isDeletePressed) _deleteWidget(),
+                ],
+              ),
+          )
           : isOpen
           ? SingleChildScrollView(child: _discountCreatePage())
           : SingleChildScrollView(child: _discountEditPage()),

@@ -10,7 +10,6 @@ import 'package:dio/dio.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/models/scanner/scanner_complete_model.dart';
 import 'package:fudiko/utils/tokens.dart';
-import 'package:http_parser/http_parser.dart';
 
 /// Sealed class lets callers pattern-match success vs failure without
 /// catching exceptions in the UI layer.
@@ -24,6 +23,49 @@ class ScannerSuccess extends ScannerResult {
 class ScannerFailure extends ScannerResult {
   final String message;
   ScannerFailure(this.message);
+}
+
+sealed class ScannerVerifyResult {}
+
+class ScannerVerifySuccess extends ScannerVerifyResult {
+  final Map<String, dynamic> data;
+  ScannerVerifySuccess(this.data);
+}
+
+class ScannerVerifyFailure extends ScannerVerifyResult {
+  final String message;
+  ScannerVerifyFailure(this.message);
+}
+
+class ScannerVerificationService {
+  Future<ScannerVerifyResult> verify(String verificationUrl) async {
+    try {
+      final response = await DioClient.dio.get(
+        verificationUrl,
+        options: Options(
+          headers: {'Accept': 'application/json'},
+          receiveTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 15),
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data is Map) {
+        return ScannerVerifySuccess(
+          Map<String, dynamic>.from(response.data as Map),
+        );
+      }
+
+      return ScannerVerifyFailure(
+        'Unexpected verification response (${response.statusCode})',
+      );
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = data is Map ? data['message']?.toString() : null;
+      return ScannerVerifyFailure(msg ?? e.message ?? 'Verification failed');
+    } catch (_) {
+      return ScannerVerifyFailure('Verification failed. Please try again.');
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +112,7 @@ class BanquetScannerService extends BaseScannerService {
     required File billImage,
   }) async {
     return _post(
-      path: '/partner/banquet/complete',   // <-- update when available
+      path: '/partner/enquiry/reservation/complete',
       reservationId: reservationId,
       billAmount: billAmount,
       billImage: billImage,
@@ -90,7 +132,7 @@ class CateringScannerService extends BaseScannerService {
     required File billImage,
   }) async {
     return _post(
-      path: '/partner/catering/complete',  // <-- update when available
+      path: '/partner/catering-enquiry/reservation/complete',
       reservationId: reservationId,
       billAmount: billAmount,
       billImage: billImage,
@@ -115,13 +157,15 @@ Future<ScannerResult> _post({
     final ext = billImage.path.split('.').last.toLowerCase();
     final mime = ext == 'png' ? 'png' : 'jpeg';
 
+    final filename = billImage.path.split(RegExp(r'[\\/]')).last;
+
     final formData = FormData.fromMap({
       'reservation_id': reservationId,
       'bill_amount': billAmount,
       'bill_image': await MultipartFile.fromFile(
         billImage.path,
-        filename: billImage.path.split('/').last,
-        contentType: MediaType('image', mime),
+        filename: filename,
+        contentType: DioMediaType('image', mime),
       ),
     });
 
@@ -138,19 +182,18 @@ Future<ScannerResult> _post({
       ),
     );
 
-    if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+    if (response.statusCode == 200 && response.data is Map) {
       final parsed = ScannerCompleteResponse.fromJson(
-        response.data as Map<String, dynamic>,
+        Map<String, dynamic>.from(response.data as Map),
       );
       return ScannerSuccess(parsed);
     }
 
     return ScannerFailure('Unexpected response (${response.statusCode})');
   } on DioException catch (e) {
-    final msg = e.response?.data?['message']?.toString() ??
-        e.message ??
-        'Network error';
-    return ScannerFailure(msg);
+    final data = e.response?.data;
+    final msg = data is Map ? data['message']?.toString() : null;
+    return ScannerFailure(msg ?? e.message ?? 'Network error');
   } catch (e) {
     return ScannerFailure('Something went wrong. Please try again.');
   }

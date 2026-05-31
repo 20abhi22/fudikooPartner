@@ -238,364 +238,367 @@ class _MenuUploadState extends State<MenuUpload> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: Stack(
-        children: [
-          // ── Main content ─────────────────────────────────────────
-          Column(
-            children: [
-              // Banner with back button
-              Stack(
-                children: [
-                  Image.asset(
-                    'assets/images/banner1.png',
-                    height: 150.h,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                  Padding(
-                    padding: EdgeInsets.all(20.w),
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Image.asset(
-                        backWhite,
-                        width: 28.w,
-                        fit: BoxFit.contain,
+      body: SafeArea(
+        top: false,
+        child: Stack(
+          children: [
+            // ── Main content ─────────────────────────────────────────
+            Column(
+              children: [
+                // Banner with back button
+                Stack(
+                  children: [
+                    Image.asset(
+                      'assets/images/banner1.png',
+                      height: 150.h,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                    Padding(
+                      padding: EdgeInsets.all(30.w),
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Image.asset(
+                          backWhite,
+                          width: 28.w,
+                          fit: BoxFit.contain,
+                        ),
+                        // child: Icon(
+                        //   Icons.arrow_back_ios_outlined,
+                        //   size: 30.w,
+                        //   color: Colors.white,
+                        // ),
                       ),
-                      // child: Icon(
-                      //   Icons.arrow_back_ios_outlined,
-                      //   size: 30.w,
-                      //   color: Colors.white,
-                      // ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 20.h),
-              if (isLoading)
-                Expanded(
-                  child: Center(
-                    child: CircularProgressIndicator(color: appButtonColor),
-                  ),
-                )
-              else if (menus.isNotEmpty)
-                Expanded(
-                  child: ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    itemCount: menus.length,
-                    itemBuilder: (context, index) => _pdfBox(menus[index]),
-                  ),
-                )
-              else
-                Expanded(
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.picture_as_pdf,
-                          size: 60.w,
-                          color: Colors.grey[400],
-                        ),
-                        SizedBox(height: 10.h),
-                        Text(
-                          "No PDF Available",
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 14.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-
-          // ── FAB ──────────────────────────────────────────────────
-          Positioned(
-            bottom: 40.h,
-            right: 20.w,
-            child: GestureDetector(
-              onTap: isUploading ? null : openAddModal,
-              child: Container(
-                width: 75.w,
-                height: 75.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  // uses your appButtonColor (orange) from constants
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF000000).withOpacity(0.35),
-                      offset: const Offset(0, 0), // X: 0, Y: 0
-                      blurRadius: 10, // Blur: 10
-                      spreadRadius: 0, // Spread: 0
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14.0),
-                  child: Image.asset(
-                    plusIcon,
-                    width: 10.w,
-                    height: 10.h,
-                    // fit: BoxFit.contain,
+                SizedBox(height: 20.h),
+                if (isLoading)
+                  Expanded(
+                    child: Center(
+                      child: CircularProgressIndicator(color: appButtonColor),
+                    ),
+                  )
+                else if (menus.isNotEmpty)
+                  Expanded(
+                    child: ListView.builder(
+                      padding: EdgeInsets.symmetric(horizontal: 20.w),
+                      itemCount: menus.length,
+                      itemBuilder: (context, index) => _pdfBox(menus[index]),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.picture_as_pdf,
+                            size: 60.w,
+                            color: Colors.grey[400],
+                          ),
+                          SizedBox(height: 10.h),
+                          Text(
+                            "No PDF Available",
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+        
+            // ── FAB ──────────────────────────────────────────────────
+            Positioned(
+              bottom: 40.h,
+              right: 20.w,
+              child: GestureDetector(
+                onTap: isUploading ? null : openAddModal,
+                child: Container(
+                  width: 75.w,
+                  height: 75.w,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    // uses your appButtonColor (orange) from constants
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF000000).withOpacity(0.35),
+                        offset: const Offset(0, 0), // X: 0, Y: 0
+                        blurRadius: 10, // Blur: 10
+                        spreadRadius: 0, // Spread: 0
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14.0),
+                    child: Image.asset(
+                      plusIcon,
+                      width: 10.w,
+                      height: 10.h,
+                      // fit: BoxFit.contain,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-
-          // ── Modal overlay ─────────────────────────────────────────
-          if (isOpen) ...[
-            // Backdrop
-            GestureDetector(
-              onTap: isUploading ? null : closeModal,
-              child: Container(
-                color: Colors.black.withOpacity(0.55),
-                width: double.infinity,
-                height: double.infinity,
+        
+            // ── Modal overlay ─────────────────────────────────────────
+            if (isOpen) ...[
+              // Backdrop
+              GestureDetector(
+                onTap: isUploading ? null : closeModal,
+                child: Container(
+                  color: Colors.black.withOpacity(0.55),
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
               ),
-            ),
-
-            // Modal card
-            Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24.w),
-                child: Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 20.w,
-                      vertical: 24.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20.r),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 20.r,
-                          offset: Offset(0, 8.r),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Modal title
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            if (isEditMode)
-                              AppText(
-                                text: isEditMode ? "Edit Menu" : "",
-                                size: 16.sp,
-                                fontWeight: FontWeight.w600,
-                                color: appTextColor2,
-                              ),
-                            // GestureDetector(
-                            //   onTap: isUploading ? null : closeModal,
-                            //   child: Icon(
-                            //     Icons.close,
-                            //     color: Colors.grey[500],
-                            //     size: 22.w,
-                            //   ),
-                            // ),
-                          ],
-                        ),
-
-                        SizedBox(height: 18.h),
-
-                        // Current file badge (edit mode)
-                        if (isEditMode && editingMenu != null) ...[
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12.w,
-                              vertical: 10.h,
-                            ),
-                            decoration: BoxDecoration(
-                              // light orange tint matching your theme
-                              color: appButtonColor.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(10.r),
-                              border: Border.all(
-                                color: appButtonColor.withOpacity(0.3),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.picture_as_pdf,
-                                  color: appButtonColor,
-                                  size: 18.w,
+        
+              // Modal card
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24.w),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20.w,
+                        vertical: 24.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 20.r,
+                            offset: Offset(0, 8.r),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Modal title
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              if (isEditMode)
+                                AppText(
+                                  text: isEditMode ? "Edit Menu" : "",
+                                  size: 16.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: appTextColor2,
                                 ),
-                                SizedBox(width: 8.w),
-                                Expanded(
+                              // GestureDetector(
+                              //   onTap: isUploading ? null : closeModal,
+                              //   child: Icon(
+                              //     Icons.close,
+                              //     color: Colors.grey[500],
+                              //     size: 22.w,
+                              //   ),
+                              // ),
+                            ],
+                          ),
+        
+                          SizedBox(height: 18.h),
+        
+                          // Current file badge (edit mode)
+                          if (isEditMode && editingMenu != null) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 12.w,
+                                vertical: 10.h,
+                              ),
+                              decoration: BoxDecoration(
+                                // light orange tint matching your theme
+                                color: appButtonColor.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(10.r),
+                                border: Border.all(
+                                  color: appButtonColor.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.picture_as_pdf,
+                                    color: appButtonColor,
+                                    size: 18.w,
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  Expanded(
+                                    child: Text(
+                                      "Current: ${editingMenu!.menuName}",
+                                      style: TextStyle(
+                                        fontSize: 13.sp,
+                                        fontWeight: FontWeight.w500,
+                                        color: appButtonColor,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 14.h),
+                          ],
+        
+                          // PDF picker box
+                          GestureDetector(
+                            onTap: isUploading ? null : pickPdfFile,
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 20.w,
+                                vertical: 22.h,
+                              ),
+                              decoration: BoxDecoration(
+                                // your menuUploadBoxColor from constants
+                                color: menuUploadBoxColor,
+                                borderRadius: BorderRadius.circular(15.r),
+                                border: Border.all(
+                                  color: selectedPdfFile != null
+                                      ? const Color(0xFF73B256)
+                                      : Colors.transparent,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  selectedPdfFile != null
+                                      ? Icon(
+                                          Icons.picture_as_pdf,
+                                          color: const Color(0xFF73B256),
+                                          size: 32.w,
+                                        )
+                                      : Image.asset(
+                                          uploadIcon,
+                                          width: 32.w,
+                                          height: 32.h,
+                                          fit: BoxFit.contain,
+                                        ),
+                                  SizedBox(height: 8.h),
+                                  if (selectedPdfFile != null)
+                                    AppText(
+                                      text: selectedPdfFile!.path.split('/').last,
+                                      size: 11,
+                                      fontWeight: FontWeight.w400,
+                                      color: appTextColor2.withValues(alpha: 0.6),
+                                      isCentered: true,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    )
+                                  else
+                                    const _UploadPdfPrompt(),
+                                  if (isEditMode && selectedPdfFile == null)
+                                    Padding(
+                                      padding: EdgeInsets.only(top: 4.h),
+                                      child: AppText(
+                                        text: "Leave empty to keep current PDF",
+                                        size: 10,
+                                        color: Colors.grey[500],
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+        
+                          SizedBox(height: 18.h),
+        
+                          // Menu name field
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: AppTextFeild(
+                                  text: "Menu Name",
+                                  size: 15,
+                                  controller: fileNameController,
+                                  textColor: const Color(0xFF545450),
+                                  isRequired: true,
+                                ),
+                              ),
+                            ],
+                          ),
+        
+                          SizedBox(height: 22.h),
+        
+                          // Action buttons
+                          if (isUploading)
+                            Center(
+                              child: CircularProgressIndicator(
+                                color: appButtonColor,
+                              ),
+                            )
+                          else
+                            Center(
+                              child: GestureDetector(
+                                onTap: () {
+                                  if (isEditMode) {
+                                    if (fileNameController.text
+                                        .trim()
+                                        .isNotEmpty) {
+                                      updateMenu();
+                                      closeModal();
+                                    } else {
+                                      _showSnackBar('Please enter a menu name');
+                                    }
+                                  } else {
+                                    if (selectedPdfFile != null &&
+                                        fileNameController.text
+                                            .trim()
+                                            .isNotEmpty) {
+                                      uploadMenu();
+                                      closeModal();
+                                    } else {
+                                      _showSnackBar(
+                                        'Please select a file and enter a menu name',
+                                      );
+                                    }
+                                  }
+                                },
+                                child: Container(
+                                  width: 130.w,
+                                  height: 40.h,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF73B256),
+                                    borderRadius: BorderRadius.circular(10.r),
+                                  ),
+                                  alignment: Alignment.center,
                                   child: Text(
-                                    "Current: ${editingMenu!.menuName}",
+                                    isEditMode ? "Update" : "Upload",
                                     style: TextStyle(
                                       fontSize: 13.sp,
-                                      fontWeight: FontWeight.w500,
-                                      color: appButtonColor,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 14.h),
                         ],
-
-                        // PDF picker box
-                        GestureDetector(
-                          onTap: isUploading ? null : pickPdfFile,
-                          child: Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 20.w,
-                              vertical: 22.h,
-                            ),
-                            decoration: BoxDecoration(
-                              // your menuUploadBoxColor from constants
-                              color: menuUploadBoxColor,
-                              borderRadius: BorderRadius.circular(15.r),
-                              border: Border.all(
-                                color: selectedPdfFile != null
-                                    ? const Color(0xFF73B256)
-                                    : Colors.transparent,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                selectedPdfFile != null
-                                    ? Icon(
-                                        Icons.picture_as_pdf,
-                                        color: const Color(0xFF73B256),
-                                        size: 32.w,
-                                      )
-                                    : Image.asset(
-                                        uploadIcon,
-                                        width: 32.w,
-                                        height: 32.h,
-                                        fit: BoxFit.contain,
-                                      ),
-                                SizedBox(height: 8.h),
-                                if (selectedPdfFile != null)
-                                  AppText(
-                                    text: selectedPdfFile!.path.split('/').last,
-                                    size: 11,
-                                    fontWeight: FontWeight.w400,
-                                    color: appTextColor2.withValues(alpha: 0.6),
-                                    isCentered: true,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  )
-                                else
-                                  const _UploadPdfPrompt(),
-                                if (isEditMode && selectedPdfFile == null)
-                                  Padding(
-                                    padding: EdgeInsets.only(top: 4.h),
-                                    child: AppText(
-                                      text: "Leave empty to keep current PDF",
-                                      size: 10,
-                                      color: Colors.grey[500],
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(height: 18.h),
-
-                        // Menu name field
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: AppTextFeild(
-                                text: "Menu Name",
-                                size: 15,
-                                controller: fileNameController,
-                                textColor: const Color(0xFF545450),
-                                isRequired: true,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(height: 22.h),
-
-                        // Action buttons
-                        if (isUploading)
-                          Center(
-                            child: CircularProgressIndicator(
-                              color: appButtonColor,
-                            ),
-                          )
-                        else
-                          Center(
-                            child: GestureDetector(
-                              onTap: () {
-                                if (isEditMode) {
-                                  if (fileNameController.text
-                                      .trim()
-                                      .isNotEmpty) {
-                                    updateMenu();
-                                    closeModal();
-                                  } else {
-                                    _showSnackBar('Please enter a menu name');
-                                  }
-                                } else {
-                                  if (selectedPdfFile != null &&
-                                      fileNameController.text
-                                          .trim()
-                                          .isNotEmpty) {
-                                    uploadMenu();
-                                    closeModal();
-                                  } else {
-                                    _showSnackBar(
-                                      'Please select a file and enter a menu name',
-                                    );
-                                  }
-                                }
-                              },
-                              child: Container(
-                                width: 130.w,
-                                height: 40.h,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF73B256),
-                                  borderRadius: BorderRadius.circular(10.r),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  isEditMode ? "Update" : "Upload",
-                                  style: TextStyle(
-                                    fontSize: 13.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

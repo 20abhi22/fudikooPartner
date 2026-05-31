@@ -34,6 +34,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
   List<BanquetEnquiryModel> _savedEnquiries = [];
   List<BanquetEnquiryModel> _deletedEnquiries = [];
   List<BanquetEnquiryModel> _confirmedEnquiries = [];
+  List<BanquetEnquiryModel> _completedEnquiries = [];
   List<SentEnquiryModel> _sentEnquiries = [];
 
   // Search
@@ -107,6 +108,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
   String _selectedEnquiryUuid = '';
   bool _isSentLoading = true;
   bool _isConfirmedLoading = true;
+  bool _isCompletedLoading = true;
   bool _isSavedLoading = true;
   bool _isDeletedLoading = true;
 
@@ -144,6 +146,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     _fetchDeletedEnquiries(); // Refresh deleted enquiries
     _fetchSentEnquiries();
     _fetchConfirmedEnquiries();
+    _fetchCompletedEnquiries();
   }
 
   Future<void> _performSearch(String query) async {
@@ -270,6 +273,22 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     }
   }
 
+  Future<void> _fetchCompletedEnquiries() async {
+    if (mounted) {
+      setState(() => _isCompletedLoading = true);
+    }
+    try {
+      final response = await _enquiryService.getCompletedEnquiries();
+      setState(() {
+        _completedEnquiries = response.enquiries;
+        _isCompletedLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching completed enquiries: $e');
+      setState(() => _isCompletedLoading = false);
+    }
+  }
+
   Future<void> _refreshEnquiries() async {
     await Future.wait([
       _fetchEnquiries(),
@@ -277,6 +296,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
       _fetchDeletedEnquiries(),
       _fetchSentEnquiries(),
       _fetchConfirmedEnquiries(),
+      _fetchCompletedEnquiries(),
     ]);
   }
 
@@ -580,8 +600,10 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: MediaQuery.of(context).size.width / 2,
+                  width: MediaQuery.of(context).size.width / 2.5,
                   child: AppFilterDropDown(
+                    fieldBorderRadius: 6,
+                    height: 35.h,
                     hint:
                         _selectedDateFilter == "Custom range" &&
                             _customDateRange != null
@@ -664,14 +686,29 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                 ),
               ),
             SizedBox(height: 20.h),
-            ListView.builder(
-              itemCount: 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) {
-                return BanquetCompletedBox();
-              },
-            ),
+            _isCompletedLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _completedEnquiries.isEmpty
+                ? const Center(child: Text("No Completed Enquiries"))
+                : ListView.builder(
+                    itemCount: _completedEnquiries.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      return BanquetCompletedBox(
+                        enquiryId: _completedEnquiries[index].enquiryId,
+                        estimatedAmount:
+                            _completedEnquiries[index].estimatedAmount,
+                        amount: _completedEnquiries[index].amount ?? '',
+                        extraOffer: _completedEnquiries[index].extraOffer ?? '',
+                        comments: _completedEnquiries[index].comments ?? '',
+                        menuItems: _completedEnquiries[index].menuItems,
+                        people: _completedEnquiries[index].people,
+                        date: _completedEnquiries[index].date,
+                        time: _completedEnquiries[index].time,
+                      );
+                    },
+                  ),
           ],
         ),
       );
@@ -964,8 +1001,12 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
 
     if (text == "Sent") _fetchSentEnquiries();
     if (text == "Confirmed") _fetchConfirmedEnquiries();
-    if (text == "All Enquiries" || text == "Deleted") _fetchEnquiries();
-    if (text == "Saved") _fetchSavedEnquiries();
+    if (text == "Completed") _fetchCompletedEnquiries();
+    if (text == "All Enquiries" || text == "Saved" || text == "Deleted") {
+      _fetchEnquiries();
+      if (text == "Saved") _fetchSavedEnquiries();
+      if (text == "Deleted") _fetchDeletedEnquiries();
+    }
   }
 
   Widget _buildAnimatedStatusTabs({

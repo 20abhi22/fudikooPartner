@@ -685,8 +685,11 @@ class _ReservationState extends State<Reservation>
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: MediaQuery.of(context).size.width / 2,
+                  
+                  width: MediaQuery.of(context).size.width / 2.5,
                   child: AppFilterDropDown(
+                    fieldBorderRadius: 6,
+                    height: 35.h,
                     hint:
                         _completedFilter == "Custom" &&
                             _customStartDate != null &&

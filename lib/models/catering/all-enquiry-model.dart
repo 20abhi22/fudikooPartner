@@ -9,6 +9,9 @@ class CateringEnquiryModel {
   final String date;
   final String time;
   final String estimatedAmount;
+  final String? amount;
+  final String? extraOffer;
+  final String? comments;
   final String searchRadius;
   final String expirationDate;
   final String expirationTime;
@@ -25,6 +28,9 @@ class CateringEnquiryModel {
     required this.date,
     required this.time,
     required this.estimatedAmount,
+    required this.amount,
+    required this.extraOffer,
+    required this.comments,
     required this.searchRadius,
     required this.expirationDate,
     required this.expirationTime,
@@ -43,6 +49,9 @@ class CateringEnquiryModel {
       date: json['date'] ?? '',
       time: json['time'] ?? '',
       estimatedAmount: json['estimated_amount']?.toString() ?? '',
+      amount: json['amount']?.toString() ?? '',
+      extraOffer: json['extra_offer']?.toString() ?? '',
+      comments: json['comments']?.toString() ?? '',
       searchRadius: json['search_radius']?.toString() ?? '',
       expirationDate: json['expiration_date'] ?? '',
       expirationTime: json['expiration_time'] ?? '',

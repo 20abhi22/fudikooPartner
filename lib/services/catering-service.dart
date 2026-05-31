@@ -38,14 +38,14 @@ class CateringEnquiryService {
   }
 
   Future<CateringEnquiryListResponse> searchEnquiries(String query) async {
-  final token = await getToken();
-  final response = await DioClient.dio.get(
-    '/partner/catering-enquiry/search',
-    queryParameters: {'id': query},
-    options: Options(headers: {'Authorization': 'Bearer $token'}),
-  );
-  return CateringEnquiryListResponse.fromJson(response.data);
-}
+    final token = await getToken();
+    final response = await DioClient.dio.get(
+      '/partner/catering-enquiry/search',
+      queryParameters: {'id': query},
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return CateringEnquiryListResponse.fromJson(response.data);
+  }
 
   Future<CateringEnquiryListResponse> getSavedEnquiries() async {
     final token = await getToken();
@@ -117,6 +117,22 @@ class CateringEnquiryService {
     return CateringEnquiryListResponse.fromJson(response.data);
   }
 
+  Future<CateringEnquiryListResponse> getCompletedEnquiries({
+    String? startDate,
+    String? endDate,
+  }) async {
+    final token = await getToken();
+    final response = await DioClient.dio.get(
+      '/partner/catering-enquiry/completed',
+      queryParameters: {
+        if (startDate != null) 'start_date': startDate,
+        if (endDate != null) 'end_date': endDate,
+      },
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return CateringEnquiryListResponse.fromJson(response.data);
+  }
+
   Future<Map<String, dynamic>> deleteSentEnquiry(String enquiryId) async {
     final token = await getToken();
     final data = FormData.fromMap({'enquiry_id': enquiryId});
@@ -128,7 +144,9 @@ class CateringEnquiryService {
     return response.data;
   }
 
-  Future<Map<String, dynamic>> confirmCateringResponse(String responseId) async {
+  Future<Map<String, dynamic>> confirmCateringResponse(
+    String responseId,
+  ) async {
     final token = await getToken();
     final data = FormData.fromMap({'response_id': responseId});
     final response = await DioClient.dio.post(

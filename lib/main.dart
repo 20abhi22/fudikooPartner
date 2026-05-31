@@ -23,12 +23,12 @@ import 'package:fudiko/utils/translator_service.dart';
 void main() async {
    WidgetsFlutterBinding.ensureInitialized();
     await TranslatorService.loadSavedLanguage(); // ← load saved language
-    SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.immersiveSticky, // Hides status bar, shows on swipe then auto-hides
-  );
-  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-  ));
+  //   SystemChrome.setEnabledSystemUIMode(
+  //   SystemUiMode.immersiveSticky, // Hides status bar, shows on swipe then auto-hides
+  // );
+  // SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+  //   statusBarColor: Colors.transparent,
+  // ));
 if (!kIsWeb) {
     HttpOverrides.global = MyHttpOverrides(); // ← ADD THIS
   }

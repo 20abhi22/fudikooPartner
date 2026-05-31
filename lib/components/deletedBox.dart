@@ -155,7 +155,7 @@ class _DeletedBoxState extends State<DeletedBox> {
                 children: [
                   ColorFiltered(
                     colorFilter: ColorFilter.mode(
-                      rejectedDetailsIconColor,
+                      banquetTagIconColor,
                       BlendMode.srcIn,
                     ),
                     child: Image.asset(walletIcon, width: 18.w),
@@ -174,7 +174,7 @@ class _DeletedBoxState extends State<DeletedBox> {
                 children: [
                   ColorFiltered(
                     colorFilter: ColorFilter.mode(
-                      rejectedDetailsIconColor,
+                      banquetTagIconColor,
                       BlendMode.srcIn,
                     ),
                     child: Image.asset(calenderIcon, width: 18.w),
@@ -194,7 +194,7 @@ class _DeletedBoxState extends State<DeletedBox> {
                 children: [
                   ColorFiltered(
                     colorFilter: ColorFilter.mode(
-                      rejectedDetailsIconColor,
+                      banquetTagIconColor,
                       BlendMode.srcIn,
                     ),
                     child: Image.asset(groupIcon, width: 18.w),
@@ -215,7 +215,7 @@ class _DeletedBoxState extends State<DeletedBox> {
                 children: [
                   ColorFiltered(
                     colorFilter: ColorFilter.mode(
-                      rejectedDetailsIconColor,
+                      banquetTagIconColor,
                       BlendMode.srcIn,
                     ),
                     child: Image.asset(menuIcon, width: 18.w),

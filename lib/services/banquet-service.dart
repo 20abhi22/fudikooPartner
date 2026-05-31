@@ -117,6 +117,15 @@ class BanquetEnquiryService {
     return BanquetEnquiryListResponse.fromJson(response.data);
   }
 
+  Future<BanquetEnquiryListResponse> getCompletedEnquiries() async {
+    final token = await getToken();
+    final response = await DioClient.dio.get(
+      '/partner/enquiry/completed',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return BanquetEnquiryListResponse.fromJson(response.data);
+  }
+
   Future<Map<String, dynamic>> deleteSentEnquiry(String enquiryId) async {
     final token = await getToken();
     final data = FormData.fromMap({'enquiry_id': enquiryId});

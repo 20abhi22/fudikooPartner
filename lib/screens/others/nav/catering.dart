@@ -34,6 +34,7 @@ class _CateringState extends State<Catering> implements TabBackHandler {
   List<CateringEnquiryModel> _savedEnquiries = [];
   List<CateringEnquiryModel> _deletedEnquiries = [];
   List<CateringEnquiryModel> _confirmedEnquiries = [];
+  List<CateringEnquiryModel> _completedEnquiries = [];
   List<SentEnquiryModel> _sentEnquiries = [];
 
   bool _isSearchClicked = false;
@@ -45,12 +46,52 @@ class _CateringState extends State<Catering> implements TabBackHandler {
   String _selectedDateFilter = "Last 7 days";
   DateTimeRange? _customDateRange;
 
+  DateTimeRange _getDateRange() {
+    final now = DateTime.now();
+    switch (_selectedDateFilter) {
+      case "Last 7 days":
+        return DateTimeRange(
+          start: now.subtract(const Duration(days: 7)),
+          end: now,
+        );
+      case "Last 30 days":
+        return DateTimeRange(
+          start: now.subtract(const Duration(days: 30)),
+          end: now,
+        );
+      case "Last 3 months":
+        return DateTimeRange(
+          start: DateTime(now.year, now.month - 3, now.day),
+          end: now,
+        );
+      case "Custom range":
+        return _customDateRange ??
+            DateTimeRange(
+              start: now.subtract(const Duration(days: 7)),
+              end: now,
+            );
+      default:
+        return DateTimeRange(
+          start: now.subtract(const Duration(days: 7)),
+          end: now,
+        );
+    }
+  }
+
+  String _apiDate(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
   final CateringEnquiryService _enquiryService = CateringEnquiryService();
   String _selectedEnquiryUuid = '';
   bool _isSavedLoading = true;
   bool _isDeletedLoading = true;
   bool _isSentLoading = true;
   bool _isConfirmedLoading = true;
+  bool _isCompletedLoading = true;
 
   @override
   void initState() {
@@ -60,6 +101,7 @@ class _CateringState extends State<Catering> implements TabBackHandler {
     _fetchDeletedEnquiries();
     _fetchSentEnquiries();
     _fetchConfirmedEnquiries();
+    _fetchCompletedEnquiries();
   }
 
   @override
@@ -89,6 +131,7 @@ class _CateringState extends State<Catering> implements TabBackHandler {
         _customDateRange = picked;
         _selectedDateFilter = "Custom range";
       });
+      await _fetchCompletedEnquiries();
     }
   }
 
@@ -216,6 +259,28 @@ class _CateringState extends State<Catering> implements TabBackHandler {
     }
   }
 
+  Future<void> _fetchCompletedEnquiries() async {
+    if (mounted) {
+      setState(() => _isCompletedLoading = true);
+    }
+    try {
+      final range = _getDateRange();
+      final response = await _enquiryService.getCompletedEnquiries(
+        startDate: _apiDate(range.start),
+        endDate: _apiDate(range.end),
+      );
+      if (!mounted) return;
+      setState(() {
+        _completedEnquiries = response.enquiries;
+        _isCompletedLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching completed enquiries: $e');
+      if (!mounted) return;
+      setState(() => _isCompletedLoading = false);
+    }
+  }
+
   Future<void> _showConfirmedEnquiryDetails(String uuid) async {
     try {
       final detail = await _enquiryService.showEnquiry(uuid);
@@ -306,6 +371,7 @@ class _CateringState extends State<Catering> implements TabBackHandler {
       _fetchDeletedEnquiries(),
       _fetchSentEnquiries(),
       _fetchConfirmedEnquiries(),
+      _fetchCompletedEnquiries(),
     ]);
   }
 
@@ -512,8 +578,10 @@ class _CateringState extends State<Catering> implements TabBackHandler {
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: MediaQuery.of(context).size.width / 2,
-                  child: AppFilterDropDown(
+width: MediaQuery.of(context).size.width / 2.5,     
+             child: AppFilterDropDown(
+                    fieldBorderRadius: 6,
+                    height: 35.h,
                     hint:
                         _selectedDateFilter == "Custom range" &&
                             _customDateRange != null
@@ -554,12 +622,13 @@ class _CateringState extends State<Catering> implements TabBackHandler {
                                   trailing: _selectedDateFilter == option
                                       ? Icon(Icons.check, color: appButtonColor)
                                       : null,
-                                  onTap: () {
+                                  onTap: () async {
                                     setState(() {
                                       _selectedDateFilter = option;
                                       _customDateRange = null;
                                     });
                                     Navigator.pop(context);
+                                    await _fetchCompletedEnquiries();
                                   },
                                 ),
                               ListTile(
@@ -599,14 +668,29 @@ class _CateringState extends State<Catering> implements TabBackHandler {
                 ),
               ),
             SizedBox(height: 20.h),
-            ListView.builder(
-              itemCount: 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) {
-                return BanquetCompletedBox();
-              },
-            ),
+            _isCompletedLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _completedEnquiries.isEmpty
+                ? const Center(child: Text("No Completed Enquiries"))
+                : ListView.builder(
+                    itemCount: _completedEnquiries.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      return BanquetCompletedBox(
+                        enquiryId: _completedEnquiries[index].enquiryId,
+                        estimatedAmount:
+                            _completedEnquiries[index].estimatedAmount,
+                        amount: _completedEnquiries[index].amount ?? '',
+                        extraOffer: _completedEnquiries[index].extraOffer ?? '',
+                        comments: _completedEnquiries[index].comments ?? '',
+                        menuItems: _completedEnquiries[index].menuItems,
+                        people: _completedEnquiries[index].people,
+                        date: _completedEnquiries[index].date,
+                        time: _completedEnquiries[index].time,
+                      );
+                    },
+                  ),
           ],
         ),
       );
@@ -893,6 +977,7 @@ class _CateringState extends State<Catering> implements TabBackHandler {
 
     if (text == "Sent") _fetchSentEnquiries();
     if (text == "Confirmed") _fetchConfirmedEnquiries();
+    if (text == "Completed") _fetchCompletedEnquiries();
     if (text == "All Enquiries" || text == "Saved" || text == "Deleted") {
       _fetchEnquiries();
       if (text == "Saved") _fetchSavedEnquiries();
