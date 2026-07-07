@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/banquet/sent-enquiry-model.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:fudiko/utils/translator_service.dart';
@@ -57,23 +59,44 @@ class SentBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 20.h),
-      child: Container(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final screenSize = MediaQuery.sizeOf(context);
+        final isWideShortPhone =
+            Breakpoints.isMobile(screenSize.width) &&
+            screenSize.width >= 500 &&
+            screenSize.height <= 760;
+        final isMobile = Breakpoints.isMobile(width) && !isWideShortPhone;
+        final cardPadding = isMobile
+            ? EdgeInsets.all(20.w)
+            : EdgeInsets.all(AppDimensions.padding(width) * 0.8);
+        final iconSize = isMobile ? 17.w : 18.0;
+        final gap = isMobile ? 5.w : 6.0;
+        final buttonWidth = isMobile ? 75.w : 92.0;
+        final buttonHeight = isMobile ? 25.h : 32.0;
+        final titleSize = isMobile ? 20.0 : 21.0;
+        final bodySize = isMobile ? 14.0 : 15.0;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: isMobile ? 20.h : 18),
+          child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(17.r),
+          borderRadius: BorderRadius.circular(isMobile ? 17.r : 8),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.10),
-              offset: Offset(0, 0),
-              blurRadius: 10,
-              spreadRadius: 2,
+              color: Colors.black.withValues(alpha: 0.10),
+              offset: const Offset(0, 4),
+              blurRadius: 14,
+              spreadRadius: 1,
             ),
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(20.w),
+          padding: cardPadding,
           child: Column(
             children: [
               Row(
@@ -86,9 +109,11 @@ class SentBox extends StatelessWidget {
                       children: [
                         AppText(
                           text: enquiry?.enquiryId ?? "Loading...",
-                          size: 20,
+                          size: titleSize,
                           fontWeight: FontWeight.bold,
                           color: appTextColor3,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: 10.h),
                         // moneyDetails != null ?  Row(
@@ -134,12 +159,12 @@ class SentBox extends StatelessWidget {
                                     ),
                                     child: Image.asset(
                                       walletIcon,
-                                      width: 17.w,
-                                      height: 17.h,
+                                      width: iconSize,
+                                      height: iconSize,
                                     ),
                                   ),
-                                  SizedBox(width: 5.w),
-                                  Flexible(
+                                  SizedBox(width: gap),
+                                  Expanded(
                                     child: FutureBuilder<String>(
   future: TranslatorService.translate('Per person'),
   builder: (context, snapshot) {
@@ -147,12 +172,14 @@ class SentBox extends StatelessWidget {
         snapshot.data ?? 'Per person';
 
     return RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       text: TextSpan(
         children: [
           TextSpan(
             text: enquiry!.amount,
             style: TextStyle(
-              fontSize: 14.sp,
+              fontSize: isMobile ? bodySize.sp : bodySize,
               fontWeight: FontWeight.w400,
               color: appTextColor5,
             ),
@@ -161,7 +188,7 @@ class SentBox extends StatelessWidget {
           TextSpan(
             text: ' $translated',
             style: TextStyle(
-              fontSize: 14.sp,
+              fontSize: isMobile ? bodySize.sp : bodySize,
               fontWeight: FontWeight.w400,
               color: appTextColor5,
             ),
@@ -238,17 +265,20 @@ class SentBox extends StatelessWidget {
                                     ),
                                     child: Image.asset(
                                       offerIcon,
-                                      width: 17.w,
-                                      height: 17.h,
+                                      width: iconSize,
+                                      height: iconSize,
                                     ),
                                   ),
-                                  SizedBox(width: 5.w),
-                                  Flexible(
+                                  SizedBox(width: gap),
+                                  Expanded(
                                     child: AppText(
-                                      text:enquiry!.extraOffer,
-                                      size: 14,
+                                      text: enquiry!.extraOffer,
+                                      size: bodySize,
                                       fontWeight: FontWeight.w500,
                                       color: appTextColor5,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      softWrap: true,
                                     ),
                                   ),
                                 ],
@@ -316,18 +346,20 @@ class SentBox extends StatelessWidget {
                                     ),
                                     child: Image.asset(
                                       commentIcon,
-                                      width: 17.w,
-                                      height: 17.h,
+                                      width: iconSize,
+                                      height: iconSize,
                                     ),
                                   ),
 
-                                  SizedBox(width: 5.w),
+                                  SizedBox(width: gap),
                                   Expanded(
                                     child: AppText(
                                       text: enquiry!.comments,
-                                      size: 15.sp,
+                                      size: bodySize,
                                       fontWeight: FontWeight.w400,
                                       color: appTextColor5,
+                                      maxLines: isMobile ? 3 : 2,
+                                      overflow: TextOverflow.ellipsis,
                                       softWrap: true,
                                     ),
                                   ),
@@ -337,9 +369,9 @@ class SentBox extends StatelessWidget {
                       ],
                     ),
                   ),
-                  SizedBox(width: 10.w),
-                  Expanded(
-                    flex: 1,
+                  SizedBox(width: isMobile ? 10.w : 12),
+                  SizedBox(
+                    width: isMobile ? 70.w : 88,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -348,6 +380,8 @@ class SentBox extends StatelessWidget {
                           size: 10,
                           fontWeight: FontWeight.w600,
                           color: appTextColor3,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: 5.h),
                         AppText(
@@ -355,6 +389,8 @@ class SentBox extends StatelessWidget {
                           size: 10,
                           fontWeight: FontWeight.w400,
                           color: appTextColor3,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -366,15 +402,15 @@ class SentBox extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   SizedBox(
-                    height: 25.h,
-                    width: 75.w,
+                    height: buttonHeight,
+                    width: buttonWidth,
                     child: AppButton(
                       text: "Delete",
                       onPressed: onDelete ?? () {},
                       bgColor1: sentDeleteButtonColor,
                       bgColor2: sentDeleteButtonColor,
                       size: 12,
-                      borderRadius: 6,
+                      borderRadius: isMobile ? 6 : 5,
                     ),
                   ),
                 ],
@@ -383,6 +419,8 @@ class SentBox extends StatelessWidget {
           ),
         ),
       ),
+    );
+      },
     );
   }
 }

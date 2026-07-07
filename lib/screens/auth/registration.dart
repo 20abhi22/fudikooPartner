@@ -4,6 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/components/apptextfeild.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/registration/registration-model.dart';
 import 'package:fudiko/models/registration/registration-response-model.dart';
 import 'package:fudiko/routetransitions.dart';
@@ -21,8 +23,7 @@ class Register extends StatefulWidget {
 }
 
 class _RegisterState extends State<Register> {
-
-    bool _obscurePassword = true;
+  bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   final TextEditingController _name = TextEditingController();
   final TextEditingController _email = TextEditingController();
@@ -30,6 +31,7 @@ class _RegisterState extends State<Register> {
   final TextEditingController _confirmPassword = TextEditingController();
   RegistrationAuthService registrationAuthService = RegistrationAuthService();
   bool isLoading = false;
+
   @override
   void dispose() {
     _name.dispose();
@@ -52,8 +54,8 @@ class _RegisterState extends State<Register> {
         email.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
-          if(!mounted) return;
-          setState(() {
+      if (!mounted) return;
+      setState(() {
         isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -63,8 +65,8 @@ class _RegisterState extends State<Register> {
     }
 
     if (!EmailValidator.validate(email)) {
-      if(!mounted) return;
-       setState(() {
+      if (!mounted) return;
+      setState(() {
         isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,8 +76,8 @@ class _RegisterState extends State<Register> {
     }
 
     if (password.length < 8) {
-      if(!mounted) return;
-       setState(() {
+      if (!mounted) return;
+      setState(() {
         isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,8 +89,8 @@ class _RegisterState extends State<Register> {
     }
 
     if (password != confirmPassword) {
-      if(!mounted) return;
-       setState(() {
+      if (!mounted) return;
+      setState(() {
         isLoading = false;
       });
       ScaffoldMessenger.of(
@@ -103,9 +105,11 @@ class _RegisterState extends State<Register> {
       password: password,
     );
 
-    RegResponseModel response = await registrationAuthService.registerUser(user);
+    RegResponseModel response = await registrationAuthService.registerUser(
+      user,
+    );
 
-    if(!mounted) return;
+    if (!mounted) return;
     setState(() {
       isLoading = false;
     });
@@ -121,7 +125,7 @@ class _RegisterState extends State<Register> {
       //   MaterialPageRoute(builder: (context) => const Otp()),
       // );
     } else {
-      if(!mounted) return;
+      if (!mounted) return;
       final errors = response.fieldErrors;
       if (errors != null) {
         if (errors.containsKey('email')) {
@@ -135,122 +139,256 @@ class _RegisterState extends State<Register> {
             context,
           ).showSnackBar(SnackBar(content: Text(errors['username']!)));
         }
-
       } else {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(response.message)));
       }
-
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
+    final size = MediaQuery.sizeOf(context);
+    final metrics = _RegisterMetrics(size: size);
 
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'assets/images/logofudikoo.png',
-                  width: 250.w,
-                  fit: BoxFit.contain,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Center(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: metrics.horizontalPadding,
+                  vertical: metrics.verticalPadding,
                 ),
-                const SizedBox(height: 10),
-                const AppText(
-                  text: "PARTNER APP",
-                  size: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-                SizedBox(height: 60.h),
-                AppTextFeild(
-                  text: "Username",
-                  icon: Icons.person,
-                  controller: _name,
-                ),
-                SizedBox(height: 20.h),
-                AppTextFeild(
-                  text: "Email",
-                  icon: Icons.mail,
-                  controller: _email,
-                ),
-                SizedBox(height: 20.h),
-                AppTextFeild(
-                  text: "Password",
-                  icon: Icons.lock,
-                  controller: _password,
-                  isObscure: _obscurePassword,
-                  enableInteractiveSelection: false,
-                  suffixIcon: _obscurePassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  onSuffixTap: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                ),
-                SizedBox(height: 20.h),
-                AppTextFeild(
-                  text: "Confirm Password",
-                  icon: Icons.lock,
-                  controller: _confirmPassword,
-                  isObscure: _obscureConfirmPassword,
-                  enableInteractiveSelection: false,
-                  suffixIcon: _obscureConfirmPassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  onSuffixTap: () => setState(
-                    () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: metrics.contentMaxWidth,
+                    minHeight:
+                        constraints.maxHeight - (metrics.verticalPadding * 2),
+                  ),
+                  child: Center(
+                    child: metrics.useSplitLayout
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(child: _brandBlock(metrics)),
+                              SizedBox(width: metrics.splitGap),
+                              Expanded(child: _formBlock(metrics)),
+                            ],
+                          )
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _brandBlock(metrics),
+                              SizedBox(height: metrics.formTopGap),
+                              _formBlock(metrics),
+                              SizedBox(height: metrics.bottomGap),
+                            ],
+                          ),
                   ),
                 ),
-                SizedBox(height: 30.h),
-                AppButton(
-                  text: isLoading ? 'Please wait...' : 'Create Account',
-                  onPressed:   (){
-                    isLoading ? null : register();
-                  },
-                ),
-                SizedBox(height: 100.h),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AppText(
-                        text: "Already have an Account?  ",
-                        size: 15,
-                        fontWeight: FontWeight.normal,
-                        color: appTextColor2,
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          pushWidgetWhileRemove(newPage: Login(), context: context);
-                          // Navigator.push(
-                          //   context,
-                          //   MaterialPageRoute(builder: (context) => Login()),
-                          // );
-                        },
-                        child: AppText(
-                          text: "Sign In",
-                          size: 15,
-                          fontWeight: FontWeight.normal,
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: screenHeight * 0.05),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
+
+  Widget _brandBlock(_RegisterMetrics metrics) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/images/logofudikoo.png',
+          width: metrics.logoWidth,
+          fit: BoxFit.contain,
+        ),
+        SizedBox(height: metrics.logoGap),
+        AppText(
+          text: 'PARTNER APP',
+          size: metrics.titleSize,
+          fontWeight: FontWeight.w600,
+        ),
+      ],
+    );
+  }
+
+  Widget _formBlock(_RegisterMetrics metrics) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppTextFeild(
+          text: "Username",
+          iconImagePath: tabProfileIcon,
+          iconImagecolor: appTextColor5,
+          controller: _name,
+          size: metrics.fieldTextSize,
+          height: metrics.fieldHeight,
+        ),
+        SizedBox(height: metrics.fieldGap),
+        AppTextFeild(
+          text: "Email",
+          iconImagePath: tabEmailIcon,
+          iconImagecolor: appTextColor5,
+          controller: _email,
+          size: metrics.fieldTextSize,
+          height: metrics.fieldHeight,
+        ),
+        SizedBox(height: metrics.fieldGap),
+        AppTextFeild(
+          text: "Password",
+          iconImagePath: padlockIcon,
+          iconImagecolor: appTextColor5,
+          controller: _password,
+          size: metrics.fieldTextSize,
+          height: metrics.fieldHeight,
+          isObscure: _obscurePassword,
+          enableInteractiveSelection: false,
+          suffixIcon: _obscurePassword
+              ? Icons.visibility_off_outlined
+              : Icons.visibility_outlined,
+          onSuffixTap: () =>
+              setState(() => _obscurePassword = !_obscurePassword),
+        ),
+        SizedBox(height: metrics.fieldGap),
+        AppTextFeild(
+          text: "Confirm Password",
+          iconImagePath: padlockIcon,
+          iconImagecolor: appTextColor5,
+          controller: _confirmPassword,
+          size: metrics.fieldTextSize,
+          height: metrics.fieldHeight,
+          isObscure: _obscureConfirmPassword,
+          enableInteractiveSelection: false,
+          suffixIcon: _obscureConfirmPassword
+              ? Icons.visibility_off_outlined
+              : Icons.visibility_outlined,
+          onSuffixTap: () => setState(
+            () => _obscureConfirmPassword = !_obscureConfirmPassword,
+          ),
+        ),
+        SizedBox(height: metrics.buttonGap),
+        AppButton(
+          text: isLoading ? 'Please wait...' : 'Create Account',
+          onPressed: () {
+            if (!isLoading) {
+              register();
+            }
+          },
+          height: metrics.buttonHeight,
+          size: metrics.fieldTextSize,
+        ),
+        SizedBox(height: metrics.signInTopGap),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            AppText(
+              text: "Already have an Account?  ",
+              size: metrics.linkTextSize,
+              fontWeight: FontWeight.normal,
+              color: appTextColor2,
+              isCentered: true,
+            ),
+            GestureDetector(
+              onTap: () {
+                pushWidgetWhileRemove(newPage: const Login(), context: context);
+              },
+              child: AppText(
+                text: "Sign In",
+                size: metrics.linkTextSize,
+                fontWeight: FontWeight.normal,
+                color: Colors.blue,
+                isCentered: true,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RegisterMetrics {
+  const _RegisterMetrics({required this.size});
+
+  final Size size;
+
+  double get width => size.width;
+  double get height => size.height;
+  bool get isMobile => Breakpoints.isMobile(width);
+  bool get isWideShortPhone => Breakpoints.isWideShortPhone(size);
+  bool get isLandscape => width > height;
+  bool get useSplitLayout => isLandscape && width >= 700;
+  bool get isCompactLandscape => isWideShortPhone || useSplitLayout;
+
+  double get horizontalPadding {
+    if (isCompactLandscape) return 28.0;
+    if (isMobile) return 30.w;
+    return AppDimensions.padding(width);
+  }
+
+  double get verticalPadding {
+    if (isCompactLandscape) return 18.0;
+    if (isMobile) return 24.h;
+    return AppDimensions.margin(width);
+  }
+
+  double get contentMaxWidth {
+    if (useSplitLayout) return width.clamp(680.0, 920.0);
+    if (isWideShortPhone) return 380.0;
+    if (Breakpoints.isDesktop(width)) return 460.0;
+    if (Breakpoints.isTablet(width)) return 440.0;
+    return double.infinity;
+  }
+
+  double get splitGap => width >= 900 ? 56.0 : 36.0;
+  double get logoWidth => isCompactLandscape
+      ? 190.0
+      : isMobile
+      ? 250.w
+      : 250.0;
+  double get logoGap => isCompactLandscape
+      ? 2.0
+      : isMobile
+      ? 10.h
+      : 10.0;
+  double get titleSize => isCompactLandscape ? 16.0 : 20.0;
+  double get formTopGap => isCompactLandscape
+      ? 26.0
+      : isMobile
+      ? 60.h
+      : 48.0;
+  double get fieldGap => isCompactLandscape
+      ? 10.0
+      : isMobile
+      ? 20.h
+      : 20.0;
+  double get buttonGap => isCompactLandscape
+      ? 18.0
+      : isMobile
+      ? 30.h
+      : 30.0;
+  double get signInTopGap => isCompactLandscape
+      ? 36.0
+      : isMobile
+      ? 100.h
+      : 64.0;
+  double get bottomGap => isCompactLandscape
+      ? 18.0
+      : isMobile
+      ? height * 0.05
+      : 32.0;
+  double? get fieldHeight => isCompactLandscape ? 46.0 : null;
+  double? get buttonHeight => isCompactLandscape ? 46.0 : null;
+  double get fieldTextSize => isCompactLandscape
+      ? 13.0
+      : isMobile
+      ? 16.0
+      : 14.0;
+  double get linkTextSize => isCompactLandscape ? 13.0 : 15.0;
 }

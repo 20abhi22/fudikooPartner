@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:fudiko/utils/tab_back_handler.dart';
@@ -23,6 +25,60 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
   static const Duration _searchAnimationDuration = Duration(milliseconds: 460);
   final TextEditingController _searchController = TextEditingController();
 
+  double _screenWidth(BuildContext context) => MediaQuery.sizeOf(context).width;
+
+  bool _isWideShortPhone(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return Breakpoints.isWideShortPhone(size);
+  }
+
+  bool _usesTabletLayout(BuildContext context) =>
+      Breakpoints.isTabletDevice(MediaQuery.sizeOf(context)) ||
+      _isWideShortPhone(context);
+
+  double _pagePadding(BuildContext context) {
+    if (_isWideShortPhone(context)) return 24.0;
+    return AppDimensions.padding(_screenWidth(context));
+  }
+
+  double _contentMaxWidth(BuildContext context) {
+    final width = _screenWidth(context);
+    if (Breakpoints.isDesktop(width)) return 860;
+    if (_usesTabletLayout(context)) return 720;
+    return double.infinity;
+  }
+
+  double _contentGap(BuildContext context) {
+    if (_isWideShortPhone(context)) return 12.0;
+    if (_usesTabletLayout(context)) return 24.0;
+    return Breakpoints.isMobile(_screenWidth(context)) ? 30.h : 24.0;
+  }
+
+  Widget _responsiveContent({
+    required Widget child,
+    double? maxWidth,
+    EdgeInsetsGeometry? padding,
+    Alignment alignment = Alignment.topCenter,
+  }) {
+    return Padding(
+      padding:
+          padding ??
+          EdgeInsets.only(
+            left: _pagePadding(context),
+            right: _pagePadding(context) + 4,
+          ),
+      child: Align(
+        alignment: alignment,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: maxWidth ?? _contentMaxWidth(context),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -40,109 +96,178 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
 
   @override
   Widget build(BuildContext context) {
+    final width = _screenWidth(context);
+    final isWideShortPhone = _isWideShortPhone(context);
+    final usesTabletLayout = _usesTabletLayout(context);
+    final topPadding = isWideShortPhone
+        ? 8.0
+        : usesTabletLayout
+        ? 24.0
+        : Breakpoints.isMobile(width)
+        ? 30.h
+        : 24.0;
+
     return Scaffold(
       backgroundColor: appSecondaryBackgroundColor,
-
-      body: Stack(
-        children: [
-          Padding(
-            padding: EdgeInsets.only(top: 30.h),
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Stack(
-                children: [
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      height: MediaQuery.of(context).size.height - 30.h,
-                      width: MediaQuery.of(context).size.width,
-                      decoration: BoxDecoration(
-                        color: appSecondaryBackgroundColor,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(40.r),
-                          topRight: Radius.circular(40.r),
-                        ),
-                      ),
-                      child: const Center(child: Text("Helloo")),
+      body: SafeArea(
+        minimum: EdgeInsets.only(top: usesTabletLayout ? 12.0 : 0.0),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(bottom: AppDimensions.margin(width)),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(top: topPadding),
+                      child: _buildTopSection(),
                     ),
-                  ),
-                  Column(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20.w),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                AppText(
-                                  text:
-                                      widget.partnerProfile?.name ?? "Loading",
-                                  size: 35,
-                                  fontWeight: FontWeight.w600,
-                                  color: appTextColor3,
-                                ),
-                                AppText(
-                                  text: widget.partnerProfile?.type ?? "",
-                                  size: 25,
-                                  fontWeight: FontWeight.w600,
-                                  color: appTextColor3,
-                                ),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.location_on,
-                                      size: 15.w,
-                                      color: appTextColor3,
-                                    ),
-                                    SizedBox(width: 5.w),
-                                    AppText(
-                                      text:
-                                          widget.partnerProfile?.address ?? "",
-                                      size: 15,
-                                      fontWeight: FontWeight.w400,
-                                      color: appTextColor3,
-                                    ),
-                                  ],
-                                ),
-                              ],
+                    SizedBox(height: _contentGap(context)),
+                    _responsiveContent(
+                      child: hasData
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: const <Widget>[],
+                            )
+                          : SizedBox(
+                              height: usesTabletLayout
+                                  ? 360
+                                  : Breakpoints.isMobile(width)
+                                  ? 280.h
+                                  : 360,
+                              child: const Center(child: Text("No orders yet")),
                             ),
-                            GestureDetector(
-                              onTap: widget.onDrawerTap,
-                              child: Icon(
-                                Icons.menu,
-                                size: 30.w,
-                                color: appTextColor3,
-                              ),
-                            ),
-                          ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopSection() {
+    final width = _screenWidth(context);
+    final isWideShortPhone = _isWideShortPhone(context);
+    final usesTabletLayout = _usesTabletLayout(context);
+    final gap = isWideShortPhone
+        ? 8.0
+        : usesTabletLayout
+        ? 20.0
+        : AppDimensions.gap(width);
+    final nameSize = isWideShortPhone
+        ? 24.0
+        : usesTabletLayout
+        ? 42.0
+        : Breakpoints.isDesktop(width)
+        ? 38.0
+        : 35.0;
+    final typeSize = isWideShortPhone
+        ? 15.0
+        : usesTabletLayout
+        ? 28.0
+        : Breakpoints.isDesktop(width)
+        ? 24.0
+        : 25.0;
+
+    return _responsiveContent(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      text: widget.partnerProfile?.name ?? "Loading",
+                      size: nameSize,
+                      fontWeight: FontWeight.w600,
+                      color: appTextColor3,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    AppText(
+                      text: widget.partnerProfile?.type ?? "",
+                      size: typeSize,
+                      fontWeight: FontWeight.w600,
+                      color: appTextColor3,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: isWideShortPhone
+                              ? 13.0
+                              : usesTabletLayout
+                              ? 16
+                              : Breakpoints.isMobile(width)
+                              ? 15.w
+                              : 16,
+                          color: appTextColor3,
                         ),
-                      ),
-                      SizedBox(height: 30.h),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20.w),
-                        child: _buildStatusSearchSwitcher(),
-                      ),
-                      if (hasData)
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20.w),
-                          child: Column(
-                            children: [
-                              // Your orders here
-                            ],
+                        SizedBox(
+                          width: isWideShortPhone
+                              ? 4.0
+                              : usesTabletLayout
+                              ? 6
+                              : Breakpoints.isMobile(width)
+                              ? 5.w
+                              : 6,
+                        ),
+                        Expanded(
+                          child: AppText(
+                            text: widget.partnerProfile?.address ?? "",
+                            size: isWideShortPhone ? 11.0 : 15,
+                            fontWeight: FontWeight.w400,
+                            color: appTextColor3,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
+              SizedBox(width: gap),
+              GestureDetector(
+                onTap: widget.onDrawerTap,
+                child: Icon(
+                  Icons.menu,
+                  size: isWideShortPhone
+                      ? 22.0
+                      : usesTabletLayout
+                      ? 30
+                      : Breakpoints.isMobile(width)
+                      ? 30.w
+                      : 30,
+                  color: appTextColor3,
+                ),
+              ),
+            ],
           ),
-
-          if (!hasData) const Center(child: Text("No orders yet")),
+          SizedBox(
+            height: isWideShortPhone
+                ? 10.0
+                : usesTabletLayout
+                ? gap
+                : Breakpoints.isMobile(width)
+                ? 30.h
+                : gap,
+          ),
+          _buildStatusSearchSwitcher(),
         ],
       ),
     );
@@ -164,58 +289,67 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
   Widget _buildStatusSearchSwitcher() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double expandedHeight = 60.h;
-        final double collapsedHeight = 78.h;
-        final double searchButtonWidth = 60.w;
+        final usesTabletLayout = _usesTabletLayout(context);
+        final double searchButtonWidth = usesTabletLayout ? 72.0 : 60.w;
+        final double tabHeight = usesTabletLayout ? 36.0 : 29.h;
+        final double rowGap = usesTabletLayout ? 12.0 : 10.w;
+        final double secondRowTop = tabHeight + rowGap;
+        final double totalHeight = (tabHeight * 2) + rowGap + 8.0;
+        final double searchHeight = usesTabletLayout ? 64.0 : 60.h;
 
-        return AnimatedContainer(
-          duration: _searchAnimationDuration,
-          curve: Curves.easeInOutCubic,
-          height: _isSearchClicked ? expandedHeight : collapsedHeight,
-          child: Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 320),
-                curve: Curves.easeOut,
-                opacity: _isSearchClicked ? 0 : 1,
-                child: AnimatedSlide(
-                  duration: _searchAnimationDuration,
-                  curve: Curves.easeInOutCubic,
-                  offset: _isSearchClicked
-                      ? const Offset(-0.05, 0)
-                      : Offset.zero,
-                  child: IgnorePointer(
-                    ignoring: _isSearchClicked,
-                    child: _buildAnimatedStatusTabs(
-                      width: constraints.maxWidth,
-                      searchButtonWidth: searchButtonWidth,
+        return Padding(
+          padding: EdgeInsets.only(bottom: usesTabletLayout ? 16.0 : 14.h),
+          child: SizedBox(
+            height: _isSearchClicked ? searchHeight : totalHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOut,
+                  opacity: _isSearchClicked ? 0 : 1,
+                  child: AnimatedSlide(
+                    duration: _searchAnimationDuration,
+                    curve: Curves.easeInOutCubic,
+                    offset: _isSearchClicked
+                        ? const Offset(-0.05, 0)
+                        : Offset.zero,
+                    child: IgnorePointer(
+                      ignoring: _isSearchClicked,
+                      child: _buildAnimatedStatusTabs(
+                        width: constraints.maxWidth,
+                        searchButtonWidth: searchButtonWidth,
+                        tabGap: rowGap,
+                        tabHeight: tabHeight,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              AnimatedPositioned(
-                duration: _searchAnimationDuration,
-                curve: Curves.easeInOutCubic,
-                right: 0,
-                top: _isSearchClicked ? 0 : 39.h,
-                child: _AnimatedSearchField(
-                  isExpanded: _isSearchClicked,
-                  width: _isSearchClicked
-                      ? constraints.maxWidth
-                      : searchButtonWidth,
-                  controller: _searchController,
-                  onOpen: () {
-                    setState(() {
-                      _isSearchClicked = true;
-                      _previousStatus = selectedStatus;
-                      selectedStatus = "Search";
-                    });
-                  },
-                  onClose: _closeSearch,
+                AnimatedPositioned(
+                  duration: _searchAnimationDuration,
+                  curve: Curves.easeInOutCubic,
+                  top: _isSearchClicked ? 0 : secondRowTop,
+                  right: 0,
+                  child: _AnimatedSearchField(
+                    isExpanded: _isSearchClicked,
+                    width: _isSearchClicked
+                        ? constraints.maxWidth
+                        : searchButtonWidth,
+                    collapsedHeight: tabHeight,
+                    expandedHeight: searchHeight,
+                    controller: _searchController,
+                    onOpen: () {
+                      setState(() {
+                        _isSearchClicked = true;
+                        _previousStatus = selectedStatus;
+                        selectedStatus = "Search";
+                      });
+                    },
+                    onClose: _closeSearch,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -234,6 +368,8 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
   Widget _buildAnimatedStatusTabs({
     required double width,
     required double searchButtonWidth,
+    required double tabGap,
+    required double tabHeight,
   }) {
     final tabs = ["All Orders", "Confirmed", "Completed", "Rejected"];
     final previousPosition = _statusTabPosition(_previousStatus);
@@ -251,6 +387,8 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
           _buildStatusIndicator(
             width: width,
             searchButtonWidth: searchButtonWidth,
+            tabGap: tabGap,
+            tabHeight: tabHeight,
             isAdjacent: isAdjacent,
           ),
         ...tabs.map(
@@ -258,6 +396,8 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
             tab,
             width: width,
             searchButtonWidth: searchButtonWidth,
+            tabGap: tabGap,
+            tabHeight: tabHeight,
           ),
         ),
       ],
@@ -268,11 +408,15 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
     required double width,
     required double searchButtonWidth,
     required bool isAdjacent,
+    required double tabGap,
+    required double tabHeight,
   }) {
     final rect = _statusTabRect(
       selectedStatus,
       width: width,
       searchButtonWidth: searchButtonWidth,
+      tabGap: tabGap,
+      tabHeight: tabHeight,
     );
     final indicator = Container(
       decoration: BoxDecoration(
@@ -283,8 +427,8 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 6.r,
-            offset: Offset(2.r, 2.r),
+            blurRadius: 6,
+            offset: const Offset(2, 2),
           ),
         ],
       ),
@@ -321,6 +465,8 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
     String text, {
     required double width,
     required double searchButtonWidth,
+    required double tabGap,
+    required double tabHeight,
   }) {
     final isSelected = selectedStatus == text;
     return Positioned.fromRect(
@@ -328,6 +474,8 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
         text,
         width: width,
         searchButtonWidth: searchButtonWidth,
+        tabGap: tabGap,
+        tabHeight: tabHeight,
       ),
       child: GestureDetector(
         onTap: () => _selectStatus(text),
@@ -345,8 +493,8 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
                   : [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 6.r,
-                        offset: Offset(2.r, 2.r),
+                        blurRadius: 6,
+                        offset: const Offset(2, 2),
                       ),
                     ],
             ),
@@ -366,21 +514,22 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
     String text, {
     required double width,
     required double searchButtonWidth,
+    required double tabGap,
+    required double tabHeight,
   }) {
-    final double gap = 10.w;
-    final double tabHeight = 29.h;
-    final double secondRowTop = tabHeight + gap;
-    final double topTabWidth = (width - gap) / 2;
-    final double bottomTabWidth = (width - searchButtonWidth - (gap * 2)) / 2;
+    final double secondRowTop = tabHeight + tabGap;
+    final double topTabWidth = (width - tabGap) / 2;
+    final double bottomTabWidth =
+        (width - searchButtonWidth - (tabGap * 2)) / 2;
 
     switch (text) {
       case "Confirmed":
-        return Rect.fromLTWH(topTabWidth + gap, 0, topTabWidth, tabHeight);
+        return Rect.fromLTWH(topTabWidth + tabGap, 0, topTabWidth, tabHeight);
       case "Completed":
         return Rect.fromLTWH(0, secondRowTop, bottomTabWidth, tabHeight);
       case "Rejected":
         return Rect.fromLTWH(
-          bottomTabWidth + gap,
+          bottomTabWidth + tabGap,
           secondRowTop,
           bottomTabWidth,
           tabHeight,
@@ -417,6 +566,8 @@ class _StatusTabPosition {
 class _AnimatedSearchField extends StatelessWidget {
   final bool isExpanded;
   final double width;
+  final double collapsedHeight;
+  final double expandedHeight;
   final TextEditingController controller;
   final VoidCallback onOpen;
   final VoidCallback onClose;
@@ -424,6 +575,8 @@ class _AnimatedSearchField extends StatelessWidget {
   const _AnimatedSearchField({
     required this.isExpanded,
     required this.width,
+    required this.collapsedHeight,
+    required this.expandedHeight,
     required this.controller,
     required this.onOpen,
     required this.onClose,
@@ -433,25 +586,45 @@ class _AnimatedSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final isWideShortPhone = Breakpoints.isWideShortPhone(size);
+    final collapsedIconSize = isWideShortPhone ? 20.0 : 20.w;
+    final expandedIconSize = isWideShortPhone ? 22.0 : 22.w;
+    final iconSlotWidth = isWideShortPhone ? 24.0 : 24.w;
+    final expandedLeftPadding = isWideShortPhone ? 18.0 : 18.w;
+    final expandedRightPadding = isWideShortPhone ? 12.0 : 12.w;
+    final collapsedHorizontalPadding = isWideShortPhone ? 4.0 : 4.w;
+    final fieldGap = isWideShortPhone ? 12.0 : 12.w;
+    final fieldTextSize = isWideShortPhone ? 15.0 : 15.sp;
+    final fieldVerticalPadding = isWideShortPhone ? 16.0 : 16.h;
+    final closeButtonPadding = isWideShortPhone ? 6.0 : 6.w;
+    final closeIconSize = isWideShortPhone ? 22.0 : 22.w;
+    final expandedRadius = isWideShortPhone ? 20.0 : 20.r;
+    final collapsedRadius = isWideShortPhone ? 10.0 : 10.r;
+    final expandedShadowBlur = isWideShortPhone ? 15.0 : 15.r;
+    final collapsedShadowBlur = isWideShortPhone ? 6.0 : 6.r;
+
     return GestureDetector(
       onTap: isExpanded ? null : onOpen,
       child: AnimatedContainer(
         duration: _duration,
         curve: Curves.easeInOutCubic,
         width: width,
-        height: isExpanded ? 60.h : 29.h,
+        height: isExpanded ? expandedHeight : collapsedHeight,
         padding: EdgeInsets.only(
-          left: isExpanded ? 18.w : 4.w,
-          right: isExpanded ? 12.w : 4.w,
+          left: isExpanded ? expandedLeftPadding : collapsedHorizontalPadding,
+          right: isExpanded ? expandedRightPadding : collapsedHorizontalPadding,
         ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(isExpanded ? 20.r : 10.r),
+          borderRadius: BorderRadius.circular(
+            isExpanded ? expandedRadius : collapsedRadius,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isExpanded ? 0.22 : 0.2),
-              blurRadius: isExpanded ? 15.r : 6.r,
-              offset: isExpanded ? Offset.zero : Offset(2.r, 2.r),
+              color: Colors.black.withValues(alpha: isExpanded ? 0.22 : 0.18),
+              blurRadius: isExpanded ? expandedShadowBlur : collapsedShadowBlur,
+              offset: isExpanded ? Offset.zero : const Offset(2, 2),
             ),
           ],
         ),
@@ -464,8 +637,8 @@ class _AnimatedSearchField extends StatelessWidget {
                 return Center(
                   child: Image.asset(
                     "assets/images/search_icon.png",
-                    width: 20.w,
-                    height: 20.w,
+                    width: collapsedIconSize,
+                    height: collapsedIconSize,
                     fit: BoxFit.contain,
                   ),
                 );
@@ -476,16 +649,16 @@ class _AnimatedSearchField extends StatelessWidget {
                   AnimatedContainer(
                     duration: _duration,
                     curve: Curves.easeInOutCubic,
-                    width: 24.w,
+                    width: iconSlotWidth,
                     alignment: Alignment.centerLeft,
                     child: Image.asset(
                       "assets/images/search_icon.png",
-                      width: 22.w,
-                      height: 22.w,
+                      width: expandedIconSize,
+                      height: expandedIconSize,
                       fit: BoxFit.contain,
                     ),
                   ),
-                  SizedBox(width: 12.w),
+                  SizedBox(width: fieldGap),
                   Expanded(
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 320),
@@ -500,20 +673,20 @@ class _AnimatedSearchField extends StatelessWidget {
                           keyboardType: TextInputType.text,
                           style: TextStyle(
                             color: Colors.black87,
-                            fontSize: 15.sp,
+                            fontSize: fieldTextSize,
                             fontWeight: FontWeight.w400,
                           ),
                           decoration: InputDecoration(
                             hintText: "Search Orders",
                             hintStyle: TextStyle(
                               color: Colors.grey,
-                              fontSize: 15.sp,
+                              fontSize: fieldTextSize,
                               fontWeight: FontWeight.w400,
                             ),
                             border: InputBorder.none,
                             isCollapsed: true,
                             contentPadding: EdgeInsets.symmetric(
-                              vertical: 16.h,
+                              vertical: fieldVerticalPadding,
                             ),
                           ),
                         ),
@@ -529,13 +702,15 @@ class _AnimatedSearchField extends StatelessWidget {
                       opacity: isExpanded ? 1 : 0,
                       child: InkWell(
                         onTap: onClose,
-                        borderRadius: BorderRadius.circular(18.r),
+                        borderRadius: BorderRadius.circular(
+                          isWideShortPhone ? 18.0 : 18.r,
+                        ),
                         child: Padding(
-                          padding: EdgeInsets.all(6.w),
+                          padding: EdgeInsets.all(closeButtonPadding),
                           child: Icon(
                             Icons.close,
                             color: Colors.grey,
-                            size: 22.w,
+                            size: closeIconSize,
                           ),
                         ),
                       ),

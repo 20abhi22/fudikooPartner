@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
 import 'package:fudiko/components/allEnquiryBox.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/appfilterdropdown.dart';
@@ -8,12 +9,23 @@ import 'package:fudiko/components/banquetCompletedBox.dart';
 import 'package:fudiko/components/banquetConfirmedBox.dart';
 import 'package:fudiko/components/deletedBox.dart';
 import 'package:fudiko/components/sentBox.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/banquet/all-enquiry-model.dart';
 import 'package:fudiko/models/banquet/sent-enquiry-model.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/services/banquet-service.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:fudiko/utils/tab_back_handler.dart';
+
+// Top-level helper to format a date for range display. When [other] is provided
+// and is in the same year, the year is omitted for a cleaner range like
+// "5 Jan - 15 Mar".
+String formatDateForRange(DateTime date, [DateTime? other]) {
+  final dayMonth = DateFormat('d MMM').format(date);
+  if (other != null && other.year == date.year) return dayMonth;
+  return DateFormat('d MMM yyyy').format(date);
+}
 
 class Banquet extends StatefulWidget {
   final VoidCallback? onDrawerTap;
@@ -47,37 +59,8 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
   String _selectedDateFilter = "Last 7 days";
   DateTimeRange? _customDateRange;
 
-  DateTimeRange _getDateRange() {
-    final now = DateTime.now();
-    switch (_selectedDateFilter) {
-      case "Last 7 days":
-        return DateTimeRange(
-          start: now.subtract(const Duration(days: 7)),
-          end: now,
-        );
-      case "Last 30 days":
-        return DateTimeRange(
-          start: now.subtract(const Duration(days: 30)),
-          end: now,
-        );
-      case "Last 3 months":
-        return DateTimeRange(
-          start: DateTime(now.year, now.month - 3, now.day),
-          end: now,
-        );
-      case "Custom range":
-        return _customDateRange ??
-            DateTimeRange(
-              start: now.subtract(const Duration(days: 7)),
-              end: now,
-            );
-      default:
-        return DateTimeRange(
-          start: now.subtract(const Duration(days: 7)),
-          end: now,
-        );
-    }
-  }
+  // _getDateRange was removed; leave TODO note about wiring completed enquiries fetch if needed.
+  // TODO: pass selected date range to completed enquiries fetch when integrating filtering.
 
   Future<void> _pickCustomDateRange() async {
     final now = DateTime.now();
@@ -394,93 +377,225 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     await _refreshEnquiries();
   }
 
-  Widget _buildTopSection() {
+  double _screenWidth(BuildContext context) => MediaQuery.sizeOf(context).width;
+
+  bool _isWideShortPhone(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return Breakpoints.isWideShortPhone(size);
+  }
+
+  bool _usesTabletLayout(BuildContext context) =>
+      Breakpoints.isTabletDevice(MediaQuery.sizeOf(context)) ||
+      _isWideShortPhone(context);
+
+  double _pagePadding(BuildContext context) {
+    if (_isWideShortPhone(context)) return 24.0;
+    return AppDimensions.padding(_screenWidth(context));
+  }
+
+  double _contentMaxWidth(BuildContext context) {
+    final width = _screenWidth(context);
+    if (Breakpoints.isDesktop(width)) return 860;
+    if (_usesTabletLayout(context)) return 720;
+    return double.infinity;
+  }
+
+  double _contentGap(BuildContext context) {
+    if (_isWideShortPhone(context)) return 12.0;
+    if (_usesTabletLayout(context)) return 24.0;
+    return 30.h;
+  }
+
+  Widget _responsiveContent({
+    required Widget child,
+    double? maxWidth,
+    EdgeInsetsGeometry? padding,
+    Alignment alignment = Alignment.topCenter,
+  }) {
     return Padding(
-      padding: EdgeInsets.only(top: 30.h),
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: 20.w, right: 20.w),
-            child: Row(
+      padding:
+          padding ??
+          EdgeInsets.only(
+            left: _pagePadding(context),
+            right: _pagePadding(context) + 4,
+          ),
+      child: Align(
+        alignment: alignment,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: maxWidth ?? _contentMaxWidth(context),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopSection() {
+    final width = _screenWidth(context);
+    final isWideShortPhone = _isWideShortPhone(context);
+    final usesTabletLayout = _usesTabletLayout(context);
+    final topPadding = isWideShortPhone
+        ? 8.0
+        : usesTabletLayout
+        ? 24.0
+        : Breakpoints.isMobile(width)
+        ? 30.h
+        : 24.0;
+    final gap = isWideShortPhone ? 8.0 : AppDimensions.gap(width);
+    final nameSize = isWideShortPhone
+        ? 24.0
+        : usesTabletLayout
+        ? 42.0
+        : Breakpoints.isDesktop(width)
+        ? 38.0
+        : 35.0;
+    final typeSize = isWideShortPhone
+        ? 15.0
+        : usesTabletLayout
+        ? 28.0
+        : Breakpoints.isDesktop(width)
+        ? 24.0
+        : 25.0;
+
+    return Padding(
+      padding: EdgeInsets.only(top: topPadding),
+      child: _responsiveContent(
+        child: Column(
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AppText(
-                      text: widget.partnerProfile?.name ?? "Loading",
-                      size: 35,
-                      fontWeight: FontWeight.w600,
-                      color: appTextColor3,
-                    ),
-                    AppText(
-                      text: widget.partnerProfile?.type ?? "",
-                      size: 25,
-                      fontWeight: FontWeight.w600,
-                      color: appTextColor3,
-                    ),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 15.w,
-                          color: appTextColor3,
-                        ),
-                        SizedBox(width: 5.w),
-                        AppText(
-                          text: widget.partnerProfile?.address ?? "",
-                          size: 15,
-                          fontWeight: FontWeight.w400,
-                          color: appTextColor3,
-                        ),
-                      ],
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppText(
+                        text: widget.partnerProfile?.name ?? "Loading",
+                        size: nameSize,
+                        fontWeight: FontWeight.w600,
+                        color: appTextColor3,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      AppText(
+                        text: widget.partnerProfile?.type ?? "",
+                        size: typeSize,
+                        fontWeight: FontWeight.w600,
+                        color: appTextColor3,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: isWideShortPhone
+                                ? 13.0
+                                : usesTabletLayout
+                                ? 16
+                                : Breakpoints.isMobile(width)
+                                ? 15.w
+                                : 16,
+                            color: appTextColor3,
+                          ),
+                          SizedBox(
+                            width: isWideShortPhone
+                                ? 4.0
+                                : usesTabletLayout
+                                ? 6
+                                : Breakpoints.isMobile(width)
+                                ? 5.w
+                                : 6,
+                          ),
+                          Expanded(
+                            child: AppText(
+                              text: widget.partnerProfile?.address ?? "",
+                              size: isWideShortPhone ? 11.0 : 15,
+                              fontWeight: FontWeight.w400,
+                              color: appTextColor3,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+                SizedBox(width: gap),
                 GestureDetector(
                   onTap: widget.onDrawerTap,
-                  child: Icon(Icons.menu, size: 30.w, color: appTextColor3),
+                  child: Icon(
+                    Icons.menu,
+                    size: isWideShortPhone
+                        ? 22.0
+                        : usesTabletLayout
+                        ? 30
+                        : Breakpoints.isMobile(width)
+                        ? 30.w
+                        : 30,
+                    color: appTextColor3,
+                  ),
                 ),
               ],
             ),
-          ),
-          SizedBox(height: 30.h),
-          Padding(
-            padding: EdgeInsets.only(left: 20.w, right: 20.w),
-            child: _buildStatusSearchSwitcher(),
-          ),
-        ],
+            SizedBox(
+              height: isWideShortPhone
+                  ? 10.0
+                  : Breakpoints.isMobile(width)
+                  ? 30.h
+                  : gap,
+            ),
+            _buildStatusSearchSwitcher(),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _responsiveListContent({
+    required bool isLoading,
+    required bool isEmpty,
+    required String emptyText,
+    required int itemCount,
+    required IndexedWidgetBuilder itemBuilder,
+  }) {
+    return _responsiveContent(
+      child: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : isEmpty
+          ? Center(child: Text(emptyText))
+          : ListView.builder(
+              itemCount: itemCount,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemBuilder: itemBuilder,
+            ),
     );
   }
 
   Widget _buildSelectedTabContent() {
     if (selectedStatus == "All Enquiries") {
-      return Padding(
-        padding: EdgeInsets.only(left: 20.w, right: 20.w),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _allEnquiries.isEmpty
-            ? const Center(child: Text("No Enquiries Found"))
-            : ListView.builder(
-                itemCount: _allEnquiries.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemBuilder: (context, index) {
-                  return AllEnquiryBox(
-                    enquiry: _allEnquiries[index],
-                    onPressed: () {},
-                    onActionCompleted: _refreshEnquiries,
-                  );
-                },
-              ),
+      return _responsiveListContent(
+        isLoading: _isLoading,
+        isEmpty: _allEnquiries.isEmpty,
+        emptyText: "No Enquiries Found",
+        itemCount: _allEnquiries.length,
+        itemBuilder: (context, index) {
+          return AllEnquiryBox(
+            enquiry: _allEnquiries[index],
+            onPressed: () {},
+            onActionCompleted: _refreshEnquiries,
+          );
+        },
       );
     }
 
     if (selectedStatus == "Sent") {
-      return Padding(
-        padding: EdgeInsets.only(left: 20.w, right: 20.w),
+      return _responsiveContent(
         child: _isSentLoading
             ? const Center(child: CircularProgressIndicator())
             : _sentEnquiries.isEmpty
@@ -560,8 +675,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     }
 
     if (selectedStatus == "Confirmed") {
-      return Padding(
-        padding: EdgeInsets.only(left: 20.w, right: 20.w),
+      return _responsiveContent(
         child: _isConfirmedLoading
             ? const Center(child: CircularProgressIndicator())
             : _confirmedEnquiries.isEmpty
@@ -577,10 +691,19 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                     onDetailsTap: () {
                       _showConfirmedEnquiryDetails(enquiry.uuid);
                     },
-                    onRemindTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Reminder feature coming soon"),
+                    onRemindTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final response = await _enquiryService.remindReservation(
+                        enquiry.uuid,
+                      );
+                      if (!mounted) return;
+
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            response['message']?.toString() ??
+                                'Reminder sent successfully',
+                          ),
                         ),
                       );
                     },
@@ -591,8 +714,11 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     }
 
     if (selectedStatus == "Completed") {
-      return Padding(
-        padding: EdgeInsets.only(left: 20.w, right: 20.w),
+      final width = _screenWidth(context);
+      final isWideShortPhone = _isWideShortPhone(context);
+      final filterWidth = (width * 0.42).clamp(190.0, 320.0);
+
+      return _responsiveContent(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -600,19 +726,19 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: MediaQuery.of(context).size.width / 2.5,
+                  width: filterWidth,
                   child: AppFilterDropDown(
                     fieldBorderRadius: 6,
-                    height: 35.h,
+                    height: isWideShortPhone ? 35.0 : 35.h,
                     hint:
                         _selectedDateFilter == "Custom range" &&
                             _customDateRange != null
-                        ? "${_customDateRange!.start.day}/${_customDateRange!.start.month} - ${_customDateRange!.end.day}/${_customDateRange!.end.month}"
+                        ? "${formatDateForRange(_customDateRange!.start, _customDateRange!.end)} - ${formatDateForRange(_customDateRange!.end, _customDateRange!.start)}"
                         : _selectedDateFilter,
                     iconImage: "assets/images/filter_icon.png",
                     icon: Icons.tune,
-                    toogleDropdown: () {
-                      showModalBottomSheet(
+                    toogleDropdown: () async {
+                      await showModalBottomSheet(
                         backgroundColor: Colors.white,
                         context: context,
                         shape: RoundedRectangleBorder(
@@ -653,7 +779,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                                   },
                                 ),
                               ListTile(
-                                title: const Text("Custom date range"),
+                                title: Text("Custom date range"),
                                 trailing: _selectedDateFilter == "Custom range"
                                     ? Icon(Icons.check, color: appButtonColor)
                                     : null,
@@ -677,9 +803,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                 padding: EdgeInsets.only(top: 8.h, left: 2.w),
                 child: AppText(
                   text:
-                      "Showing: ${_customDateRange!.start.day}/${_customDateRange!.start.month}/${_customDateRange!.start.year}"
-                      " -> "
-                      "${_customDateRange!.end.day}/${_customDateRange!.end.month}/${_customDateRange!.end.year}",
+                      "Showing: ${formatDateForRange(_customDateRange!.start, _customDateRange!.end)} -> ${formatDateForRange(_customDateRange!.end, _customDateRange!.start)}",
                   size: 11,
                   fontWeight: FontWeight.w400,
                   color: appTextColor2,
@@ -715,31 +839,24 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     }
 
     if (selectedStatus == "Saved") {
-      return Padding(
-        padding: EdgeInsets.only(left: 20.w, right: 20.w),
-        child: _isSavedLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _savedEnquiries.isEmpty
-            ? const Center(child: Text("No Saved Enquiries"))
-            : ListView.builder(
-                itemCount: _savedEnquiries.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemBuilder: (context, index) {
-                  return AllEnquiryBox(
-                    enquiry: _savedEnquiries[index],
-                    onPressed: () {},
-                    showSaveIcon: false,
-                    onActionCompleted: _refreshEnquiries,
-                  );
-                },
-              ),
+      return _responsiveListContent(
+        isLoading: _isSavedLoading,
+        isEmpty: _savedEnquiries.isEmpty,
+        emptyText: "No Saved Enquiries",
+        itemCount: _savedEnquiries.length,
+        itemBuilder: (context, index) {
+          return AllEnquiryBox(
+            enquiry: _savedEnquiries[index],
+            onPressed: () {},
+            showSaveIcon: false,
+            onActionCompleted: _refreshEnquiries,
+          );
+        },
       );
     }
 
     if (selectedStatus == "Deleted") {
-      return Padding(
-        padding: EdgeInsets.only(left: 20.w, right: 20.w),
+      return _responsiveContent(
         child: _isDeletedLoading
             ? const Center(child: CircularProgressIndicator())
             : _deletedEnquiries.isEmpty
@@ -751,12 +868,25 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                 itemBuilder: (context, index) {
                   return DeletedBox(
                     enquiry: _deletedEnquiries[index],
-                    onCallBackPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Callback feature coming soon"),
+                    onCallBackPressed: () async {
+                      final enquiry = _deletedEnquiries[index];
+                      final messenger = ScaffoldMessenger.of(context);
+                      final response = await _enquiryService
+                          .callbackReservation(enquiry.uuid);
+                      if (!mounted) return;
+
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            response['message']?.toString() ??
+                                'Reservation recalled successfully',
+                          ),
                         ),
                       );
+
+                      if (response['status'] == true) {
+                        await _refreshEnquiries();
+                      }
                     },
                     onActionCompleted: _refreshEnquiries,
                   );
@@ -766,8 +896,12 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     }
 
     if (selectedStatus == "Search") {
-      return Padding(
-        padding: EdgeInsets.only(left: 20.w, right: 20.w, bottom: 20.h),
+      return _responsiveContent(
+        padding: EdgeInsets.only(
+          left: _pagePadding(context),
+          right: _pagePadding(context) + 4,
+          bottom: 20.h,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -813,144 +947,155 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     return Scaffold(
       backgroundColor: appSecondaryBackgroundColor,
 
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              _buildTopSection(),
-              SizedBox(height: 30.h),
-              Expanded(
-                child: RefreshIndicator(
-                  color: const Color(0xFFF97A0D),
-                  onRefresh: _onTabRefresh,
-                  child: SingleChildScrollView(
+      body: SafeArea(
+        minimum: EdgeInsets.only(top: _usesTabletLayout(context) ? 12.0 : 0.0),
+        child: Stack(
+          children: [
+            RefreshIndicator(
+              color: const Color(0xFFF97A0D),
+              onRefresh: _onTabRefresh,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics(),
                     ),
-                    child: _buildSelectedTabContent(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (isDeleteClicked)
-            Stack(
-              children: [
-                Container(
-                  height: MediaQuery.of(context).size.height,
-                  width: MediaQuery.of(context).size.width,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                  ),
-                ),
-                Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20.w),
-                    child: Container(
-                      height: 150.h,
-                      width: double.infinity,
-                      padding: EdgeInsets.only(
-                        left: 40.w,
-                        right: 40.w,
-                        top: 30.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
                       ),
                       child: Column(
                         children: [
-                          AppText(
-                            text: "Are you sure you want to delete this offer?",
-                            size: 15,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black,
-                            isCentered: true,
-                            lineSpacing: 1.2,
-                          ),
-                          SizedBox(height: 20.h),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: SizedBox(
-                                  height: 35.h,
-                                  child: AppButton(
-                                    text: "Yes",
-                                    // onPressed: () {
-                                    //   setState(() {
-                                    //     isDeleteClicked = !isDeleteClicked;
-                                    //   });
-                                    // },
-                                    onPressed: () async {
-                                      Navigator.pop(
-                                        context,
-                                      ); // close dialog isn't needed since it's Stack, just:
-                                      setState(() => isDeleteClicked = false);
-                                      try {
-                                        final result = await _enquiryService
-                                            .deleteEnquiry(
-                                              _selectedEnquiryUuid,
-                                            );
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              result['message'] ?? "Deleted",
-                                            ),
-                                          ),
-                                        );
-                                        _fetchEnquiries(); // refresh list
-                                      } catch (e) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text("Error deleting"),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    size: 12,
-                                    borderRadius: 5,
-                                    bgColor1: Colors.green,
-                                    bgColor2: Colors.green,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 20.w),
-                              Expanded(
-                                child: SizedBox(
-                                  height: 35.h,
-                                  child: AppButton(
-                                    text: "No",
-                                    onPressed: () {
-                                      setState(() => isDeleteClicked = false);
-                                    },
-                                    size: 12,
-                                    borderRadius: 5,
-                                    bgColor1: Colors.red,
-                                    bgColor2: Colors.red,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          _buildTopSection(),
+                          SizedBox(height: _contentGap(context)),
+                          _buildSelectedTabContent(),
                         ],
                       ),
                     ),
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
             ),
-        ],
+            if (isDeleteClicked)
+              Stack(
+                children: [
+                  Container(
+                    height: MediaQuery.of(context).size.height,
+                    width: MediaQuery.of(context).size.width,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                    ),
+                  ),
+                  Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20.w),
+                      child: Container(
+                        height: 150.h,
+                        width: double.infinity,
+                        padding: EdgeInsets.only(
+                          left: 40.w,
+                          right: 40.w,
+                          top: 30.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15.r),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            AppText(
+                              text:
+                                  "Are you sure you want to delete this offer?",
+                              size: 15,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black,
+                              isCentered: true,
+                              lineSpacing: 1.2,
+                            ),
+                            SizedBox(height: 20.h),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 35.h,
+                                    child: AppButton(
+                                      text: "Yes",
+                                      // onPressed: () {
+                                      //   setState(() {
+                                      //     isDeleteClicked = !isDeleteClicked;
+                                      //   });
+                                      // },
+                                      onPressed: () async {
+                                        Navigator.pop(
+                                          context,
+                                        ); // close dialog isn't needed since it's Stack, just:
+                                        setState(() => isDeleteClicked = false);
+                                        try {
+                                          final result = await _enquiryService
+                                              .deleteEnquiry(
+                                                _selectedEnquiryUuid,
+                                              );
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                result['message'] ?? "Deleted",
+                                              ),
+                                            ),
+                                          );
+                                          _fetchEnquiries(); // refresh list
+                                        } catch (e) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text("Error deleting"),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      size: 12,
+                                      borderRadius: 5,
+                                      bgColor1: Colors.green,
+                                      bgColor2: Colors.green,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 20.w),
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 35.h,
+                                    child: AppButton(
+                                      text: "No",
+                                      onPressed: () {
+                                        setState(() => isDeleteClicked = false);
+                                      },
+                                      size: 12,
+                                      borderRadius: 5,
+                                      bgColor1: Colors.red,
+                                      bgColor2: Colors.red,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1012,6 +1157,8 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
   Widget _buildAnimatedStatusTabs({
     required double width,
     required double searchButtonWidth,
+    required double tabGap,
+    required double tabHeight,
   }) {
     final tabs = [
       "All Enquiries",
@@ -1036,6 +1183,8 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
           _buildStatusIndicator(
             width: width,
             searchButtonWidth: searchButtonWidth,
+            tabGap: tabGap,
+            tabHeight: tabHeight,
             isAdjacent: isAdjacent,
           ),
         ...tabs.map(
@@ -1043,6 +1192,8 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
             tab,
             width: width,
             searchButtonWidth: searchButtonWidth,
+            tabGap: tabGap,
+            tabHeight: tabHeight,
           ),
         ),
       ],
@@ -1053,11 +1204,15 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     required double width,
     required double searchButtonWidth,
     required bool isAdjacent,
+    required double tabGap,
+    required double tabHeight,
   }) {
     final rect = _statusTabRect(
       selectedStatus,
       width: width,
       searchButtonWidth: searchButtonWidth,
+      tabGap: tabGap,
+      tabHeight: tabHeight,
     );
     final indicator = Container(
       decoration: BoxDecoration(
@@ -1107,6 +1262,8 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     String text, {
     required double width,
     required double searchButtonWidth,
+    required double tabGap,
+    required double tabHeight,
   }) {
     final isSelected = selectedStatus == text;
     return Positioned.fromRect(
@@ -1114,6 +1271,8 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
         text,
         width: width,
         searchButtonWidth: searchButtonWidth,
+        tabGap: tabGap,
+        tabHeight: tabHeight,
       ),
       child: GestureDetector(
         onTap: () => _selectStatus(text),
@@ -1153,22 +1312,23 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     String text, {
     required double width,
     required double searchButtonWidth,
+    required double tabGap,
+    required double tabHeight,
   }) {
-    final double gap = 10.w;
-    final double tabHeight = 29.h;
-    final double rowTwoTop = tabHeight + gap;
-    final double rowThreeTop = (tabHeight + gap) * 2;
-    final double fullTabWidth = (width - gap) / 2;
-    final double bottomTabWidth = (width - searchButtonWidth - (gap * 2)) / 2;
+    final double rowTwoTop = tabHeight + tabGap;
+    final double rowThreeTop = (tabHeight + tabGap) * 2;
+    final double fullTabWidth = (width - tabGap) / 2;
+    final double bottomTabWidth =
+        (width - searchButtonWidth - (tabGap * 2)) / 2;
 
     switch (text) {
       case "Sent":
-        return Rect.fromLTWH(fullTabWidth + gap, 0, fullTabWidth, tabHeight);
+        return Rect.fromLTWH(fullTabWidth + tabGap, 0, fullTabWidth, tabHeight);
       case "Confirmed":
         return Rect.fromLTWH(0, rowTwoTop, fullTabWidth, tabHeight);
       case "Completed":
         return Rect.fromLTWH(
-          fullTabWidth + gap,
+          fullTabWidth + tabGap,
           rowTwoTop,
           fullTabWidth,
           tabHeight,
@@ -1177,7 +1337,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
         return Rect.fromLTWH(0, rowThreeTop, bottomTabWidth, tabHeight);
       case "Deleted":
         return Rect.fromLTWH(
-          bottomTabWidth + gap,
+          bottomTabWidth + tabGap,
           rowThreeTop,
           bottomTabWidth,
           tabHeight,
@@ -1207,56 +1367,129 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     }
   }
 
+  // Widget _buildStatusSearchSwitcher() {
+  //   return LayoutBuilder(
+  //     builder: (context, constraints) {
+  //       final double collapsedHeight = 107.h;
+  //       final double expandedHeight = 60.h;
+  //       final double searchButtonWidth = 60.w;
+
+  //       return AnimatedContainer(
+  //         duration: _searchAnimationDuration,
+  //         curve: Curves.easeInOutCubic,
+  //         height: _isSearchClicked ? expandedHeight : collapsedHeight,
+  //         child: Stack(
+  //           alignment: Alignment.bottomRight,
+  //           children: [
+  //             AnimatedOpacity(
+  //               duration: const Duration(milliseconds: 220),
+  //               curve: Curves.easeOut,
+  //               opacity: _isSearchClicked ? 0 : 1,
+  //               child: AnimatedSlide(
+  //                 duration: _searchAnimationDuration,
+  //                 curve: Curves.easeInOutCubic,
+  //                 offset: _isSearchClicked
+  //                     ? const Offset(-0.05, 0)
+  //                     : Offset.zero,
+  //                 child: IgnorePointer(
+  //                   ignoring: _isSearchClicked,
+  //                   child: _buildAnimatedStatusTabs(
+  //                     width: constraints.maxWidth,
+  //                     searchButtonWidth: searchButtonWidth,
+  //                   ),
+  //                 ),
+  //               ),
+  //             ),
+  //             _AnimatedSearchField(
+  //               isExpanded: _isSearchClicked,
+  //               width: _isSearchClicked
+  //                   ? constraints.maxWidth
+  //                   : searchButtonWidth,
+  //               controller: _searchController,
+  //               onOpen: () {
+  //                 setState(() {
+  //                   _isSearchClicked = true;
+  //                   _previousStatus = selectedStatus;
+  //                   selectedStatus = "Search";
+  //                 });
+  //               },
+  //               onClose: _closeSearch,
+  //               onChanged: _onSearchChanged,
+  //             ),
+  //           ],
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
   Widget _buildStatusSearchSwitcher() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double collapsedHeight = 107.h;
-        final double expandedHeight = 60.h;
-        final double searchButtonWidth = 60.w;
+        final isWideShortPhone = _isWideShortPhone(context);
+        final double searchButtonWidth = isWideShortPhone ? 60.0 : 60.w;
+        final double tabHeight = isWideShortPhone ? 30.0 : 29.h;
+        final double rowGap = isWideShortPhone ? 8.0 : 10.w;
+        final double threeRowsHeight = (tabHeight * 3) + (rowGap * 2) + 8.0;
+        // final double secondRowTop = tabHeight + rowGap; // unused in this layout
+        final double thirdRowTop = (tabHeight + rowGap) * 2;
+        final double searchHeight = isWideShortPhone ? 56.0 : 60.h;
 
-        return AnimatedContainer(
-          duration: _searchAnimationDuration,
-          curve: Curves.easeInOutCubic,
-          height: _isSearchClicked ? expandedHeight : collapsedHeight,
-          child: Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                opacity: _isSearchClicked ? 0 : 1,
-                child: AnimatedSlide(
-                  duration: _searchAnimationDuration,
-                  curve: Curves.easeInOutCubic,
-                  offset: _isSearchClicked
-                      ? const Offset(-0.05, 0)
-                      : Offset.zero,
-                  child: IgnorePointer(
-                    ignoring: _isSearchClicked,
-                    child: _buildAnimatedStatusTabs(
-                      width: constraints.maxWidth,
-                      searchButtonWidth: searchButtonWidth,
+        return Padding(
+          padding: EdgeInsets.only(bottom: isWideShortPhone ? 12.0 : 14.h),
+          child: SizedBox(
+            height: _isSearchClicked ? searchHeight : threeRowsHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  opacity: _isSearchClicked ? 0 : 1,
+                  child: AnimatedSlide(
+                    duration: _searchAnimationDuration,
+                    curve: Curves.easeInOutCubic,
+                    offset: _isSearchClicked
+                        ? const Offset(-0.05, 0)
+                        : Offset.zero,
+                    child: IgnorePointer(
+                      ignoring: _isSearchClicked,
+                      child: _buildAnimatedStatusTabs(
+                        width: constraints.maxWidth,
+                        searchButtonWidth: searchButtonWidth,
+                        tabGap: rowGap,
+                        tabHeight: tabHeight,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              _AnimatedSearchField(
-                isExpanded: _isSearchClicked,
-                width: _isSearchClicked
-                    ? constraints.maxWidth
-                    : searchButtonWidth,
-                controller: _searchController,
-                onOpen: () {
-                  setState(() {
-                    _isSearchClicked = true;
-                    _previousStatus = selectedStatus;
-                    selectedStatus = "Search";
-                  });
-                },
-                onClose: _closeSearch,
-                onChanged: _onSearchChanged,
-              ),
-            ],
+
+                // Search button — pinned to row 3, right side when collapsed
+                AnimatedPositioned(
+                  duration: _searchAnimationDuration,
+                  curve: Curves.easeInOutCubic,
+                  top: _isSearchClicked ? 0 : thirdRowTop,
+                  right: 0,
+                  child: _AnimatedSearchField(
+                    isExpanded: _isSearchClicked,
+                    width: _isSearchClicked
+                        ? constraints.maxWidth
+                        : searchButtonWidth,
+                    collapsedHeight: tabHeight,
+                    expandedHeight: searchHeight,
+                    controller: _searchController,
+                    onOpen: () {
+                      setState(() {
+                        _isSearchClicked = true;
+                        _previousStatus = selectedStatus;
+                        selectedStatus = "Search";
+                      });
+                    },
+                    onClose: _closeSearch,
+                    onChanged: _onSearchChanged,
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -1298,6 +1531,8 @@ class _StatusTabPosition {
 class _AnimatedSearchField extends StatelessWidget {
   final bool isExpanded;
   final double width;
+  final double collapsedHeight;
+  final double expandedHeight;
   final TextEditingController controller;
   final VoidCallback onOpen;
   final VoidCallback onClose;
@@ -1306,6 +1541,8 @@ class _AnimatedSearchField extends StatelessWidget {
   const _AnimatedSearchField({
     required this.isExpanded,
     required this.width,
+    required this.collapsedHeight,
+    required this.expandedHeight,
     required this.controller,
     required this.onOpen,
     required this.onClose,
@@ -1316,26 +1553,59 @@ class _AnimatedSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final screenWidth = size.width;
+    final isWideShortPhone = Breakpoints.isWideShortPhone(size);
+    final useMobileScale = screenWidth < 550 && !isWideShortPhone;
+    final collapsedIconSize = isWideShortPhone
+        ? 18.0
+        : useMobileScale
+        ? 20.w
+        : 16.w;
+    final expandedIconSize = isWideShortPhone
+        ? 20.0
+        : useMobileScale
+        ? 22.w
+        : 14.w;
+    final iconSlotWidth = isWideShortPhone
+        ? 22.0
+        : useMobileScale
+        ? 24.w
+        : 18.w;
+    final fieldGap = isWideShortPhone ? 10.0 : 12.w;
+    final fieldTextSize = isWideShortPhone ? 14.0 : 15.sp;
+    final verticalPadding = isWideShortPhone ? 14.0 : 16.h;
+
     return GestureDetector(
       onTap: isExpanded ? null : onOpen,
       child: AnimatedContainer(
         duration: _duration,
         curve: Curves.easeInOutCubic,
         width: width,
-        height: isExpanded ? 60.h : 29.h,
+        height: isExpanded ? expandedHeight : collapsedHeight,
         padding: EdgeInsets.only(
-          left: isExpanded ? 18.w : 4.w,
-          right: isExpanded ? 12.w : 4.w,
+          left: isExpanded
+              ? (isWideShortPhone ? 16.0 : 18.w)
+              : (isWideShortPhone ? 4.0 : 4.w),
+          right: isExpanded
+              ? (isWideShortPhone ? 10.0 : 12.w)
+              : (isWideShortPhone ? 4.0 : 4.w),
         ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(isExpanded ? 20.r : 10.r),
+          borderRadius: BorderRadius.circular(
+            isExpanded
+                ? (isWideShortPhone ? 18.0 : 20.r)
+                : (isWideShortPhone ? 9.0 : 10.r),
+          ),
           boxShadow: [
             BoxShadow(
               color: isExpanded
                   ? Colors.black.withOpacity(0.22)
                   : const Color(0x2E000000),
-              blurRadius: isExpanded ? 15.r : 10.r,
+              blurRadius: isExpanded
+                  ? (isWideShortPhone ? 12.0 : 15.r)
+                  : (isWideShortPhone ? 8.0 : 10.r),
               spreadRadius: isExpanded ? 0 : 1,
               offset: Offset.zero,
             ),
@@ -1350,8 +1620,8 @@ class _AnimatedSearchField extends StatelessWidget {
                 return Center(
                   child: Image.asset(
                     "assets/images/search_icon.png",
-                    width: 20.w,
-                    height: 20.w,
+                    width: collapsedIconSize,
+                    height: collapsedIconSize,
                     fit: BoxFit.contain,
                   ),
                 );
@@ -1362,16 +1632,16 @@ class _AnimatedSearchField extends StatelessWidget {
                   AnimatedContainer(
                     duration: _duration,
                     curve: Curves.easeInOutCubic,
-                    width: 24.w,
+                    width: iconSlotWidth,
                     alignment: Alignment.centerLeft,
                     child: Image.asset(
                       "assets/images/search_icon.png",
-                      width: 22.w,
-                      height: 22.w,
+                      width: expandedIconSize,
+                      height: expandedIconSize,
                       fit: BoxFit.contain,
                     ),
                   ),
-                  SizedBox(width: 12.w),
+                  SizedBox(width: fieldGap),
                   Expanded(
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 220),
@@ -1387,20 +1657,20 @@ class _AnimatedSearchField extends StatelessWidget {
                           onChanged: onChanged,
                           style: TextStyle(
                             color: Colors.black87,
-                            fontSize: 15.sp,
+                            fontSize: fieldTextSize,
                             fontWeight: FontWeight.w400,
                           ),
                           decoration: InputDecoration(
                             hintText: "Coupon Number",
                             hintStyle: TextStyle(
                               color: Colors.grey,
-                              fontSize: 15.sp,
+                              fontSize: fieldTextSize,
                               fontWeight: FontWeight.w400,
                             ),
                             border: InputBorder.none,
                             isCollapsed: true,
                             contentPadding: EdgeInsets.symmetric(
-                              vertical: 16.h,
+                              vertical: verticalPadding,
                             ),
                           ),
                         ),
@@ -1416,13 +1686,15 @@ class _AnimatedSearchField extends StatelessWidget {
                       opacity: isExpanded ? 1 : 0,
                       child: InkWell(
                         onTap: onClose,
-                        borderRadius: BorderRadius.circular(18.r),
+                        borderRadius: BorderRadius.circular(
+                          isWideShortPhone ? 16.0 : 18.r,
+                        ),
                         child: Padding(
-                          padding: EdgeInsets.all(6.w),
+                          padding: EdgeInsets.all(isWideShortPhone ? 5.0 : 6.w),
                           child: Icon(
                             Icons.close,
                             color: Colors.grey,
-                            size: 22.w,
+                            size: isWideShortPhone ? 20.0 : 22.w,
                           ),
                         ),
                       ),
@@ -1644,7 +1916,7 @@ class _BanquetDateRangeDialogState extends State<_BanquetDateRangeDialog> {
         ? 'Select start date'
         : _endDate == null
         ? 'Select end date'
-        : '${_shortDate(_startDate!)} - ${_shortDate(_endDate!)}';
+        : '${formatDateForRange(_startDate!, _endDate!)} - ${formatDateForRange(_endDate!, _startDate!)}';
 
     return Container(
       width: double.infinity,
@@ -1913,7 +2185,7 @@ class _BanquetDateRangeDialogState extends State<_BanquetDateRangeDialog> {
     );
   }
 
-  String _shortDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
+  // _shortDate removed: using top-level formatDateForRange for consistent display
 
   String _monthName(int month) => const [
     'January',

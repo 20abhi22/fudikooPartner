@@ -3,6 +3,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/apptextfeild.dart';
 import 'package:fudiko/components/descriptionBox.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/screens/others/restaurantProfile.dart';
 import 'package:fudiko/services/profile-service.dart';
 import 'package:fudiko/utils/constants.dart';
@@ -49,6 +51,7 @@ class _RestaurantBioEditPageState extends State<RestaurantBioEditPage> {
       text: widget.availableDishes,
     );
     _addressController = TextEditingController(text: widget.location);
+
     _phoneController = TextEditingController(text: widget.phone);
   }
 
@@ -121,22 +124,81 @@ class _RestaurantBioEditPageState extends State<RestaurantBioEditPage> {
     }
   }
 
+  double _contentMaxWidth(Size size) {
+    final width = size.width;
+    if (Breakpoints.isDesktop(width)) return 460;
+    if (Breakpoints.isTabletDevice(size) ||
+        Breakpoints.isWideShortPhone(size)) {
+      return 440;
+    }
+    return double.infinity;
+  }
+
+  EdgeInsets _contentPadding(Size size) {
+    final width = size.width;
+    final isWideShortPhone = Breakpoints.isWideShortPhone(size);
+    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
+    return EdgeInsets.symmetric(
+      horizontal: isWideShortPhone
+          ? 24.0
+          : isMobile
+          ? 30.w
+          : AppDimensions.padding(width),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final screenWidth = size.width;
+    final isWideShortPhone = Breakpoints.isWideShortPhone(size);
+    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
+    final isTabletLandscape =
+        Breakpoints.isTabletDevice(size) && screenWidth > size.height;
+    final bannerHeight = isWideShortPhone
+        ? 120.0
+        : isTabletLandscape
+        ? 130.0
+        : isMobile
+        ? 150.h
+        : 160.0;
+    final headerPadding = isWideShortPhone
+        ? 24.0
+        : isMobile
+        ? 30.w
+        : AppDimensions.padding(screenWidth);
+    final backSize = isMobile ? 28.w : 26.0;
+    final topGap = isWideShortPhone
+        ? 24.0
+        : isMobile
+        ? 50.h
+        : 44.0;
+    final fieldGap = isMobile ? 20.h : 18.0;
+    final bottomGap = isWideShortPhone
+        ? 28.0
+        : isMobile
+        ? 50.h
+        : 42.0;
+    final fieldRadius = isMobile ? 20.r : 18.0;
+    final fieldTextSize = isMobile ? 16.0 : 14.0;
+    final buttonWidth = isMobile ? 160.w : 160.0;
+    final buttonHeight = isMobile ? 50.h : 48.0;
+
     return Scaffold(
       body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         child: Column(
           children: [
             Stack(
               children: [
                 Image.asset(
                   'assets/images/banner1.png',
-                  height: 150.h,
+                  height: bannerHeight,
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),
                 Padding(
-                  padding: EdgeInsets.all(30.w),
+                  padding: EdgeInsets.all(headerPadding),
                   child: GestureDetector(
                     onTap: () {
                       Navigator.pop(context);
@@ -147,18 +209,18 @@ class _RestaurantBioEditPageState extends State<RestaurantBioEditPage> {
                     //   color: Colors.white,
                     child: Image.asset(
                       backWhite,
-                      width: 28.w,
+                      width: backSize,
                       fit: BoxFit.contain,
                     ),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 50.h),
+            SizedBox(height: topGap),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 30.w),
-              child: SizedBox(
-                width: double.infinity,
+              padding: _contentPadding(size),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: _contentMaxWidth(size)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -169,40 +231,48 @@ class _RestaurantBioEditPageState extends State<RestaurantBioEditPage> {
                       maxLength: 450,
                       iconImagePath: listMenuIcon,
                       iconColor: Color(0xFFD68541),
-                      
+                      borderRadius: fieldRadius,
                       controller: _descriptionController,
                     ),
-                    SizedBox(height: 20.h),
+                    SizedBox(height: fieldGap),
                     AppTextFeild(
                       text: "Available dishes",
                       iconImagePath: dishesIcon,
                       iconColor: appTextColor,
                       controller: _availableDishesController,
+                      fieldBorderRadius: fieldRadius,
+                      size: fieldTextSize,
                     ),
-                    SizedBox(height: 20.h),
+                    SizedBox(height: fieldGap),
                     AppTextFeild(
                       text: "Address",
                       iconImagePath: addressPinIcon,
                       iconColor: appTextColor,
                       controller: _addressController,
+                      fieldBorderRadius: fieldRadius,
+                      size: fieldTextSize,
                     ),
-                    SizedBox(height: 20.h),
+                    SizedBox(height: fieldGap),
                     AppTextFeild(
                       text: "Contact number",
                       iconImagePath: landPhoneIcon,
                       iconColor: appTextColor,
                       controller: _phoneController,
+                      fieldBorderRadius: fieldRadius,
+                      size: fieldTextSize,
                     ),
 
-                    SizedBox(height: 50.h),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 100.w),
+                    SizedBox(height: bottomGap),
+                    SizedBox(
+                      width: buttonWidth,
+                      height: buttonHeight,
                       child: AppButton(
                         text: _isUpdating ? 'Updating...' : 'Update',
                         onPressed: _isUpdating ? () {} : _updateProfile,
+                        size: 15,
                       ),
                     ),
-                    SizedBox(height: 50.h),
+                    SizedBox(height: bottomGap),
                   ],
                 ),
               ),

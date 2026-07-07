@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/components/apptextfeild.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/menuupload/menu-delete-model.dart';
 import 'package:fudiko/models/menuupload/menu-list-model.dart';
 import 'package:fudiko/models/menuupload/menu-update-model.dart';
@@ -15,6 +17,10 @@ import 'package:fudiko/utils/constants.dart';
 import 'package:fudiko/utils/translator_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+bool _isWideShortPhone(BuildContext context) {
+  return Breakpoints.isWideShortPhone(MediaQuery.sizeOf(context));
+}
 
 class MenuUpload extends StatefulWidget {
   const MenuUpload({super.key});
@@ -55,11 +61,15 @@ class _UploadPdfPromptState extends State<_UploadPdfPrompt> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final isWideShortPhone = _isWideShortPhone(context);
+    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
+
     return RichText(
       textAlign: TextAlign.center,
       text: TextSpan(
         style: TextStyle(
-          fontSize: 14.sp,
+          fontSize: isMobile ? 14.sp : 14.0,
           fontWeight: FontWeight.w400,
           color: appTextColor2.withValues(alpha: 0.75),
           height: 1.25,
@@ -78,22 +88,69 @@ class _UploadPdfPromptState extends State<_UploadPdfPrompt> {
 }
 
 class _MenuUploadState extends State<MenuUpload> {
+  static const int _maxPdfBytes = 10 * 1024 * 1024;
   bool isOpen = false;
   bool isLoading = false;
   bool isEditMode = false;
   bool isUploading = false;
+  String _uploadStatus = '';
   File? selectedPdfFile;
   List<MenuModel> menus = [];
   MenuModel? editingMenu;
   final TextEditingController fileNameController = TextEditingController();
   MenuUploadService menuUploadService = MenuUploadService();
 
+  double _contentMaxWidth(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    if (Breakpoints.isDesktop(width)) return 760;
+    if (Breakpoints.isTabletDevice(size) || _isWideShortPhone(context)) {
+      return 680;
+    }
+    return double.infinity;
+  }
+
+  EdgeInsetsGeometry _pagePadding(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    if (_isWideShortPhone(context)) {
+      return const EdgeInsets.symmetric(horizontal: 24.0);
+    }
+    final isMobile = Breakpoints.isMobileDevice(size);
+    return EdgeInsets.symmetric(
+      horizontal: isMobile ? 20.w : AppDimensions.padding(width),
+    );
+  }
+
+  Widget _responsiveContent({
+    required Widget child,
+    double? maxWidth,
+    EdgeInsetsGeometry? padding,
+    Alignment alignment = Alignment.topCenter,
+  }) {
+    return Padding(
+      padding: padding ?? _pagePadding(context),
+      child: Align(
+        alignment: alignment,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: maxWidth ?? _contentMaxWidth(context),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   Future<void> uploadMenu() async {
     if (selectedPdfFile == null || fileNameController.text.isEmpty) {
       _showSnackBar('Please select a file and enter a menu name');
       return;
     }
-    setState(() => isUploading = true);
+    setState(() {
+      isUploading = true;
+      _uploadStatus = 'Uploading PDF...';
+    });
     try {
       MenuUploadModel menu = MenuUploadModel(
         file: selectedPdfFile!,
@@ -102,12 +159,19 @@ class _MenuUploadState extends State<MenuUpload> {
       MenuUploadResponseModel response = await menuUploadService.addMenu(menu);
       if (!mounted) return;
       _showSnackBar(response.message);
-      if (response.status) getAllPdfs();
+      if (response.status) {
+        getAllPdfs();
+        closeModal();
+      }
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Upload failed: ${e.toString()}');
     } finally {
-      if (mounted) setState(() => isUploading = false);
+      if (mounted)
+        setState(() {
+          isUploading = false;
+          _uploadStatus = '';
+        });
     }
   }
 
@@ -116,7 +180,10 @@ class _MenuUploadState extends State<MenuUpload> {
       _showSnackBar('Invalid menu data');
       return;
     }
-    setState(() => isUploading = true);
+    setState(() {
+      isUploading = true;
+      _uploadStatus = 'Updating PDF...';
+    });
     try {
       MenuUpdateModel menu = MenuUpdateModel(
         menuId: editingMenu!.uuid,
@@ -130,12 +197,19 @@ class _MenuUploadState extends State<MenuUpload> {
       _showSnackBar(
         response.status ? 'Menu updated successfully' : response.message,
       );
-      if (response.status) getAllPdfs();
+      if (response.status) {
+        getAllPdfs();
+        closeModal();
+      }
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Update failed: ${e.toString()}');
     } finally {
-      if (mounted) setState(() => isUploading = false);
+      if (mounted)
+        setState(() {
+          isUploading = false;
+          _uploadStatus = '';
+        });
     }
   }
 
@@ -214,8 +288,13 @@ class _MenuUploadState extends State<MenuUpload> {
         allowedExtensions: ['pdf'],
       );
       if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        if (await file.length() > _maxPdfBytes) {
+          _showSnackBar('PDF is too large. The maximum size is 10 MB.');
+          return;
+        }
         setState(() {
-          selectedPdfFile = File(result.files.single.path!);
+          selectedPdfFile = file;
           if (!isEditMode || fileNameController.text.isEmpty) {
             fileNameController.text = selectedPdfFile!.path
                 .split('/')
@@ -236,6 +315,140 @@ class _MenuUploadState extends State<MenuUpload> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    final isWideShortPhone = _isWideShortPhone(context);
+    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
+    final isTabletLandscape =
+        Breakpoints.isTabletDevice(size) && width > size.height;
+    final bannerHeight = isWideShortPhone
+        ? 120.0
+        : isTabletLandscape
+        ? 130.0
+        : isMobile
+        ? 150.h
+        : 160.0;
+    final backPadding = isWideShortPhone
+        ? 24.0
+        : isMobile
+        ? 30.w
+        : AppDimensions.padding(width);
+    final backIconSize = isWideShortPhone
+        ? 24.0
+        : isMobile
+        ? 28.w
+        : 28.0;
+    final contentGap = isWideShortPhone
+        ? 12.0
+        : isMobile
+        ? 20.h
+        : 24.0;
+    final emptyIconSize = isWideShortPhone
+        ? 52.0
+        : isMobile
+        ? 60.w
+        : 60.0;
+    final emptyGap = isWideShortPhone
+        ? 8.0
+        : isMobile
+        ? 10.h
+        : 10.0;
+    final emptyTextSize = isWideShortPhone
+        ? 14.0
+        : isMobile
+        ? 14.sp
+        : 14.0;
+    final fabSize = isWideShortPhone
+        ? 60.0
+        : isMobile
+        ? 75.w
+        : 72.0;
+    final fabBottom = isWideShortPhone
+        ? 24.0
+        : isMobile
+        ? 40.h
+        : 40.0;
+    final fabRight = isWideShortPhone
+        ? 24.0
+        : isMobile
+        ? 20.w
+        : AppDimensions.padding(width);
+    final modalHorizontalPadding = isWideShortPhone
+        ? 36.0
+        : isMobile
+        ? 24.w
+        : AppDimensions.padding(width);
+    final modalWidth = isWideShortPhone
+        ? 420.0
+        : isMobile
+        ? double.infinity
+        : 430.0;
+    final modalPaddingH = isWideShortPhone
+        ? 20.0
+        : isMobile
+        ? 20.w
+        : 20.0;
+    final modalPaddingV = isWideShortPhone
+        ? 18.0
+        : isMobile
+        ? 24.h
+        : 24.0;
+    final modalRadius = isWideShortPhone
+        ? 16.0
+        : isMobile
+        ? 20.r
+        : 20.0;
+    final modalGapSmall = isWideShortPhone
+        ? 6.0
+        : isMobile
+        ? 8.h
+        : 8.0;
+    final modalGapMedium = isWideShortPhone
+        ? 14.0
+        : isMobile
+        ? 18.h
+        : 18.0;
+    final modalGapLarge = isWideShortPhone
+        ? 18.0
+        : isMobile
+        ? 22.h
+        : 22.0;
+    final pickerPaddingH = isWideShortPhone
+        ? 18.0
+        : isMobile
+        ? 20.w
+        : 20.0;
+    final pickerPaddingV = isWideShortPhone
+        ? 18.0
+        : isMobile
+        ? 22.h
+        : 22.0;
+    final pickerRadius = isWideShortPhone
+        ? 14.0
+        : isMobile
+        ? 15.r
+        : 15.0;
+    final uploadIconSize = isWideShortPhone
+        ? 28.0
+        : isMobile
+        ? 32.w
+        : 32.0;
+    final actionButtonWidth = isWideShortPhone
+        ? 120.0
+        : isMobile
+        ? 130.w
+        : 130.0;
+    final actionButtonHeight = isWideShortPhone
+        ? 40.0
+        : isMobile
+        ? 40.h
+        : 40.0;
+    final actionTextSize = isWideShortPhone
+        ? 13.0
+        : isMobile
+        ? 13.sp
+        : 13.0;
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
@@ -250,17 +463,17 @@ class _MenuUploadState extends State<MenuUpload> {
                   children: [
                     Image.asset(
                       'assets/images/banner1.png',
-                      height: 150.h,
+                      height: bannerHeight,
                       width: double.infinity,
                       fit: BoxFit.cover,
                     ),
                     Padding(
-                      padding: EdgeInsets.all(30.w),
+                      padding: EdgeInsets.all(backPadding),
                       child: GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Image.asset(
                           backWhite,
-                          width: 28.w,
+                          width: backIconSize,
                           fit: BoxFit.contain,
                         ),
                         // child: Icon(
@@ -272,7 +485,7 @@ class _MenuUploadState extends State<MenuUpload> {
                     ),
                   ],
                 ),
-                SizedBox(height: 20.h),
+                SizedBox(height: contentGap),
                 if (isLoading)
                   Expanded(
                     child: Center(
@@ -281,10 +494,13 @@ class _MenuUploadState extends State<MenuUpload> {
                   )
                 else if (menus.isNotEmpty)
                   Expanded(
-                    child: ListView.builder(
-                      padding: EdgeInsets.symmetric(horizontal: 20.w),
-                      itemCount: menus.length,
-                      itemBuilder: (context, index) => _pdfBox(menus[index]),
+                    child: _responsiveContent(
+                      padding: _pagePadding(context),
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: menus.length,
+                        itemBuilder: (context, index) => _pdfBox(menus[index]),
+                      ),
                     ),
                   )
                 else
@@ -295,15 +511,15 @@ class _MenuUploadState extends State<MenuUpload> {
                         children: [
                           Icon(
                             Icons.picture_as_pdf,
-                            size: 60.w,
+                            size: emptyIconSize,
                             color: Colors.grey[400],
                           ),
-                          SizedBox(height: 10.h),
+                          SizedBox(height: emptyGap),
                           Text(
                             "No PDF Available",
                             style: TextStyle(
                               color: Colors.grey[500],
-                              fontSize: 14.sp,
+                              fontSize: emptyTextSize,
                             ),
                           ),
                         ],
@@ -312,16 +528,16 @@ class _MenuUploadState extends State<MenuUpload> {
                   ),
               ],
             ),
-        
+
             // ── FAB ──────────────────────────────────────────────────
             Positioned(
-              bottom: 40.h,
-              right: 20.w,
+              bottom: fabBottom,
+              right: fabRight,
               child: GestureDetector(
                 onTap: isUploading ? null : openAddModal,
                 child: Container(
-                  width: 75.w,
-                  height: 75.w,
+                  width: fabSize,
+                  height: fabSize,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     // uses your appButtonColor (orange) from constants
@@ -339,15 +555,15 @@ class _MenuUploadState extends State<MenuUpload> {
                     padding: const EdgeInsets.all(14.0),
                     child: Image.asset(
                       plusIcon,
-                      width: 10.w,
-                      height: 10.h,
+                      width: isMobile ? 10.w : 10.0,
+                      height: isMobile ? 10.h : 10.0,
                       // fit: BoxFit.contain,
                     ),
                   ),
                 ),
               ),
             ),
-        
+
             // ── Modal overlay ─────────────────────────────────────────
             if (isOpen) ...[
               // Backdrop
@@ -359,27 +575,29 @@ class _MenuUploadState extends State<MenuUpload> {
                   height: double.infinity,
                 ),
               ),
-        
+
               // Modal card
               Center(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24.w),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: modalHorizontalPadding,
+                  ),
                   child: Material(
                     color: Colors.transparent,
                     child: Container(
-                      width: double.infinity,
+                      width: modalWidth,
                       padding: EdgeInsets.symmetric(
-                        horizontal: 20.w,
-                        vertical: 24.h,
+                        horizontal: modalPaddingH,
+                        vertical: modalPaddingV,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20.r),
+                        borderRadius: BorderRadius.circular(modalRadius),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.15),
-                            blurRadius: 20.r,
-                            offset: Offset(0, 8.r),
+                            blurRadius: isMobile ? 20.r : 20.0,
+                            offset: Offset(0, isMobile ? 8.r : 8.0),
                           ),
                         ],
                       ),
@@ -394,7 +612,7 @@ class _MenuUploadState extends State<MenuUpload> {
                               if (isEditMode)
                                 AppText(
                                   text: isEditMode ? "Edit Menu" : "",
-                                  size: 16.sp,
+                                  size: isMobile ? 16.sp : 16.0,
                                   fontWeight: FontWeight.w600,
                                   color: appTextColor2,
                                 ),
@@ -408,21 +626,23 @@ class _MenuUploadState extends State<MenuUpload> {
                               // ),
                             ],
                           ),
-        
-                          SizedBox(height: 18.h),
-        
+
+                          SizedBox(height: modalGapMedium),
+
                           // Current file badge (edit mode)
                           if (isEditMode && editingMenu != null) ...[
                             Container(
                               width: double.infinity,
                               padding: EdgeInsets.symmetric(
-                                horizontal: 12.w,
-                                vertical: 10.h,
+                                horizontal: isMobile ? 12.w : 12.0,
+                                vertical: isMobile ? 10.h : 10.0,
                               ),
                               decoration: BoxDecoration(
                                 // light orange tint matching your theme
                                 color: appButtonColor.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(10.r),
+                                borderRadius: BorderRadius.circular(
+                                  isMobile ? 10.r : 10.0,
+                                ),
                                 border: Border.all(
                                   color: appButtonColor.withOpacity(0.3),
                                   width: 1,
@@ -433,14 +653,14 @@ class _MenuUploadState extends State<MenuUpload> {
                                   Icon(
                                     Icons.picture_as_pdf,
                                     color: appButtonColor,
-                                    size: 18.w,
+                                    size: isMobile ? 18.w : 18.0,
                                   ),
-                                  SizedBox(width: 8.w),
+                                  SizedBox(width: isMobile ? 8.w : 8.0),
                                   Expanded(
                                     child: Text(
                                       "Current: ${editingMenu!.menuName}",
                                       style: TextStyle(
-                                        fontSize: 13.sp,
+                                        fontSize: isMobile ? 13.sp : 13.0,
                                         fontWeight: FontWeight.w500,
                                         color: appButtonColor,
                                       ),
@@ -450,22 +670,24 @@ class _MenuUploadState extends State<MenuUpload> {
                                 ],
                               ),
                             ),
-                            SizedBox(height: 14.h),
+                            SizedBox(height: isMobile ? 14.h : 14.0),
                           ],
-        
+
                           // PDF picker box
                           GestureDetector(
                             onTap: isUploading ? null : pickPdfFile,
                             child: Container(
                               width: double.infinity,
                               padding: EdgeInsets.symmetric(
-                                horizontal: 20.w,
-                                vertical: 22.h,
+                                horizontal: pickerPaddingH,
+                                vertical: pickerPaddingV,
                               ),
                               decoration: BoxDecoration(
                                 // your menuUploadBoxColor from constants
                                 color: menuUploadBoxColor,
-                                borderRadius: BorderRadius.circular(15.r),
+                                borderRadius: BorderRadius.circular(
+                                  pickerRadius,
+                                ),
                                 border: Border.all(
                                   color: selectedPdfFile != null
                                       ? const Color(0xFF73B256)
@@ -481,21 +703,25 @@ class _MenuUploadState extends State<MenuUpload> {
                                       ? Icon(
                                           Icons.picture_as_pdf,
                                           color: const Color(0xFF73B256),
-                                          size: 32.w,
+                                          size: uploadIconSize,
                                         )
                                       : Image.asset(
                                           uploadIcon,
-                                          width: 32.w,
-                                          height: 32.h,
+                                          width: uploadIconSize,
+                                          height: uploadIconSize,
                                           fit: BoxFit.contain,
                                         ),
-                                  SizedBox(height: 8.h),
+                                  SizedBox(height: modalGapSmall),
                                   if (selectedPdfFile != null)
                                     AppText(
-                                      text: selectedPdfFile!.path.split('/').last,
+                                      text: selectedPdfFile!.path
+                                          .split('/')
+                                          .last,
                                       size: 11,
                                       fontWeight: FontWeight.w400,
-                                      color: appTextColor2.withValues(alpha: 0.6),
+                                      color: appTextColor2.withValues(
+                                        alpha: 0.6,
+                                      ),
                                       isCentered: true,
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
@@ -504,7 +730,9 @@ class _MenuUploadState extends State<MenuUpload> {
                                     const _UploadPdfPrompt(),
                                   if (isEditMode && selectedPdfFile == null)
                                     Padding(
-                                      padding: EdgeInsets.only(top: 4.h),
+                                      padding: EdgeInsets.only(
+                                        top: isMobile ? 4.h : 4.0,
+                                      ),
                                       child: AppText(
                                         text: "Leave empty to keep current PDF",
                                         size: 10,
@@ -516,9 +744,9 @@ class _MenuUploadState extends State<MenuUpload> {
                               ),
                             ),
                           ),
-        
-                          SizedBox(height: 18.h),
-        
+
+                          SizedBox(height: modalGapMedium),
+
                           // Menu name field
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -534,14 +762,25 @@ class _MenuUploadState extends State<MenuUpload> {
                               ),
                             ],
                           ),
-        
-                          SizedBox(height: 22.h),
-        
+
+                          SizedBox(height: modalGapLarge),
+
                           // Action buttons
                           if (isUploading)
                             Center(
-                              child: CircularProgressIndicator(
-                                color: appButtonColor,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircularProgressIndicator(
+                                    color: appButtonColor,
+                                  ),
+                                  SizedBox(height: modalGapSmall),
+                                  Text(
+                                    _uploadStatus.isEmpty
+                                        ? 'Uploading PDF...'
+                                        : _uploadStatus,
+                                  ),
+                                ],
                               ),
                             )
                           else
@@ -553,7 +792,6 @@ class _MenuUploadState extends State<MenuUpload> {
                                         .trim()
                                         .isNotEmpty) {
                                       updateMenu();
-                                      closeModal();
                                     } else {
                                       _showSnackBar('Please enter a menu name');
                                     }
@@ -563,7 +801,6 @@ class _MenuUploadState extends State<MenuUpload> {
                                             .trim()
                                             .isNotEmpty) {
                                       uploadMenu();
-                                      closeModal();
                                     } else {
                                       _showSnackBar(
                                         'Please select a file and enter a menu name',
@@ -572,17 +809,19 @@ class _MenuUploadState extends State<MenuUpload> {
                                   }
                                 },
                                 child: Container(
-                                  width: 130.w,
-                                  height: 40.h,
+                                  width: actionButtonWidth,
+                                  height: actionButtonHeight,
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF73B256),
-                                    borderRadius: BorderRadius.circular(10.r),
+                                    borderRadius: BorderRadius.circular(
+                                      isMobile ? 10.r : 10.0,
+                                    ),
                                   ),
                                   alignment: Alignment.center,
                                   child: Text(
                                     isEditMode ? "Update" : "Upload",
                                     style: TextStyle(
-                                      fontSize: 13.sp,
+                                      fontSize: actionTextSize,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.white,
                                     ),
@@ -604,21 +843,34 @@ class _MenuUploadState extends State<MenuUpload> {
   }
 
   Widget _pdfBox(MenuModel menu) {
+    final size = MediaQuery.sizeOf(context);
+    final isWideShortPhone = _isWideShortPhone(context);
+    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
+    final rowHeight = isMobile ? 70.h : 70.0;
+    final rowPadding = isMobile ? 16.w : 16.0;
+    final rowMargin = isMobile ? 10.h : 10.0;
+    final rowRadius = isMobile ? 20.r : 20.0;
+    final iconSize = isMobile ? 40.w : 40.0;
+    final actionIconSize = isMobile ? 22.w : 22.0;
+    final actionGap = isMobile ? 10.w : 10.0;
+    final titlePadding = isMobile ? 50.w : 56.0;
+    final titleSize = isMobile ? 12.sp : 12.0;
+
     return GestureDetector(
       onTap: () => downloadPdfFile(menu.pdfPath, menu.menuName, context),
       child: Container(
         width: double.infinity,
-        height: 70.h,
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        margin: EdgeInsets.only(bottom: 10.h),
+        height: rowHeight,
+        padding: EdgeInsets.symmetric(horizontal: rowPadding),
+        margin: EdgeInsets.only(bottom: rowMargin),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20.r),
+          borderRadius: BorderRadius.circular(rowRadius),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
-              blurRadius: 10.r,
-              offset: Offset(0, 4.r),
+              blurRadius: isMobile ? 10.r : 10.0,
+              offset: Offset(0, isMobile ? 4.r : 4.0),
             ),
           ],
         ),
@@ -629,18 +881,18 @@ class _MenuUploadState extends State<MenuUpload> {
               left: 0,
               child: Image.asset(
                 'assets/images/pdfLogo.png',
-                height: 40.h,
-                width: 40.w,
+                height: iconSize,
+                width: iconSize,
                 fit: BoxFit.contain,
               ),
             ),
             Center(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 50.w),
+                padding: EdgeInsets.symmetric(horizontal: titlePadding),
                 child: Text(
                   menu.menuName,
                   style: TextStyle(
-                    fontSize: 12.sp,
+                    fontSize: titleSize,
                     fontWeight: FontWeight.w500,
                     color: appTextColor2,
                   ),
@@ -660,13 +912,17 @@ class _MenuUploadState extends State<MenuUpload> {
                     child: Icon(
                       Icons.edit,
                       color: Colors.blue[600],
-                      size: 22.w,
+                      size: actionIconSize,
                     ),
                   ),
-                  SizedBox(width: 10.w),
+                  SizedBox(width: actionGap),
                   GestureDetector(
                     onTap: () => showDeleteConfirmation(menu),
-                    child: Icon(Icons.delete, color: Colors.red, size: 22.w),
+                    child: Icon(
+                      Icons.delete,
+                      color: Colors.red,
+                      size: actionIconSize,
+                    ),
                   ),
                 ],
               ),
@@ -681,10 +937,14 @@ class _MenuUploadState extends State<MenuUpload> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final size = MediaQuery.sizeOf(context);
+        final isWideShortPhone = _isWideShortPhone(context);
+        final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
+
         return AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15.r),
+            borderRadius: BorderRadius.circular(isMobile ? 15.r : 15.0),
           ),
           title: const Text('Delete Menu'),
           content: Text('Are you sure you want to delete "${menu.menuName}"?'),

@@ -11,8 +11,9 @@ class DioClient {
     final dio = Dio(
       BaseOptions(
         baseUrl: 'https://fudikko.bitwissenddev.in/api',
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 20),
+        sendTimeout: const Duration(minutes: 2),
+        receiveTimeout: const Duration(minutes: 2),
         headers: {'Accept': 'application/json'},
       ),
     );

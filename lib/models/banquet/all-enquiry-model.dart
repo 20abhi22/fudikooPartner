@@ -2,6 +2,7 @@ class BanquetEnquiryModel {
   final String uuid;
   final String enquiryId;
   final String userId;
+  final String customerId;
   final String lat;
   final String lng;
   final String menuItems;
@@ -21,6 +22,7 @@ class BanquetEnquiryModel {
     required this.uuid,
     required this.enquiryId,
     required this.userId,
+    required this.customerId,
     required this.lat,
     required this.lng,
     required this.menuItems,
@@ -42,6 +44,7 @@ class BanquetEnquiryModel {
       uuid: json['uuid'] ?? '',
       enquiryId: json['enquiry_id'] ?? '',
       userId: json['user_id']?.toString() ?? '',
+      customerId: json['customer_id']?.toString() ?? '',
       lat: json['lat']?.toString() ?? '',
       lng: json['lng']?.toString() ?? '',
       menuItems: json['menu_items'] ?? '',

@@ -1,13 +1,13 @@
 class OfferModel {
-    final String uuid;
-    final String partnerUid;
-    final String discountPercentage;
-    final String applicableFor;
-    final String dineType;
-    final String startTime;
-    final String endTime;
-    final String activeDays;
-    final String status;
+  final String uuid;
+  final String partnerUid;
+  final String discountPercentage;
+  final String applicableFor;
+  final String dineType;
+  final String startTime;
+  final String endTime;
+  final String activeDays;
+  final String status;
 
   OfferModel({
     required this.uuid,
@@ -20,6 +20,30 @@ class OfferModel {
     required this.activeDays,
     required this.status,
   });
+
+  OfferModel copyWith({
+    String? uuid,
+    String? partnerUid,
+    String? discountPercentage,
+    String? applicableFor,
+    String? dineType,
+    String? startTime,
+    String? endTime,
+    String? activeDays,
+    String? status,
+  }) {
+    return OfferModel(
+      uuid: uuid ?? this.uuid,
+      partnerUid: partnerUid ?? this.partnerUid,
+      discountPercentage: discountPercentage ?? this.discountPercentage,
+      applicableFor: applicableFor ?? this.applicableFor,
+      dineType: dineType ?? this.dineType,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      activeDays: activeDays ?? this.activeDays,
+      status: status ?? this.status,
+    );
+  }
 
   factory OfferModel.fromJson(Map<String, dynamic> json) {
     return OfferModel(

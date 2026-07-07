@@ -286,6 +286,46 @@
       "response": []
     },
     {
+      "name": "Restaurant Update Image",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "image",
+              "type": "file",
+              "uuid": "a9565b60-d36b-408e-9f49-27033a392d68",
+              "src": "/Users/suhail/Downloads/1628255235611.jpg"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/update-image",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "update-image"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "Partner Update Services",
       "request": {
         "auth": {
@@ -337,6 +377,45 @@
             "api",
             "partner",
             "update-services"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Customer Details",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "107|gvRuEqywbRt6YmtxN1mvyHm4BhmWdw5pxYZDD86ta10c54e1",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "customer_id",
+              "value": "cc71f8ca-9166-45e6-8a64-826d44d2e47b",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/customer",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "customer"
           ]
         }
       },
@@ -1585,13 +1664,11 @@
           "query": [
             {
               "key": "start_date",
-              "value": "2026-01-01",
-              "type": "text"
+              "value": "2026-01-01"
             },
             {
               "key": "end_date",
-              "value": "2026-05-03",
-              "type": "text"
+              "value": "2026-05-03"
             }
           ]
         }
@@ -1706,6 +1783,88 @@
             "partner",
             "reservations",
             "update-status"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reservations - Callback",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reservation_id",
+              "value": "cc71f8ca-9166-45e6-8a64-826d44d2e47b",
+              "type": "text",
+              "uuid": "bbc786df-9e6f-454c-af59-7569cabc4fb7"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/reservations/callback",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "reservations",
+            "callback"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reservations - Remind",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "reservation_id",
+              "value": "cc71f8ca-9166-45e6-8a64-826d44d2e47b",
+              "type": "text",
+              "uuid": "bbc786df-9e6f-454c-af59-7569cabc4fb7"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/partner/reservations/remind",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "reservations",
+            "remind"
           ]
         }
       },
@@ -1886,7 +2045,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/completed",
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/enquiry/completed?start_date=2026-01-01&end_date=2026-05-03",
           "protocol": "https",
           "host": [
             "fudikko",
@@ -1898,6 +2057,16 @@
             "partner",
             "enquiry",
             "completed"
+          ],
+          "query": [
+            {
+              "key": "start_date",
+              "value": "2026-01-01"
+            },
+            {
+              "key": "end_date",
+              "value": "2026-05-03"
+            }
           ]
         }
       },
@@ -2407,7 +2576,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/completed",
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/catering-enquiry/completed?start_date=2026-01-01&end_date=2026-05-03",
           "protocol": "https",
           "host": [
             "fudikko",
@@ -2419,6 +2588,16 @@
             "partner",
             "catering-enquiry",
             "completed"
+          ],
+          "query": [
+            {
+              "key": "start_date",
+              "value": "2026-01-01"
+            },
+            {
+              "key": "end_date",
+              "value": "2026-05-03"
+            }
           ]
         }
       },
@@ -2928,6 +3107,39 @@
             "api",
             "partner",
             "notification-settings"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Notification Badges",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "3|IwiJPrhi3o3hOWfdDq1enSaX3riRdVjtP7S0SaT9d04ceee0",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://fudikko.bitwissenddev.in/api/partner/notification/badges",
+          "protocol": "https",
+          "host": [
+            "fudikko",
+            "bitwissenddev",
+            "in"
+          ],
+          "path": [
+            "api",
+            "partner",
+            "notification",
+            "badges"
           ]
         }
       },

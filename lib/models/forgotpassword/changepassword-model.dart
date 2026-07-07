@@ -20,3 +20,20 @@ class NewPasswordResponseModel {
     );
   }
 }
+
+class UpdatePasswordModel {
+  final String currentPassword;
+  final String newPassword;
+
+  UpdatePasswordModel({
+    required this.currentPassword,
+    required this.newPassword,
+  });
+
+  FormData toFormData() {
+    return FormData.fromMap({
+      "current_password": currentPassword,
+      "new_password": newPassword,
+    });
+  }
+}

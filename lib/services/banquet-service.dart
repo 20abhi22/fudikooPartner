@@ -77,14 +77,14 @@ class BanquetEnquiryService {
   }
 
   Future<BanquetEnquiryListResponse> searchEnquiries(String query) async {
-  final token = await getToken();
-  final response = await DioClient.dio.get(
-    '/partner/enquiry/search',
-    queryParameters: {'id': query},
-    options: Options(headers: {'Authorization': 'Bearer $token'}),
-  );
-  return BanquetEnquiryListResponse.fromJson(response.data);
-}
+    final token = await getToken();
+    final response = await DioClient.dio.get(
+      '/partner/enquiry/search',
+      queryParameters: {'id': query},
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return BanquetEnquiryListResponse.fromJson(response.data);
+  }
 
   Future<BanquetEnquiryModel> showEnquiry(String uuid) async {
     final token = await getToken();
@@ -124,6 +124,28 @@ class BanquetEnquiryService {
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
     return BanquetEnquiryListResponse.fromJson(response.data);
+  }
+
+  Future<Map<String, dynamic>> remindReservation(String reservationId) async {
+    final token = await getToken();
+    final data = FormData.fromMap({'reservation_id': reservationId});
+    final response = await DioClient.dio.post(
+      '/partner/enquiry/reservation/remind',
+      data: data,
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> callbackReservation(String reservationId) async {
+    final token = await getToken();
+    final data = FormData.fromMap({'reservation_id': reservationId});
+    final response = await DioClient.dio.post(
+      '/partner/enquiry/reservation/callback',
+      data: data,
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
   }
 
   Future<Map<String, dynamic>> deleteSentEnquiry(String enquiryId) async {

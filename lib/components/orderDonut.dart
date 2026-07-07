@@ -6,6 +6,7 @@ class OrderDonut extends StatelessWidget {
   final double total;
   final Color? mainColor;
   final Color? secondaryColor;
+  final double? thickness;
 
   const OrderDonut({
     super.key,
@@ -13,6 +14,7 @@ class OrderDonut extends StatelessWidget {
     required this.total,
     this.mainColor,
     this.secondaryColor,
+    this.thickness,
   });
 
   @override
@@ -26,6 +28,7 @@ class OrderDonut extends StatelessWidget {
           total: total,
           activeColor: mainColor ?? Colors.deepOrange,
           trackColor: secondaryColor ?? Colors.deepOrange.shade100,
+          thickness: thickness?? 15.0,
         ),
         child: Center(
           child: Text(
@@ -47,19 +50,21 @@ class _RoundedArcPainter extends CustomPainter {
   final double total;
   final Color activeColor;
   final Color trackColor;
+  final double? thickness;
 
   _RoundedArcPainter({
     required this.done,
     required this.total,
     required this.activeColor,
     required this.trackColor,
+    this.thickness,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 12;
-    const strokeWidth = 15.0;
+    final strokeWidth = thickness?? 15.0;
     const startAngle = -pi / 2; // start from top
 
     // ── Track (background arc) ──────────────────────────────

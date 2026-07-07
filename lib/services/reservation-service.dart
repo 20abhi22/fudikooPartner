@@ -48,10 +48,7 @@ class ReservationService {
   Future<ReservationConfirmedModelResponse> getconfirmedreservations() async {
     final data = await _getJson('/partner/reservations/confirmed');
     if (data == null) {
-      return ReservationConfirmedModelResponse(
-        status: false,
-        reservations: [],
-      );
+      return ReservationConfirmedModelResponse(status: false, reservations: []);
     }
     return ReservationConfirmedModelResponse.fromJson(data);
   }
@@ -82,55 +79,98 @@ class ReservationService {
     }
   }
 
+  Future<ReservationStatusChangeResponseModel> remindReservation(
+    String reservationId,
+  ) async {
+    try {
+      final response = await DioClient.dio.post(
+        '/partner/reservations/remind',
+        data: FormData.fromMap({'reservation_id': reservationId}),
+        options: await _authOptions(),
+      );
+      if (response.statusCode == 200) {
+        return ReservationStatusChangeResponseModel.fromJson(response.data);
+      }
+      return ReservationStatusChangeResponseModel(
+        status: false,
+        message: 'Error sending reminder',
+      );
+    } catch (e) {
+      return ReservationStatusChangeResponseModel(
+        status: false,
+        message: 'Error sending reminder',
+      );
+    }
+  }
+
+  Future<ReservationStatusChangeResponseModel> callbackReservation(
+    String reservationId,
+  ) async {
+    try {
+      final response = await DioClient.dio.post(
+        '/partner/reservations/callback',
+        data: FormData.fromMap({'reservation_id': reservationId}),
+        options: await _authOptions(),
+      );
+      if (response.statusCode == 200) {
+        return ReservationStatusChangeResponseModel.fromJson(response.data);
+      }
+      return ReservationStatusChangeResponseModel(
+        status: false,
+        message: 'Error sending callback',
+      );
+    } catch (e) {
+      return ReservationStatusChangeResponseModel(
+        status: false,
+        message: 'Error sending callback',
+      );
+    }
+  }
+
   Future<ReservationCancelledModelResponse> getcancelledreservations() async {
     final data = await _getJson('/partner/reservations/cancelled');
     if (data == null) {
-      return ReservationCancelledModelResponse(
-        status: false,
-        reservations: [],
-      );
+      return ReservationCancelledModelResponse(status: false, reservations: []);
     }
     return ReservationCancelledModelResponse.fromJson(data);
   }
 
-
   Future<ReservationSearchResponse> searchReservations(String query) async {
-  try {
-    final response = await DioClient.dio.get(
-      '/partner/reservations/search',
-      queryParameters: {'id': query},
-      options: await _authOptions(),
-    );
-    if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
-      return ReservationSearchResponse.fromJson(response.data);
+    try {
+      final response = await DioClient.dio.get(
+        '/partner/reservations/search',
+        queryParameters: {'id': query},
+        options: await _authOptions(),
+      );
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        return ReservationSearchResponse.fromJson(response.data);
+      }
+    } catch (e) {
+      // fall through
     }
-  } catch (e) {
-    // fall through
+    return ReservationSearchResponse(status: false, reservations: []);
   }
-  return ReservationSearchResponse(status: false, reservations: []);
-}
 
-Future<ReservationCompletedModelResponse> getcompletedreservations({
-  String? startDate,
-  String? endDate,
-}) async {
-  final queryParams = <String, dynamic>{};
-  if (startDate != null) queryParams['start_date'] = startDate;
-  if (endDate != null) queryParams['end_date'] = endDate;
+  Future<ReservationCompletedModelResponse> getcompletedreservations({
+    String? startDate,
+    String? endDate,
+  }) async {
+    final queryParams = <String, dynamic>{};
+    if (startDate != null) queryParams['start_date'] = startDate;
+    if (endDate != null) queryParams['end_date'] = endDate;
 
-  try {
-    final response = await DioClient.dio.get(
-      '/partner/reservations/completed',
-      queryParameters: queryParams.isNotEmpty ? queryParams : null,
-      options: await _authOptions(),
-    );
-    if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
-      return ReservationCompletedModelResponse.fromJson(response.data);
+    try {
+      final response = await DioClient.dio.get(
+        '/partner/reservations/completed',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+        options: await _authOptions(),
+      );
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        return ReservationCompletedModelResponse.fromJson(response.data);
+      }
+    } catch (e) {
+      // fall through
     }
-  } catch (e) {
-    // fall through
+    return ReservationCompletedModelResponse(status: false, reservations: []);
   }
-  return ReservationCompletedModelResponse(status: false, reservations: []);
 }
-}
-

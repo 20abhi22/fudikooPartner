@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/catering/all-enquiry-model.dart';
 import 'package:fudiko/screens/others/OfferCateringSendpage.dart';
 import 'package:fudiko/services/catering-service.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:fudiko/utils/translator_service.dart';
 import 'package:intl/intl.dart';
+import 'package:fudiko/services/badge_controller.dart';
 
 class CateringAllEnquiryBox extends StatefulWidget {
   final VoidCallback? onPressed;
@@ -94,6 +97,8 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
         ),
       );
       if (result['status'] == true) widget.onActionCompleted?.call();
+      // refresh badges when catering enquiry saved
+      BadgeController.instance.refresh();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,6 +131,8 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
       if (result['status'] == true) {
         widget.onPressed?.call();
         widget.onActionCompleted?.call();
+        // refresh badges when catering enquiry deleted
+        BadgeController.instance.refresh();
       }
     } catch (e) {
       if (!mounted) return;
@@ -151,78 +158,93 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
     await showDialog(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (dialogContext) {
+        final screenSize = MediaQuery.sizeOf(dialogContext);
+        final screenWidth = screenSize.width;
+        final isWideShortPhone =
+            Breakpoints.isMobile(screenWidth) &&
+            screenWidth >= 500 &&
+            screenSize.height <= 760;
+        final isMobile = Breakpoints.isMobile(screenWidth) && !isWideShortPhone;
+        final dialogMaxWidth = isMobile ? double.infinity : 420.0;
+        final dialogRadius = isMobile ? 15.r : 15.0;
+        final horizontalPadding = isMobile ? 34.w : 36.0;
+        final verticalPadding = isMobile ? 28.h : 26.0;
+        final buttonHeight = isMobile ? 35.h : 36.0;
+        final buttonGap = isMobile ? 20.w : 18.0;
+        final buttonRadius = isMobile ? 5.r : 5.0;
+        final buttonTextSize = isMobile ? 12.sp : 12.0;
+        final contentGap = isMobile ? 20.h : 18.0;
+        final questionText = title.trim().endsWith('?') ? title : message;
+
         return Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 40.h),
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(
-              left: 40.w,
-              right: 40.w,
-              top: 30.h,
-              bottom: 30.h,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15.r),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppText(
-                  text: title,
-                  size: 15,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                  isCentered: true,
-                  softWrap: true,
-                ),
-                SizedBox(height: 10.h),
-                AppText(
-                  text: message,
-                  size: 15,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black,
-                  isCentered: true,
-                  softWrap: true,
-                ),
-                SizedBox(height: 20.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 35.h,
-                        child: AppButton(
-                          text: confirmText,
-                          onPressed: () async {
-                            Navigator.of(dialogContext).pop();
-                            await onConfirm();
-                          },
-                          borderRadius: 5.r,
-                          bgColor1: confirmColor,
-                          bgColor2: confirmColor,
-                          size: 12,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 20.w : 24.0,
+            vertical: isMobile ? 40.h : 40.0,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: dialogMaxWidth),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(dialogRadius),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppText(
+                    text: questionText,
+                    size: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black,
+                    isCentered: true,
+                    softWrap: true,
+                    maxLines: 2,
+                  ),
+                  SizedBox(height: contentGap),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: buttonHeight,
+                          child: AppButton(
+                            text: confirmText,
+                            onPressed: () async {
+                              Navigator.of(dialogContext).pop();
+                              await onConfirm();
+                            },
+                            borderRadius: buttonRadius,
+                            bgColor1: confirmColor,
+                            bgColor2: confirmColor,
+                            size: buttonTextSize,
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 20.w),
-                    Expanded(
-                      child: SizedBox(
-                        height: 35.h,
-                        child: AppButton(
-                          text: "No",
-                          onPressed: () => Navigator.of(dialogContext).pop(),
-                          size: 12,
-                          borderRadius: 5.r,
-                          bgColor1: Colors.red,
-                          bgColor2: Colors.red,
+                      SizedBox(width: buttonGap),
+                      Expanded(
+                        child: SizedBox(
+                          height: buttonHeight,
+                          child: AppButton(
+                            text: "No",
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            size: buttonTextSize,
+                            borderRadius: buttonRadius,
+                            bgColor1: const Color(0xFFCE3F3F),
+                            bgColor2: const Color(0xFFCE3F3F),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -232,21 +254,20 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
 
   Future<void> _confirmAndSave() async {
     await _showConfirmDialog(
-      title: 'Save Enquiry',
+      title: 'Are you sure you want to save this enquiry?',
       message: 'Are you sure you want to save this enquiry?',
-      confirmText: 'Save',
-      confirmColor: appButtonColor,
+      confirmText: 'Yes',
+      confirmColor: const Color(0xFF73B256),
       onConfirm: _saveEnquiry,
     );
   }
 
   Future<void> _confirmAndDelete() async {
     await _showConfirmDialog(
-      title: 'Delete Enquiry',
-      message:
-          'Are you sure you want to delete this enquiry? This action cannot be undone.',
-      confirmText: 'Delete',
-      confirmColor: const Color(0xFFE05B5B),
+      title: 'Are you sure you want to delete this enquiry?',
+      message: 'Are you sure you want to delete this enquiry?',
+      confirmText: 'Yes',
+      confirmColor: const Color(0xFF73B256),
       onConfirm: _deleteEnquiry,
     );
   }
@@ -274,24 +295,45 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
   @override
   Widget build(BuildContext context) {
     final e = widget.enquiry;
-    return Padding(
-      padding: EdgeInsets.only(bottom: 20.h),
-      child: Container(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final screenSize = MediaQuery.sizeOf(context);
+        final isWideShortPhone =
+            Breakpoints.isMobile(screenSize.width) &&
+            screenSize.width >= 500 &&
+            screenSize.height <= 760;
+        final isMobile = Breakpoints.isMobile(width) && !isWideShortPhone;
+        final cardPadding = isMobile
+            ? EdgeInsets.all(20.w)
+            : EdgeInsets.all(AppDimensions.padding(width) * 0.8);
+        final iconSize = isMobile ? 17.w : 18.0;
+        final smallIconSize = isMobile ? 16.w : 18.0;
+        final gap = isMobile ? 5.w : 6.0;
+        final actionIconSize = isMobile ? 22.w : 22.0;
+        final buttonWidth = isMobile ? 150.w : 168.0;
+        final buttonHeight = isMobile ? 35.h : 36.0;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: isMobile ? 20.h : 18),
+          child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20.r),
+          borderRadius: BorderRadius.circular(isMobile ? 20.r : 8),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.10),
-              offset: Offset(0, 0),
-              blurRadius: 10,
-              spreadRadius: 2,
+              offset: const Offset(0, 4),
+              blurRadius: 14,
+              spreadRadius: 1,
             ),
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(20.w),
+          padding: cardPadding,
           child: Column(
             children: [
               Row(
@@ -307,6 +349,8 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                           size: 20,
                           fontWeight: FontWeight.w700,
                           color: appTextColor3,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         SizedBox(height: 10.h),
                         Row(
@@ -319,12 +363,12 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                               ),
                               child: Image.asset(
                                 walletIcon,
-                                width: 17.w,
-                                height: 17.h,
+                                width: iconSize,
+                                height: iconSize,
                               ),
                             ),
-                            SizedBox(width: 5.w),
-                            Flexible(
+                            SizedBox(width: gap),
+                            Expanded(
                               child: FutureBuilder<String>(
                                 future: TranslatorService.translate(
                                   'rupees Per Person',
@@ -333,24 +377,29 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                                   final translated =
                                       snapshot.data ?? 'rupees Per Person';
 
-                                  return Row(
-                                    children: [
-                                      AppText(
-                                        text: e.estimatedAmount,
-                                        size: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: appTextColor5,
-                                      ),
-
-                                      SizedBox(width: 3.w),
-
-                                      AppText(
-                                        text: translated,
-                                        size: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: appTextColor5,
-                                      ),
-                                    ],
+                                  return RichText(
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    text: TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: e.estimatedAmount,
+                                          style: TextStyle(
+                                            fontSize: isMobile ? 14.sp : 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: appTextColor5,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: ' $translated',
+                                          style: TextStyle(
+                                            fontSize: isMobile ? 14.sp : 15,
+                                            fontWeight: FontWeight.w500,
+                                            color: appTextColor5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   );
                                 },
                               ),
@@ -373,19 +422,21 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                               ),
                               child: Image.asset(
                                 calenderIcon,
-                                width: 17.w,
-                                height: 17.h,
+                                width: iconSize,
+                                height: iconSize,
                               ),
                             ),
-                            SizedBox(width: 5.h),
-                            Flexible(
+                            SizedBox(width: gap),
+                            Expanded(
                               child: RichText(
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 text: TextSpan(
                                   children: [
                                     TextSpan(
                                       text: _formatDate(e.date),
                                       style: TextStyle(
-                                        fontSize: 14.sp,
+                                        fontSize: isMobile ? 14.sp : 15,
                                         fontWeight: FontWeight.w700,
                                         color: appTextColor5,
                                       ),
@@ -393,7 +444,7 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                                     TextSpan(
                                       text: ' - ${_formatTime(e.time)}',
                                       style: TextStyle(
-                                        fontSize: 15.sp,
+                                        fontSize: isMobile ? 15.sp : 15,
                                         fontWeight: FontWeight.w500,
                                         color: appTextColor5,
                                       ),
@@ -415,18 +466,18 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                               ),
                               child: Image.asset(
                                 groupIcon,
-                                width: 16.w,
-                                height: 16.h,
+                                width: smallIconSize,
+                                height: smallIconSize,
                               ),
                             ),
-                            SizedBox(width: 5.w),
-                            Flexible(
+                            SizedBox(width: gap),
+                            Expanded(
                               child: Row(
                                 children: [
                                   Text(
                                     '${e.people}',
                                     style: TextStyle(
-                                      fontSize: 14.sp,
+                                      fontSize: isMobile ? 14.sp : 15,
                                       fontWeight: FontWeight.w700,
                                       color: appTextColor5,
                                     ),
@@ -461,15 +512,17 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                               ),
                               child: Image.asset(
                                 writingIcon,
-                                width: 18.w,
-                                height: 17.h,
+                                width: iconSize,
+                                height: iconSize,
                               ),
                             ),
-                            SizedBox(width: 5.h),
-                            Flexible(
+                            SizedBox(width: gap),
+                            Expanded(
                               child: FutureBuilder<String>(
                                 future: TranslatorService.translate(
-                                  'Needs to be added',
+                                  e.otherServices.isNotEmpty
+                                      ? e.otherServices
+                                      : 'Needs to be added',
                                 ),
                                 builder: (context, snapshot) {
                                   return AppText(
@@ -477,6 +530,8 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                                     size: 15,
                                     fontWeight: FontWeight.w500,
                                     color: appTextColor5,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   );
                                 },
                               ),
@@ -495,17 +550,19 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                                 ),
                                 child: Image.asset(
                                   menuIcon,
-                                  width: 17.w,
-                                  height: 17.h,
+                                  width: iconSize,
+                                  height: iconSize,
                                 ),
                               ),
-                              SizedBox(width: 5.w),
+                              SizedBox(width: gap),
                               Expanded(
                                 child: AppText(
                                   text: e.menuItems,
-                                  size: 13.sp,
+                                  size: isMobile ? 13 : 14,
                                   fontWeight: FontWeight.w400,
                                   color: appTextColor5,
+                                  maxLines: isMobile ? 3 : 2,
+                                  overflow: TextOverflow.ellipsis,
                                   softWrap: true,
                                 ),
                               ),
@@ -514,24 +571,31 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                       ],
                     ),
                   ),
-                  SizedBox(width: 10.w),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      AppText(
-                        text: _formatDate(e.date),
-                        size: 10,
-                        fontWeight: FontWeight.w600,
-                        color: appTextColor3,
-                      ),
-                      SizedBox(height: 5.h),
-                      AppText(
-                        text: _formatTime(e.time),
-                        size: 10,
-                        fontWeight: FontWeight.w600,
-                        color: appTextColor3,
-                      ),
-                    ],
+                  SizedBox(width: isMobile ? 10.w : 12),
+                  SizedBox(
+                    width: isMobile ? 70.w : 88,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        AppText(
+                          text: _formatDate(e.date),
+                          size: 10,
+                          fontWeight: FontWeight.w600,
+                          color: appTextColor3,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 5.h),
+                        AppText(
+                          text: _formatTime(e.time),
+                          size: 10,
+                          fontWeight: FontWeight.w600,
+                          color: appTextColor3,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -551,105 +615,108 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                           ),
                           child: Image.asset(
                             enquiryboxDeleteIcon,
-                            width: 20.w,
-                            height: 20.h,
+                            width: actionIconSize,
+                            height: actionIconSize,
                           ),
                         ),
                       ),
-                      SizedBox(width: 5.w),
+                      SizedBox(width: isMobile ? 5.w : 6.0),
                       if (widget.showSaveIcon) ...[
                         GestureDetector(
                           onTap: _confirmAndSave,
                           child: Image.asset(
                             enquiryboxSaveIcon,
-                            width: 26.w,
-                            height: 26.h,
+                            width: actionIconSize,
+                            height: actionIconSize,
                           ),
                         ),
-                        SizedBox(width: 5.w),
+                        SizedBox(width: isMobile ? 5.w : 6.0),
                       ],
-                      GestureDetector(
-                        onTap: () async {
-                          final detail = await CateringEnquiryService()
-                              .showEnquiry(widget.enquiry.uuid);
-                          if (!mounted) return;
-                          showDialog(
-                            context: context,
-                            builder: (context) => Dialog(
-                              backgroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16.r),
-                              ),
-                              child: Padding(
-                                padding: EdgeInsets.all(20.w),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    AppText(
-                                      text: detail.enquiryId,
-                                      size: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: appTextColor3,
-                                    ),
-                                    SizedBox(height: 12.h),
-                                    _detailRow("Date", detail.date),
-                                    _detailRow("Time", detail.time),
-                                    _detailRow(
-                                      "People",
-                                      detail.people.toString(),
-                                    ),
-                                    _detailRow("Menu", detail.menuItems),
-                                    _detailRow(
-                                      "Estimated",
-                                      detail.estimatedAmount,
-                                    ),
-                                    _detailRow("Status", detail.status),
-                                    _detailRow(
-                                      "Expires",
-                                      "${detail.expirationDate} ${detail.expirationTime}",
-                                    ),
-                                    SizedBox(height: 16.h),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: AppText(
-                                          text: "Close",
-                                          size: 14,
-                                          fontWeight: FontWeight.w400,
-                                          color: appButtonColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            ColorFiltered(
-                              colorFilter: ColorFilter.mode(
-                                processDetailsIconColor,
-                                BlendMode.srcIn,
-                              ),
-                              child: Image.asset(
-                                detailsIcon,
-                                width: 15.w,
-                                height: 15.h,
-                              ),
-                            ),
-                            AppText(
-                              text: " Details",
-                              size: 15,
-                              fontWeight: FontWeight.w400,
-                              color: processDetailsIconColor,
-                            ),
-                          ],
-                        ),
-                      ),
+                      // GestureDetector(
+                      //   // onTap: () async {
+                      //   //   final detail = await CateringEnquiryService()
+                      //   //       .showEnquiry(widget.enquiry.uuid);
+                      //   //   if (!mounted) return;
+                      //   //   showDialog(
+                      //   //     context: context,
+                      //   //     builder: (context) => Dialog(
+                      //   //       backgroundColor: Colors.white,
+                      //   //       shape: RoundedRectangleBorder(
+                      //   //         borderRadius: BorderRadius.circular(16.r),
+                      //   //       ),
+                      //   //       child: Padding(
+                      //   //         padding: EdgeInsets.all(20.w),
+                      //   //         child: Column(
+                      //   //           mainAxisSize: MainAxisSize.min,
+                      //   //           crossAxisAlignment: CrossAxisAlignment.start,
+                      //   //           children: [
+                      //   //             AppText(
+                      //   //               text: detail.enquiryId,
+                      //   //               size: 18,
+                      //   //               fontWeight: FontWeight.bold,
+                      //   //               color: appTextColor3,
+                      //   //             ),
+                      //   //             SizedBox(height: 12.h),
+                      //   //             _detailRow("Date", detail.date),
+                      //   //             _detailRow("Time", detail.time),
+                      //   //             _detailRow(
+                      //   //               "People",
+                      //   //               detail.people.toString(),
+                      //   //             ),
+                      //   //             _detailRow("Menu", detail.menuItems),
+                      //   //             _detailRow(
+                      //   //               "Estimated",
+                      //   //               detail.estimatedAmount,
+                      //   //             ),
+                      //   //             _detailRow("Status", detail.status),
+                      //   //             _detailRow(
+                      //   //               "Expires",
+                      //   //               "${detail.expirationDate} ${detail.expirationTime}",
+                      //   //             ),
+                      //   //             SizedBox(height: 16.h),
+                      //   //             Align(
+                      //   //               alignment: Alignment.centerRight,
+                      //   //               child: TextButton(
+                      //   //                 onPressed: () => Navigator.pop(context),
+                      //   //                 child: AppText(
+                      //   //                   text: "Close",
+                      //   //                   size: 14,
+                      //   //                   fontWeight: FontWeight.w400,
+                      //   //                   color: appButtonColor,
+                      //   //                 ),
+                      //   //               ),
+                      //   //             ),
+                      //   //           ],
+                      //   //         ),
+                      //   //       ),
+                      //   //     ),
+                      //   //   );
+                      //   // },
+                      //   onTap: (){
+                      //   slideRightWidget(newPage: const Profile(), context: context);
+                      // },
+                      //   child: Row(
+                      //     children: [
+                      //       ColorFiltered(
+                      //         colorFilter: ColorFilter.mode(
+                      //           processDetailsIconColor,
+                      //           BlendMode.srcIn,
+                      //         ),
+                      //         child: Image.asset(
+                      //           detailsIcon,
+                      //           width: 15.w,
+                      //           height: 15.h,
+                      //         ),
+                      //       ),
+                      //       AppText(
+                      //         text: " Details",
+                      //         size: 15,
+                      //         fontWeight: FontWeight.w400,
+                      //         color: processDetailsIconColor,
+                      //       ),
+                      //     ],
+                      //   ),
+                      // ),
                     ],
                   ),
                   Column(
@@ -665,8 +732,8 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                             ),
                             child: Image.asset(
                               stopWatchIcon,
-                              width: 17.w,
-                              height: 17.h,
+                              width: isMobile ? 17.w : 17,
+                              height: isMobile ? 17.h : 17,
                             ),
                           ),
                           SizedBox(width: 5),
@@ -692,8 +759,8 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                       //   ),
                       // ),
                       SizedBox(
-                        width: 150.w,
-                        height: 35.h,
+                        width: buttonWidth,
+                        height: buttonHeight,
                         child: AppButton(
                           text: _isExpired
                               ? "Offer Discount"
@@ -721,8 +788,8 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                           bgColor2: _isExpired
                               ? Colors.grey
                               : banquetOfferIconColor,
-                          size: 13.sp,
-                          borderRadius: 8.r,
+                          size: isMobile ? 13.sp : 13,
+                          borderRadius: isMobile ? 8.r : 8,
                         ),
                       ),
                     ],
@@ -733,6 +800,8 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
           ),
         ),
       ),
+    );
+      },
     );
   }
 

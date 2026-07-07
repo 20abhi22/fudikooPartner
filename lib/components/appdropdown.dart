@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 
 class AppDropDown extends StatefulWidget {
   final List<String>? items;
@@ -51,6 +52,20 @@ class _AppDropDownState extends State<AppDropDown> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = Breakpoints.isMobile(screenWidth);
+    final fieldHeight = isMobile ? 60.h : 56.0;
+    final horizontalPadding = isMobile ? 40.w : 24.0;
+    final radius = isMobile ? 20.r : 18.0;
+    final shadowBlur = isMobile ? 10.r : 10.0;
+    final shadowOffset = Offset(0, isMobile ? 4.r : 4.0);
+    final iconGap = isMobile ? 12.w : 12.0;
+    final arrowSize = isMobile ? 40.w : 30.0;
+    final headerFontSize = isMobile ? 16.sp : 14.0;
+    final itemFontSize = isMobile ? 15.sp : 14.0;
+    final menuTopMargin = isMobile ? 4.h : 4.0;
+    final itemVerticalPadding = isMobile ? 14.h : 13.0;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -58,16 +73,16 @@ class _AppDropDownState extends State<AppDropDown> {
         GestureDetector(
           onTap: _toggleDropdown, // ← fix: call internal toggle
           child: Container(
-            height: 60.h,
-            padding: EdgeInsets.symmetric(horizontal: 40.w),
+            height: fieldHeight,
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20.r),
+              borderRadius: BorderRadius.circular(radius),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10.r,
-                  offset: Offset(0, 4.r),
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: shadowBlur,
+                  offset: shadowOffset,
                 ),
               ],
             ),
@@ -75,13 +90,13 @@ class _AppDropDownState extends State<AppDropDown> {
               children: [
                 if (widget.icon != null) ...[
                   Icon(widget.icon, color: Colors.grey),
-                  SizedBox(width: 12.w),
+                  SizedBox(width: iconGap),
                 ],
                 Expanded(
                   child: Text(
                     selectedValue ?? widget.hint,
                     style: TextStyle(
-                      fontSize: 16.sp,
+                      fontSize: headerFontSize,
                       color: selectedValue == null ? Colors.grey : Colors.black,
                       fontWeight: FontWeight.w400,
                     ),
@@ -90,7 +105,7 @@ class _AppDropDownState extends State<AppDropDown> {
                 Icon(
                   isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
                   color: Colors.grey,
-                  size: 40.w,
+                  size: arrowSize,
                 ),
               ],
             ),
@@ -101,15 +116,15 @@ class _AppDropDownState extends State<AppDropDown> {
         if (isOpen)
           Container(
             width: double.infinity,
-            margin: EdgeInsets.only(top: 4.h),
+            margin: EdgeInsets.only(top: menuTopMargin),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20.r),
+              borderRadius: BorderRadius.circular(radius),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10.r,
-                  offset: Offset(0, 4.r),
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: shadowBlur,
+                  offset: shadowOffset,
                 ),
               ],
             ),
@@ -121,14 +136,14 @@ class _AppDropDownState extends State<AppDropDown> {
                   child: Container(
                     width: double.infinity,
                     padding: EdgeInsets.symmetric(
-                      vertical: 14.h,
-                      horizontal: 40.w,
+                      vertical: itemVerticalPadding,
+                      horizontal: horizontalPadding,
                     ),
                     decoration: BoxDecoration(
                       border: !isLast
                           ? Border(
                               bottom: BorderSide(
-                                color: Colors.grey.withOpacity(0.2),
+                                color: Colors.grey.withValues(alpha: 0.2),
                               ),
                             )
                           : null,
@@ -136,7 +151,7 @@ class _AppDropDownState extends State<AppDropDown> {
                     child: Text(
                       item,
                       style: TextStyle(
-                        fontSize: 15.sp,
+                        fontSize: itemFontSize,
                         fontWeight: selectedValue == item
                             ? FontWeight.w600
                             : FontWeight.w400,

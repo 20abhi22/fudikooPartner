@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/services/scanner_service.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -19,6 +21,9 @@ class Scanner extends StatefulWidget {
 }
 
 class _ScannerState extends State<Scanner> {
+  static const String _allowedQrUrlPrefix =
+      'https://fudikko.bitwissenddev.in/api/';
+
   final MobileScannerController _controller = MobileScannerController();
   final ScannerVerificationService _verificationService =
       ScannerVerificationService();
@@ -77,9 +82,11 @@ class _ScannerState extends State<Scanner> {
       if (_isScanning) await _controller.start();
       if (!mounted) return false;
       setState(() => _scannedCode = null);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Invalid QR code")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Invalid QR code. Please scan a Fudikko QR code."),
+        ),
+      );
       return false;
     }
 
@@ -110,20 +117,13 @@ class _ScannerState extends State<Scanner> {
       }
     }
 
-    final localPayload = _ScanPayload.fromQrCode(
-      code,
-      fallbackType: widget.scannerType,
-    );
-    return localPayload;
+    return null;
   }
 
   String? _verificationUrlFromQrCode(String code) {
     final trimmed = code.trim();
     final uri = Uri.tryParse(trimmed);
-    if (uri != null &&
-        uri.hasScheme &&
-        uri.host.isNotEmpty &&
-        uri.path.contains('verify')) {
+    if (uri != null && _isAllowedFudikkoApiUrl(trimmed)) {
       return trimmed;
     }
 
@@ -131,7 +131,8 @@ class _ScannerState extends State<Scanner> {
       final decoded = jsonDecode(trimmed);
       if (decoded is Map) {
         final verificationUrl = decoded['verification_url']?.toString().trim();
-        if (verificationUrl != null && verificationUrl.isNotEmpty) {
+        if (verificationUrl != null &&
+            _isAllowedFudikkoApiUrl(verificationUrl)) {
           return verificationUrl;
         }
       }
@@ -140,190 +141,355 @@ class _ScannerState extends State<Scanner> {
     return null;
   }
 
+  bool _isAllowedFudikkoApiUrl(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null &&
+        uri.scheme == 'https' &&
+        uri.host == 'fudikko.bitwissenddev.in' &&
+        value.startsWith(_allowedQrUrlPrefix);
+  }
+
   void _showResultDialog(_ScanPayload payload) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.r),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(24.w),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 50.w),
-              SizedBox(height: 16.h),
-              AppText(
-                text: "Coupon Scanned!",
-                size: 18,
-                fontWeight: FontWeight.w700,
-                color: Colors.black,
-                isCentered: true,
-              ),
-              SizedBox(height: 10.h),
-              AppText(
-                text: payload.displayText,
-                size: 14,
-                fontWeight: FontWeight.w500,
-                color: appTextColor2,
-                isCentered: true,
-              ),
-              SizedBox(height: 24.h),
-              Row(
+      builder: (context) {
+        final screenSize = MediaQuery.sizeOf(context);
+        final isWideShortPhone = _isWideShortPhone(screenSize);
+        final isMobile =
+            Breakpoints.isMobileDevice(screenSize) && !isWideShortPhone;
+        final radius = isWideShortPhone
+            ? 16.0
+            : isMobile
+            ? 16.r
+            : 16.0;
+        final padding = isWideShortPhone
+            ? 24.0
+            : isMobile
+            ? 24.w
+            : 24.0;
+        final iconSize = isWideShortPhone
+            ? 48.0
+            : isMobile
+            ? 50.w
+            : 48.0;
+        final gap16 = isWideShortPhone
+            ? 16.0
+            : isMobile
+            ? 16.h
+            : 16.0;
+        final gap10 = isWideShortPhone
+            ? 10.0
+            : isMobile
+            ? 10.h
+            : 10.0;
+        final gap24 = isWideShortPhone
+            ? 24.0
+            : isMobile
+            ? 24.h
+            : 24.0;
+
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: EdgeInsets.all(padding),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        setState(() {
-                          _scannedCode = null;
-                          _scanPayload = null;
-                        });
-                        await _controller.start();
-                      },
-                      child: Text(
-                        "Scan Again",
-                        style: TextStyle(color: appButtonColor),
-                      ),
-                    ),
+                  Icon(Icons.check_circle, color: Colors.green, size: iconSize),
+                  SizedBox(height: gap16),
+                  AppText(
+                    text: "Coupon Scanned!",
+                    size: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                    isCentered: true,
                   ),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () {
-                        final scan = _scanPayload;
-                        if (scan == null) return;
-                        Navigator.pop(context);
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => Scanner2(
-                              reservationId: scan.reservationUuid,
-                              scannerType: scan.scannerType,
-                            ),
+                  SizedBox(height: gap10),
+                  AppText(
+                    text: payload.displayText,
+                    size: 14,
+                    fontWeight: FontWeight.w500,
+                    color: appTextColor2,
+                    isCentered: true,
+                  ),
+                  SizedBox(height: gap24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            setState(() {
+                              _scannedCode = null;
+                              _scanPayload = null;
+                            });
+                            await _controller.start();
+                          },
+                          child: Text(
+                            "Scan Again",
+                            style: TextStyle(color: appButtonColor),
                           ),
-                        );
-                      },
-                      child: const Text(
-                        "Done",
-                        style: TextStyle(color: Colors.green),
+                        ),
                       ),
-                    ),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            final scan = _scanPayload;
+                            if (scan == null) return;
+                            Navigator.pop(context);
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => Scanner2(
+                                  reservationId: scan.reservationUuid,
+                                  scannerType: scan.scannerType,
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            "Done",
+                            style: TextStyle(color: Colors.green),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
+
+  double _contentMaxWidth(Size size) {
+    if (Breakpoints.isDesktop(size.width)) return 480;
+    if (Breakpoints.isTabletDevice(size)) return 440;
+    return double.infinity;
+  }
+
+  bool _isWideShortPhone(Size size) {
+    return Breakpoints.isWideShortPhone(size);
+  }
+
+  EdgeInsets _contentPadding(Size size) {
+    final isMobile = Breakpoints.isMobileDevice(size);
+    return EdgeInsets.symmetric(
+      horizontal: _isWideShortPhone(size)
+          ? 28.0
+          : isMobile
+          ? 30.w
+          : AppDimensions.padding(size.width),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final isWideShortPhone = _isWideShortPhone(screenSize);
+    final isMobile =
+        Breakpoints.isMobileDevice(screenSize) && !isWideShortPhone;
+    final shouldRotateCameraPreview = screenSize.width > screenSize.height;
+    final pagePadding = AppDimensions.padding(screenSize.width);
+    final headerPadding = isWideShortPhone
+        ? 16.0
+        : isMobile
+        ? 30.r
+        : pagePadding;
+    final backSize = isWideShortPhone
+        ? 26.0
+        : isMobile
+        ? 30.w
+        : 26.0;
+    final scannerRadius = isWideShortPhone
+        ? 18.0
+        : isMobile
+        ? 20.r
+        : 20.0;
+    final clipRadius = isWideShortPhone
+        ? 16.0
+        : isMobile
+        ? 18.r
+        : 18.0;
+    final statusGap = isWideShortPhone
+        ? 18.0
+        : isMobile
+        ? 50.h
+        : 42.0;
+    final labelGap = isWideShortPhone
+        ? 8.0
+        : isMobile
+        ? 10.h
+        : 10.0;
+    final actionGap = isWideShortPhone
+        ? 20.0
+        : isMobile
+        ? 70.h
+        : 56.0;
+    final toolIconSize = isWideShortPhone
+        ? 28.0
+        : isMobile
+        ? 30.w
+        : 28.0;
+    final toolGap = isWideShortPhone
+        ? 32.0
+        : isMobile
+        ? 40.w
+        : 38.0;
+
     return Scaffold(
-      backgroundColor: Color(0xFF545450),
-      body: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(30.r),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Image.asset(
-                    backWhite,
-                    width: 30.w,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  height: 300.h,
-                  width: 300.w,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(color: appButtonColor, width: 3),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18.r),
-                    child: _isScanning
-                        ? MobileScanner(
-                            controller: _controller,
-                            onDetect: _onDetect,
-                          )
-                        : GestureDetector(
-                            onTap: () async {
-                              setState(() => _isScanning = true);
-                              await _controller.start();
-                            },
+      backgroundColor: const Color(0xFF545450),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final scannerSize = isWideShortPhone
+                ? (constraints.maxHeight * 0.44).clamp(170.0, 240.0).toDouble()
+                : isMobile
+                ? 300.w.clamp(260.0, 320.0).toDouble()
+                : 300.0;
+
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.all(headerPadding),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          GestureDetector(
+                            onTap: () => Navigator.pop(context),
                             child: Image.asset(
-                              'assets/images/scanner.png',
+                              backWhite,
+                              width: backSize,
                               fit: BoxFit.contain,
                             ),
                           ),
-                  ),
-                ),
-                SizedBox(height: 50.h),
-                AppText(
-                  text: _isResolvingCode
-                      ? "Verifying coupon..."
-                      : _isScanning
-                      ? "Point camera at QR code"
-                      : "Tap to start scanning",
-                  size: 16,
-                  fontWeight: FontWeight.w300,
-                  color: Colors.white,
-                  isCentered: true,
-                ),
-                SizedBox(height: 10.h),
-                AppText(
-                  text: "coupon here",
-                  size: 16,
-                  fontWeight: FontWeight.w300,
-                  color: Colors.white,
-                ),
-                SizedBox(height: 70.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: _pickFromGallery,
-                      child: Image.asset(
-                        imageIcon,
-                        width: 30.w,
-                        fit: BoxFit.contain,
-                        color: Colors.white,
+                        ],
                       ),
                     ),
-                    SizedBox(width: 40.w),
-                    GestureDetector(
-                      onTap: () {
-                        _controller.toggleTorch();
-                        setState(() => _torchOn = !_torchOn);
-                      },
-                      child: Image.asset(
-                        flashIcon,
-                        width: 30.w,
-                        fit: BoxFit.contain,
-                        color: _torchOn ? Colors.yellow : Colors.white,
+                    Padding(
+                      padding: _contentPadding(screenSize),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: isWideShortPhone
+                                ? 440.0
+                                : _contentMaxWidth(screenSize),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                height: scannerSize,
+                                width: scannerSize,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(
+                                    scannerRadius,
+                                  ),
+                                  border: Border.all(
+                                    color: appButtonColor,
+                                    width: 3,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                    clipRadius,
+                                  ),
+                                  child: _isScanning
+                                      ? RotatedBox(
+                                          quarterTurns:
+                                              shouldRotateCameraPreview ? 3 : 0,
+                                          child: MobileScanner(
+                                            controller: _controller,
+                                            onDetect: _onDetect,
+                                          ),
+                                        )
+                                      : GestureDetector(
+                                          onTap: () async {
+                                            setState(() => _isScanning = true);
+                                            await _controller.start();
+                                          },
+                                          child: Image.asset(
+                                            'assets/images/scanner.png',
+                                            fit: BoxFit.contain,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              SizedBox(height: statusGap),
+                              AppText(
+                                text: _isResolvingCode
+                                    ? "Verifying coupon..."
+                                    : _isScanning
+                                    ? "Point camera at QR code"
+                                    : "Tap to start scanning",
+                                size: 16,
+                                fontWeight: FontWeight.w300,
+                                color: Colors.white,
+                                isCentered: true,
+                              ),
+                              SizedBox(height: labelGap),
+                              AppText(
+                                text: "coupon here",
+                                size: 16,
+                                fontWeight: FontWeight.w300,
+                                color: Colors.white,
+                              ),
+                              SizedBox(height: actionGap),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  GestureDetector(
+                                    onTap: _pickFromGallery,
+                                    child: Image.asset(
+                                      imageIcon,
+                                      width: toolIconSize,
+                                      fit: BoxFit.contain,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: toolGap),
+                                  GestureDetector(
+                                    onTap: () {
+                                      _controller.toggleTorch();
+                                      setState(() => _torchOn = !_torchOn);
+                                    },
+                                    child: Image.asset(
+                                      flashIcon,
+                                      width: toolIconSize,
+                                      fit: BoxFit.contain,
+                                      color: _torchOn
+                                          ? Colors.yellow
+                                          : Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: isWideShortPhone ? 16.0 : 24.0),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -339,48 +505,6 @@ class _ScanPayload {
     required this.displayText,
     required this.scannerType,
   });
-
-  static _ScanPayload? fromQrCode(
-    String rawCode, {
-    required ScannerType fallbackType,
-  }) {
-    final trimmed = rawCode.trim();
-    if (trimmed.isEmpty) return null;
-
-    try {
-      final decoded = jsonDecode(trimmed);
-      if (decoded is Map) {
-        final json = Map<String, dynamic>.from(decoded);
-        final reservationRaw = json['reservation'];
-        final reservation = reservationRaw is Map
-            ? Map<String, dynamic>.from(reservationRaw)
-            : null;
-
-        final uuid = reservation?['uuid']?.toString().trim();
-        if (uuid == null || uuid.isEmpty) return null;
-
-        final type =
-            _scannerTypeFromQrType(json['type']?.toString()) ?? fallbackType;
-        final reservationId = reservation?['reservation_id']?.toString();
-
-        return _ScanPayload(
-          reservationUuid: uuid,
-          scannerType: type,
-          displayText: reservationId == null || reservationId.isEmpty
-              ? uuid
-              : reservationId,
-        );
-      }
-    } catch (_) {
-      // Older QR codes may contain only the UUID.
-    }
-
-    return _ScanPayload(
-      reservationUuid: trimmed,
-      scannerType: fallbackType,
-      displayText: trimmed,
-    );
-  }
 
   static _ScanPayload? fromVerifiedJson(
     Map<String, dynamic> json, {

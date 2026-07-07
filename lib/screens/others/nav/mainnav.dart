@@ -5,9 +5,11 @@ import 'package:dio/dio.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/components/bottomnav.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/screens/auth/changepassword.dart';
 import 'package:fudiko/screens/auth/login.dart';
+import 'package:fudiko/screens/auth/updatePassword.dart';
 import 'package:fudiko/screens/others/about.dart';
 import 'package:fudiko/screens/others/agreement.dart';
 import 'package:fudiko/screens/others/badgeInfo.dart';
@@ -86,8 +88,8 @@ class _MainNavPageState extends State<MainNavPage> {
       });
       await _fetchServiceSettings();
     } catch (e, stack) {
-      print('Error fetching profile: $e');
-      print(stack);
+      debugPrint('Error fetching profile: $e');
+      debugPrintStack(stackTrace: stack);
       await _fetchServiceSettings();
     }
   }
@@ -185,6 +187,38 @@ class _MainNavPageState extends State<MainNavPage> {
       ),
       // Profile(),
     ];
+    final screenSize = MediaQuery.sizeOf(context);
+    final screenWidth = screenSize.width;
+    final isWideShortPhone = _isWideShortPhone(
+      screenWidth,
+      screenSize.height,
+    );
+    final usesTabletLayout =
+        Breakpoints.isTablet(screenWidth) || isWideShortPhone;
+    final drawerWidth = _drawerWidth(screenWidth, screenSize.height);
+    final drawerHorizontalPadding = _scaled(
+      20,
+      screenWidth,
+      screenSize.height,
+    );
+    final drawerInnerPadding = _scaled(
+      10,
+      screenWidth,
+      screenSize.height,
+    );
+    final drawerSmallGap = isWideShortPhone
+        ? 8.0
+        : _scaled(10, screenWidth, screenSize.height);
+    final drawerLargeGap = isWideShortPhone
+        ? 24.0
+        : _scaled(50, screenWidth, screenSize.height);
+    final drawerSectionTitleSize = isWideShortPhone
+        ? 15.0
+        : usesTabletLayout
+        ? 17.0
+        : 15.0;
+    final scannerOffset = _scannerOffset(screenWidth);
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -210,15 +244,12 @@ class _MainNavPageState extends State<MainNavPage> {
                   ),
                 ],
               ),
-              if (!isDrawerOpen && currentIndex != 2)
-                Positioned(
-                  left:
-                      MediaQuery.of(context).size.width -
-                      (MediaQuery.of(context).size.width * .3),
-                  right: 0.w,
-                  bottom: 80.h,
-                  child: Center(child: _scannerButton()),
-                ),
+              // if (!isDrawerOpen && currentIndex != 2)
+              //   Positioned(
+              //     right: scannerOffset.$1,
+              //     bottom: scannerOffset.$2,
+              //     child: Center(child: _scannerButton()),
+              //   ),
               if (isDrawerOpen)
                 Positioned.fill(
                   child: GestureDetector(
@@ -227,19 +258,19 @@ class _MainNavPageState extends State<MainNavPage> {
                         isDrawerOpen = false;
                       });
                     },
-                    child: Container(color: Colors.black.withValues(alpha: 0.4)),
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.4),
+                    ),
                   ),
                 ),
-          
+
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
                 top: 0,
                 bottom: 0,
-                right: isDrawerOpen
-                    ? 0
-                    : -MediaQuery.of(context).size.width * 0.75,
+                right: isDrawerOpen ? 0 : -drawerWidth,
                 child: Container(
-                  width: MediaQuery.of(context).size.width * 0.75,
+                  width: drawerWidth,
                   decoration: const BoxDecoration(
                     color: Colors.white,
                     boxShadow: [
@@ -252,98 +283,118 @@ class _MainNavPageState extends State<MainNavPage> {
                   ),
                   child: SafeArea(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20.w),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: drawerHorizontalPadding,
+                      ),
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(height: 50.h),
-                            Divider(thickness: 1, color: Colors.grey, height: 1),
-                            SizedBox(height: 10.h),
+                            SizedBox(height: drawerLargeGap),
+                            Divider(
+                              thickness: 1,
+                              color: Colors.grey,
+                              height: 1,
+                            ),
+                            SizedBox(height: drawerSmallGap),
                             _drawerItem(
                               "Profile",
                               drawerProfileIcon,
                               RestaurantProfile(),
                               // color: Color(0xFF333333)
                             ),
-                            SizedBox(height: 10.h),
-                            Divider(thickness: 1, color: Colors.grey, height: 1),
-                            SizedBox(height: 50.h),
+                            SizedBox(height: drawerSmallGap),
+                            Divider(
+                              thickness: 1,
+                              color: Colors.grey,
+                              height: 1,
+                            ),
+                            SizedBox(height: drawerLargeGap),
                             AppText(
                               text: "Settings",
-                              size: 15,
+                              size: drawerSectionTitleSize,
                               fontWeight: FontWeight.w600,
                               color: appTextColor2,
                             ),
-                            SizedBox(height: 10.h),
-                            Divider(thickness: 1, color: Colors.grey, height: 1),
+                            SizedBox(height: drawerSmallGap),
+                            Divider(
+                              thickness: 1,
+                              color: Colors.grey,
+                              height: 1,
+                            ),
                             Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 10.w),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: drawerInnerPadding,
+                              ),
                               child: Column(
                                 children: [
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "Change Password",
                                     drawerChangePasswordIcon,
-                                    ChangePassword(),
+                                    // ChangePassword(),
+                                    UpdatePassword(),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "Notifications",
                                     drawerNotificationIcon,
                                     NotificationPage(),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "Languages",
                                     drawerTranslateIcon,
                                     Languages(),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "Analytics",
                                     drawerAnalyticsIcon,
                                     TotalOrders(),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "Service",
                                     drawerServiceIcon,
                                     ServicePage(),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
-                                  _drawerItem("Promotions", drawerPromotionIcon),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
+                                  _drawerItem(
+                                    "Promotions",
+                                    drawerPromotionIcon,
+                                  ),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
@@ -352,63 +403,69 @@ class _MainNavPageState extends State<MainNavPage> {
                                 ],
                               ),
                             ),
-          
-                            SizedBox(height: 50.h),
+
+                            SizedBox(height: drawerLargeGap),
                             AppText(
                               text: "Information",
-                              size: 15,
+                              size: drawerSectionTitleSize,
                               fontWeight: FontWeight.w600,
                               color: appTextColor2,
                             ),
-                            SizedBox(height: 10.h),
-                            Divider(thickness: 1, color: Colors.grey, height: 1),
+                            SizedBox(height: drawerSmallGap),
+                            Divider(
+                              thickness: 1,
+                              color: Colors.grey,
+                              height: 1,
+                            ),
                             Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 10.w),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: drawerInnerPadding,
+                              ),
                               child: Column(
                                 children: [
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "About the App",
                                     drawerAboutIcon,
                                     AboutPage(),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "Badge Earnings",
                                     drawerHelpIcon,
                                     BadgeInfo(),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "Documentation",
                                     drawerDocumentIcon,
                                     AgreementPage(),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "Support",
                                     drawerCustomerIcon,
                                     ContactPage(),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Colors.grey,
@@ -417,9 +474,11 @@ class _MainNavPageState extends State<MainNavPage> {
                                 ],
                               ),
                             ),
-                            SizedBox(height: 50.h),
+                            SizedBox(height: drawerLargeGap),
                             Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 10.h),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: drawerInnerPadding,
+                              ),
                               child: Column(
                                 children: [
                                   Divider(
@@ -427,20 +486,20 @@ class _MainNavPageState extends State<MainNavPage> {
                                     color: Color(0xFFFA2929),
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   _drawerItem(
                                     "Log Out",
                                     drawerLogoutIcon,
                                     Login(),
                                     Color(0xFFFA2929),
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                   Divider(
                                     thickness: 1,
                                     color: Color(0xFFFA2929),
                                     height: 1,
                                   ),
-                                  SizedBox(height: 10.h),
+                                  SizedBox(height: drawerSmallGap),
                                 ],
                               ),
                             ),
@@ -500,50 +559,184 @@ class _MainNavPageState extends State<MainNavPage> {
       ..showSnackBar(const SnackBar(content: Text('Press back again to exit')));
   }
 
-  Widget _scannerButton() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => Scanner(scannerType: _scannerType),
-          ),
-        );
-      },
-      child: Container(
-        height: 60.h,
-        width: 60.02.w,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20.r),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.5),
-              blurRadius: 10,
-              offset: Offset(4, 4),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 3.0),
-            child: Image.asset(
-              'assets/images/scanner2.png',
-              height: 56.h,
-              width: 60.w,
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-      ),
-    );
+  // (double, double) _scannerOffset(double width) {
+  //   final bottomNavHeight = _bottomNavEstimatedHeight(width);
+
+  //   if (Breakpoints.isMobile(width)) {
+  //     if (_isCompactMobile(width)) {
+  //       return (14.w, bottomNavHeight + 8.h);
+  //     }
+
+  //     return ((width * 0.055).clamp(20.0, 28.0), bottomNavHeight + 12.h);
+  //   }
+
+  //   if (Breakpoints.isTablet(width)) {
+  //     final right = (width * 0.055).clamp(32.0, 56.0);
+  //     return (right, bottomNavHeight + 18.0);
+  //   }
+
+  //   return (40.0, bottomNavHeight + 16.0);
+  // }
+  (double, double) _scannerOffset(double width) {
+  final bottomNavHeight = _bottomNavEstimatedHeight(width);
+
+  if (Breakpoints.isMobile(width)) {
+    return (_isCompactMobile(width) ? 14.0 : 20.0, bottomNavHeight + 10.0);
   }
 
+  if (Breakpoints.isTablet(width)) {
+    return (28.0, bottomNavHeight + 16.0);
+  }
+
+  return (32.0, bottomNavHeight + 16.0);
+}
+
+  double _bottomNavEstimatedHeight(double width) {
+    final compact = _isCompactMobile(width);
+    final verticalPadding = Breakpoints.isMobile(width) ? 8.0 : 10.0;
+    final tileVerticalPadding = compact ? 2.0 : 4.0;
+    final topGap = compact ? 4.0 : 6.0;
+    final iconSize = Breakpoints.isTablet(width)
+        ? 32.0
+        : compact
+        ? 24.0
+        : 28.0;
+    final iconLabelGap = compact ? 3.0 : 4.0;
+    final labelSize = compact ? 10.0 : 11.0;
+
+    return (verticalPadding * 2) +
+        (tileVerticalPadding * 2) +
+        topGap +
+        iconSize +
+        iconLabelGap +
+        (labelSize * 1.25);
+  }
+
+//   Widget _scannerButton() {
+//     final screenWidth = MediaQuery.sizeOf(context).width;
+//     final isMobile = Breakpoints.isMobile(screenWidth);
+//     final compactPhone = _isCompactMobile(screenWidth);
+//     // final imageSize = isMobile
+//     //     ? (compactPhone ? 48.w : 56.w)
+//     //     : Breakpoints.isTablet(screenWidth)
+//     //     ? 64.0
+//     //     : 62.0;
+//     // final buttonSize = isMobile
+//     //     ? (compactPhone ? 56.w : 66.w)
+//     //     : Breakpoints.isTablet(screenWidth)
+//     //     ? 74.0
+//     //     : 72.0;
+//     // final radius = isMobile
+//     //     ? (compactPhone ? 18.r : 20.r)
+//     //     : Breakpoints.isTablet(screenWidth)
+//     //     ? 22.0
+//     //     : 20.0;
+//    final buttonSize = isMobile
+//     ? (compactPhone ? 56.w : 66.w)
+//     : Breakpoints.isTablet(screenWidth)
+//         ? screenWidth * 0.075  // ~7.5% of tablet width
+//         : screenWidth * 0.05;  // desktop
+// final imageSize = buttonSize * 0.65;
+// final radius = buttonSize * 0.30;
+//     return GestureDetector(
+//       onTap: () {
+//         Navigator.push(
+//           context,
+//           MaterialPageRoute(
+//             builder: (context) => Scanner(scannerType: _scannerType),
+//           ),
+//         );
+//       },
+//       child: SizedBox(
+//         height: buttonSize,
+//         width: buttonSize,
+//         child: DecoratedBox(
+//           decoration: BoxDecoration(
+//             color: Colors.white,
+//             borderRadius: BorderRadius.circular(radius),
+//             boxShadow: [
+//               BoxShadow(
+//                 color: Colors.black.withValues(alpha: 0.5),
+//                 blurRadius: 10,
+//                 offset: const Offset(4, 4),
+//               ),
+//             ],
+//           ),
+//           child: Center(
+//             child: Padding(
+//               // padding: EdgeInsets.only(left: isMobile ? 3 : 4),
+//               padding: EdgeInsets.only(left: buttonSize * 0.045),
+//               child: Image.asset(
+//                 'assets/images/scanner2.png',
+//                 height: imageSize,
+//                 width: imageSize,
+//                 fit: BoxFit.contain,
+//               ),
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+Widget _scannerButton() {
+  final screenWidth = MediaQuery.sizeOf(context).width;
+  final isMobile = Breakpoints.isMobile(screenWidth);
+  final isTablet = Breakpoints.isTablet(screenWidth);
+  final compactPhone = _isCompactMobile(screenWidth);
+
+  final double imageSize;
+  if (isMobile) {
+    imageSize = compactPhone ? 32.0 : 38.0;
+  } else if (isTablet) {
+    imageSize = 36.0;
+  } else {
+    imageSize = 38.0;
+  }
+
+  final double padding = isMobile ? (compactPhone ? 7.0 : 8.0) : 8.0;
+  final radius = (imageSize + padding * 2) * 0.18;
+
+  return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Scanner(scannerType: _scannerType),
+        ),
+      );
+    },
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 10,
+            offset: const Offset(4, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(padding),
+        child: Image.asset(
+          'assets/images/scanner2.png',
+          // height: imageSize,
+          // width: imageSize,
+          fit: BoxFit.contain,
+        ),
+      ),
+    ),
+  );
+}
   ScannerType get _scannerType {
     if (currentIndex == 1) return ScannerType.banquet;
     if (currentIndex == 3) return ScannerType.catering;
     return ScannerType.restaurant;
   }
+
+  bool _isCompactMobile(double width) => width < 390;
 
   Widget _drawerItem(
     String text,
@@ -551,6 +744,26 @@ class _MainNavPageState extends State<MainNavPage> {
     Widget? routeWidget,
     Color? color,
   ]) {
+    final size = MediaQuery.sizeOf(context);
+    final screenWidth = size.width;
+    final isWideShortPhone = _isWideShortPhone(screenWidth, size.height);
+    final isTablet = Breakpoints.isTablet(screenWidth);
+    final iconSize = isWideShortPhone
+        ? 22.0
+        : Breakpoints.isMobile(screenWidth)
+        ? 22.w
+        : isTablet
+        ? 26.0
+        : 24.0;
+    final gap = isWideShortPhone
+        ? 10.0
+        : Breakpoints.isMobile(screenWidth)
+        ? 10.w
+        : isTablet
+        ? 14.0
+        : 12.0;
+    final textSize = isWideShortPhone ? 15.0 : isTablet ? 17.0 : 15.0;
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -583,20 +796,37 @@ class _MainNavPageState extends State<MainNavPage> {
         children: [
           Image.asset(
             iconPath,
-            width: 22.w,
-            height: 22.w,
+            width: iconSize,
+            height: iconSize,
             color: color ?? appTextColor5,
             fit: BoxFit.cover,
           ),
-          SizedBox(width: 10.w),
+          SizedBox(width: gap),
           AppText(
             text: text,
-            size: 15,
+            size: textSize,
             fontWeight: FontWeight.w500,
             color: color ?? appTextColor2,
           ),
         ],
       ),
     );
+  }
+
+  bool _isWideShortPhone(double width, double height) =>
+      Breakpoints.isMobile(width) && width >= 500 && height <= 760;
+
+  double _drawerWidth(double width, double height) {
+    if (_isWideShortPhone(width, height)) return width.clamp(360.0, 430.0);
+    if (Breakpoints.isMobile(width)) return width * 0.75;
+    if (Breakpoints.isTablet(width)) return width.clamp(360.0, 430.0);
+    return 380.0;
+  }
+
+  double _scaled(double value, double width, double height) {
+    if (Breakpoints.isMobile(width) && !_isWideShortPhone(width, height)) {
+      return value.w;
+    }
+    return value;
   }
 }

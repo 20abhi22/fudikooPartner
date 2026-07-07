@@ -3,6 +3,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/appswitch.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/offer/offer-status-change-model.dart';
 import 'package:fudiko/services/offer-service.dart';
 import 'package:fudiko/utils/constants.dart';
@@ -19,6 +21,7 @@ class OfferCard extends StatefulWidget {
   final String activeDays;
   final String status;
   final String uuid;
+  final ValueChanged<String>? onStatusChanged;
 
   const OfferCard({
     super.key,
@@ -33,6 +36,7 @@ class OfferCard extends StatefulWidget {
     required this.activeDays,
     required this.status,
     required this.uuid,
+    this.onStatusChanged,
   });
 
   @override
@@ -67,9 +71,11 @@ class _OfferCardState extends State<OfferCard> {
       if (!mounted) return;
 
       if (response.status) {
+        final updatedStatus = currentStatus == "Active" ? "Inactive" : "Active";
         setState(() {
-          currentStatus = currentStatus == "Active" ? "Inactive" : "Active";
+          currentStatus = updatedStatus;
         });
+        widget.onStatusChanged?.call(updatedStatus);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(response.message)));
@@ -94,18 +100,49 @@ class _OfferCardState extends State<OfferCard> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    final isWideShortPhone =
+        Breakpoints.isMobile(width) && width >= 500 && size.height <= 760;
+    final isMobile = Breakpoints.isMobile(width) && !isWideShortPhone;
+    final cardPadding = isMobile
+        ? EdgeInsets.all(16.w)
+        : EdgeInsets.all(AppDimensions.padding(width) * 0.65);
+    final bottomMargin = isMobile ? 20.h : 20.0;
+    final cardRadius = isMobile ? 17.r : 14.0;
+    final bannerRadius = isMobile ? 18.r : 14.0;
+    final bannerHeight = isMobile ? 120.h : 132.0;
+    final bannerPadding = EdgeInsets.only(
+      left: isMobile ? 20.w : 22.0,
+      top: isMobile ? 20.h : 18.0,
+      bottom: isMobile ? 10.h : 10.0,
+      right: isMobile ? 20.w : 22.0,
+    );
+    final discountSize = isMobile ? 36.sp : 36.0;
+    final appliesSize = isMobile ? 13.sp : 13.0;
+    final dineTypeSize = isMobile ? 11.sp : 12.0;
+    final tagSize = isMobile ? 67.w : 68.0;
+    final offerDetailsGap = isWideShortPhone
+        ? 14.0
+        : isMobile
+        ? 8.h
+        : 18.0;
+    final sectionGap = isMobile ? 16.h : 16.0;
+    final buttonWidth = isMobile ? 75.w : 82.0;
+    final buttonHeight = isMobile ? 19.h : 24.0;
+
     return Container(
-      margin: EdgeInsets.only(bottom: 20.h),
-      padding: EdgeInsets.all(16.w),
+      margin: EdgeInsets.only(bottom: bottomMargin),
+      padding: cardPadding,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17.r),
+        borderRadius: BorderRadius.circular(cardRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1), // #000000 at 10%
-            offset: Offset(0, 0), // X: 0, Y: 0
-            blurRadius: 10, // Blur: 10
-            spreadRadius: 2, // Spread: 2
+            color: Colors.black.withOpacity(0.1),
+            offset: Offset.zero,
+            blurRadius: 10,
+            spreadRadius: 2,
           ),
         ],
       ),
@@ -131,13 +168,17 @@ class _OfferCardState extends State<OfferCard> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(30.r),
+                          borderRadius: BorderRadius.circular(
+                            isMobile ? 30.r : 30,
+                          ),
                         ),
                         child: Center(
                           child: SizedBox(
-                            width: 15.w,
-                            height: 15.w,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            width: isMobile ? 15.w : 15,
+                            height: isMobile ? 15.w : 15,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
                           ),
                         ),
                       ),
@@ -146,26 +187,21 @@ class _OfferCardState extends State<OfferCard> {
               ),
             ],
           ),
-          SizedBox(height: 10.h),
+          SizedBox(height: isMobile ? 10.h : 10),
           Stack(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(18.r),
+                borderRadius: BorderRadius.circular(bannerRadius),
                 child: Image.asset(
                   widget.url,
-                  height: 120.h,
+                  height: bannerHeight,
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),
               ),
               Positioned.fill(
                 child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 20.w,
-                    top: 20.h,
-                    bottom: 10.h,
-                    right: 20.w,
-                  ),
+                  padding: bannerPadding,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -179,7 +215,7 @@ class _OfferCardState extends State<OfferCard> {
                               children: [
                                 AppText(
                                   text: "${widget.percentage.split('.')[0]}%",
-                                  size: 36.sp,
+                                  size: discountSize,
                                   fontWeight: FontWeight.w900,
                                   color: Colors.white,
                                   lineSpacing: 1.0,
@@ -188,19 +224,19 @@ class _OfferCardState extends State<OfferCard> {
                                 AppText(
                                   text:
                                       "FOR ${widget.applicableFor.toUpperCase().split('_').join(' ')}",
-                                  size: 13.sp,
+                                  size: appliesSize,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                 ),
                               ],
                             ),
-                            SizedBox(height: 20.h),
+                            SizedBox(height: offerDetailsGap),
                             AppText(
                               text: widget.dineType
                                   // .toUpperCase()
                                   .split(',')
                                   .join(' & '),
-                              size: 11.sp,
+                              size: dineTypeSize,
                               fontWeight: FontWeight.w400,
                               color: Colors.white,
                             ),
@@ -209,8 +245,8 @@ class _OfferCardState extends State<OfferCard> {
                       ),
                       Image.asset(
                         'assets/images/discounttag.png',
-                        width: 67.w,
-                        height: 67.h,
+                        width: tagSize,
+                        height: tagSize,
                       ),
                     ],
                   ),
@@ -218,7 +254,7 @@ class _OfferCardState extends State<OfferCard> {
               ),
             ],
           ),
-          SizedBox(height: 16.h),
+          SizedBox(height: sectionGap),
 
           Row(
             children: [
@@ -227,7 +263,7 @@ class _OfferCardState extends State<OfferCard> {
                 label: "${widget.startTime} - ${widget.endTime}",
                 expanded: false,
               ),
-              SizedBox(width: 8.w),
+              SizedBox(width: isMobile ? 8.w : 8),
               _IconContainer(
                 imageIcon: OffercardCalendarIcon,
                 label: widget.activeDays,
@@ -235,15 +271,15 @@ class _OfferCardState extends State<OfferCard> {
               ),
             ],
           ),
-          SizedBox(height: 16.h),
+          SizedBox(height: sectionGap),
 
           // Buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               SizedBox(
-                width: 75.w,
-                height: 19.h,
+                width: buttonWidth,
+                height: buttonHeight,
                 child: AppButton(
                   text: 'Delete',
                   bgColor1: offercardDeleteButtonColor,
@@ -253,10 +289,10 @@ class _OfferCardState extends State<OfferCard> {
                   borderRadius: 5,
                 ),
               ),
-              SizedBox(width: 10.w),
+              SizedBox(width: isMobile ? 10.w : 10),
               SizedBox(
-                width: 75.w,
-                height: 19.h,
+                width: buttonWidth,
+                height: buttonHeight,
                 child: AppButton(
                   text: 'Edit',
                   bgColor1: offercardEditButtonColor,
@@ -287,32 +323,46 @@ class _IconContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    final isWideShortPhone =
+        Breakpoints.isMobile(width) && width >= 500 && size.height <= 760;
+    final isMobile = Breakpoints.isMobile(width) && !isWideShortPhone;
+    final horizontalPadding = isMobile ? 10.w : 10.0;
+    final verticalPadding = isMobile ? 6.h : 6.0;
+    final iconSize = isMobile ? 16.w : 16.0;
+    final gap = isMobile ? 6.w : 6.0;
+    final textSize = isMobile ? 11.sp : 11.0;
+
     Widget content = Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
+      ),
       decoration: BoxDecoration(
-        border: Border.all(color: Color(0xFF615A10), width: 0.5.r),
-        borderRadius: BorderRadius.all(Radius.circular(5.r)),
+        border: Border.all(color: const Color(0xFF615A10), width: 0.5),
+        borderRadius: BorderRadius.all(Radius.circular(isMobile ? 5.r : 5)),
       ),
       child: Row(
-  mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
-  children: [
-    Image.asset(
-      fit: BoxFit.cover,
-      imageIcon,
-      width: 16.w,
-      height: 16.h,
-    ),
-    SizedBox(width: 6.w),
-    Flexible(   
-      child: Text(
-        label.replaceAll(RegExp(r','), " "),
-        style: TextStyle(fontSize: 11.sp, color: Color(0xFF000000)),
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
+        mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          Image.asset(
+            fit: BoxFit.cover,
+            imageIcon,
+            width: iconSize,
+            height: iconSize,
+          ),
+          SizedBox(width: gap),
+          Flexible(
+            child: Text(
+              label.replaceAll(RegExp(r','), " "),
+              style: TextStyle(fontSize: textSize, color: const Color(0xFF000000)),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
       ),
-    ),
-  ],
-),
     );
 
     return expanded ? Expanded(child: content) : content;
@@ -332,12 +382,20 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    final isWideShortPhone =
+        Breakpoints.isMobile(width) && width >= 500 && size.height <= 760;
+    final isMobile = Breakpoints.isMobile(width) && !isWideShortPhone;
+
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
         backgroundColor: color,
-        padding: EdgeInsets.symmetric(vertical: 10.h),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5.r)),
+        padding: EdgeInsets.symmetric(vertical: isMobile ? 10.h : 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isMobile ? 5.r : 5),
+        ),
       ),
       child: Center(
         child: Text(
@@ -345,7 +403,7 @@ class _ActionButton extends StatelessWidget {
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w500,
-            fontSize: 11.sp,
+            fontSize: isMobile ? 11.sp : 11,
           ),
         ),
       ),

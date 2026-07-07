@@ -1,3 +1,21 @@
+import 'package:fudiko/models/badge/badge_model.dart';
+
+class RestaurantImageModel {
+  final String uuid;
+  final String image;
+
+  const RestaurantImageModel({required this.uuid, required this.image});
+
+  factory RestaurantImageModel.fromJson(Map<String, dynamic> json) {
+    return RestaurantImageModel(
+      uuid: json['uuid']?.toString() ?? '',
+      image: json['image'] != null
+          ? (json['image'] as String).replaceAll(r'\/', '/')
+          : '',
+    );
+  }
+}
+
 class PartnerProfileModel {
   final String uuid;
   final String name;
@@ -17,6 +35,8 @@ class PartnerProfileModel {
   final String restaurantType;
   final String? image;
   final List<String>? images;
+  final List<RestaurantImageModel>? restaurantImages;
+  final BadgeItemModel? currentBadge;
 
   PartnerProfileModel({
     required this.uuid,
@@ -36,10 +56,20 @@ class PartnerProfileModel {
     required this.restaurantType,
     this.image,
     this.images,
+    this.restaurantImages,
     required this.reviewStar,
+    this.currentBadge,
   });
 
   factory PartnerProfileModel.fromJson(Map<String, dynamic> json) {
+    final restaurantImages = json['images'] != null
+        ? (json['images'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map(RestaurantImageModel.fromJson)
+              .where((image) => image.image.isNotEmpty)
+              .toList()
+        : null;
+
     return PartnerProfileModel(
       uuid: json['uuid'] ?? '',
       reviewStar: (json['average_review'] ?? 0).toString(),
@@ -61,15 +91,18 @@ class PartnerProfileModel {
       deliveryService: json['delivery_service'] ?? 0,
       deliveryServiceArea: json['delivery_service_area'] as String?,
       restaurantType: json['restaurant_type'] ?? '',
+      currentBadge:
+          json['current_badge'] != null &&
+              json['current_badge'] is Map<String, dynamic>
+          ? BadgeItemModel.fromJson(
+              json['current_badge'] as Map<String, dynamic>,
+            )
+          : null,
       image: json['image'] != null
           ? (json['image'] as String).replaceAll(r'\/', '/')
           : null,
-      images: json['images'] != null
-          ? (json['images'] as List).map((e) {
-              final url = (e['image'] as String).replaceAll(r'\/', '/');
-              return url;
-            }).toList()
-          : null,
+      images: restaurantImages?.map((image) => image.image).toList(),
+      restaurantImages: restaurantImages,
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/utils/constants.dart';
 
 class AppOtpField extends StatelessWidget {
@@ -50,17 +52,31 @@ class AppOtpField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final screenWidth = screenSize.width;
+    final isMobile = Breakpoints.isMobile(screenWidth);
+    final isWideShortPhone =
+        isMobile && screenWidth >= 500 && screenSize.height <= 760;
+    final horizontalPadding = isWideShortPhone ? 12.0 : isMobile ? 20.0 : 14.0;
+    final height = isWideShortPhone ? 46.0 : isMobile ? 60.0 : 54.0;
+    final borderRadius = isWideShortPhone ? 14.0 : isMobile ? 20.0 : 16.0;
+    final iconGap = isWideShortPhone ? 8.0 : isMobile ? 12.0 : 8.0;
+    final iconSize = isWideShortPhone ? 20.0 : isMobile ? 24.0 : 18.0;
+    final fieldFontSize =
+        size ?? (isWideShortPhone ? 14.0 : isMobile ? 16.sp : 14.0);
+    final verticalPadding = isWideShortPhone ? 10.0 : isMobile ? 16.0 : 13.0;
+
     return GestureDetector(
       onTap: onboxTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        height: 60,
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        height: height,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(borderRadius),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.25),
+              color: Colors.black.withValues(alpha: 0.25),
               blurRadius: 15,
               spreadRadius: 0,
               offset: const Offset(0, 0),
@@ -72,10 +88,14 @@ class AppOtpField extends StatelessWidget {
             icon != null
                 ? GestureDetector(
                     onTap: iconOnTap,
-                    child: Icon(icon, color: iconColor ?? Colors.grey),
+                    child: Icon(
+                      icon,
+                      color: iconColor ?? Colors.grey,
+                      size: iconSize,
+                    ),
                   )
                 : SizedBox.shrink(),
-            SizedBox(width: 12),
+            SizedBox(width: iconGap),
             Expanded(
               child: TextField(
                 onTap: onboxTap,
@@ -101,11 +121,13 @@ class AppOtpField extends StatelessWidget {
                   hintStyle: TextStyle(
                     fontWeight: FontWeight.w400,
                     color: textColor ?? Colors.grey,
-                    fontSize: size ?? 16,
+                    fontSize: fieldFontSize,
                   ),
                   border: InputBorder.none,
                   isCollapsed: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 16),
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: verticalPadding,
+                  ),
                 ),
               ),
             ),
@@ -113,9 +135,13 @@ class AppOtpField extends StatelessWidget {
                 ? InkWell(
                     onTap: onSuffixTap,
                     borderRadius: BorderRadius.circular(
-                      20,
+                      borderRadius,
                     ), // ← rounds the ripple
-                    child: Icon(suffixIcon, color: Colors.grey,),
+                    child: Icon(
+                      suffixIcon,
+                      color: Colors.grey,
+                      size: iconSize,
+                    ),
                   )
                 : SizedBox.shrink(),
           ],

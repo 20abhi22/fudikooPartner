@@ -7,6 +7,20 @@ import 'package:fudiko/models/menuupload/menu-upload-model.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class MenuUploadService {
+  String _uploadErrorMessage(DioException error) {
+    if (error.response?.statusCode == 413) {
+      return 'PDF is too large. The maximum size is 10 MB.';
+    }
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
+      return 'Upload timed out. Check your connection and try again.';
+    }
+    final data = error.response?.data;
+    if (data is Map) return data['message']?.toString() ?? 'PDF upload failed.';
+    return 'PDF upload failed.';
+  }
+
   Future<MenuUploadResponseModel> addMenu(MenuUploadModel menu) async {
     final token = await getToken();
     try {
@@ -24,6 +38,8 @@ class MenuUploadService {
           message: 'Error uploading MENU',
         );
       }
+    } on DioException catch (e) {
+      return MenuUploadResponseModel(status: false, message: _uploadErrorMessage(e));
     } catch (e) {
       return MenuUploadResponseModel(
         status: false,
@@ -44,6 +60,9 @@ class MenuUploadService {
       } else {
         return MenuListModel(status: false, menus: []);
       }
+    } on DioException catch (e) {
+      print('Error fetching menus: ${_uploadErrorMessage(e)}');
+      return MenuListModel(status: false, menus: []);
     } catch (e) {
       print('Error fetching menus: $e');
       return MenuListModel(status: false, menus: []);
@@ -67,6 +86,11 @@ class MenuUploadService {
           message: "Update failed! : ${response.statusCode}",
         );
       }
+    } on DioException catch (e) {
+      return MenuUpdateResponseModel(
+        status: false,
+        message: _uploadErrorMessage(e),
+      );
     } catch (e) {
       return MenuUpdateResponseModel(
         status: false,

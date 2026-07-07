@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/components/apptextfeild.dart';
+import 'package:fudiko/routetransitions.dart';
+import 'package:fudiko/screens/auth/forgotpassword.dart';
 import 'package:fudiko/utils/constants.dart';
 
 class UpdatePassword extends StatelessWidget {
@@ -47,7 +49,9 @@ class UpdatePassword extends StatelessWidget {
                 SizedBox(height: 60),
                 AppButton(text: 'Update', onPressed: () {}),
                 SizedBox(height: 20),
-                AppText(text: "Forgot Password?", size: 14, fontWeight: FontWeight.w400)
+                InkWell(
+                  onTap:() => slideRightWidget(context :context, newPage: const ForgotPassword()),
+                  child: AppText(text: "Forgot Password?", size: 14, fontWeight: FontWeight.w400))
               ],
             ),
           ],
@@ -56,3 +60,33 @@ class UpdatePassword extends StatelessWidget {
     );
   }
 }
+
+
+  // ForgotPasswordService forgotPasswordService = ForgotPasswordService();
+
+//  if (_newPassword.text == _confirmPassword.text) {
+//       NewPasswordModel user = NewPasswordModel(newPassword: _newPassword.text);
+//       NewPasswordResponseModel response = await forgotPasswordService
+//           .changePassword(user, widget.token ?? await getToken());
+//       if (response.status) {
+//         if (!mounted) return;
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           SnackBar(content: Text(response.message)),
+//         );
+//         pushWidgetWhileRemove(newPage: Login(), context: context);
+//         // Navigator.push(
+//         //   context,
+//         //   MaterialPageRoute(builder: (context) => Login()),
+//         // );
+//       } else {
+//         if (!mounted) return;
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           SnackBar(content: Text(response.message)),
+//         );
+//       }
+//     } else {
+//       if (!mounted) return;
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(content: Text("Password doesn't match")),
+//       );
+//     }

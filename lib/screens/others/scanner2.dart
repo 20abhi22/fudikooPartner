@@ -7,6 +7,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/components/apptextfeild.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/scanner/scanner_complete_model.dart';
 import 'package:fudiko/screens/others/nav/mainnav.dart';
 import 'package:fudiko/services/scanner_service.dart';
@@ -155,106 +157,199 @@ class _Scanner2State extends State<Scanner2> {
 
   // ── UI ─────────────────────────────────────────────────────────────────────
 
+  double _contentMaxWidth(Size size) {
+    if (Breakpoints.isDesktop(size.width)) return 460;
+    if (Breakpoints.isTabletDevice(size)) return 440;
+    return double.infinity;
+  }
+
+  bool _isWideShortPhone(Size size) {
+    return Breakpoints.isWideShortPhone(size);
+  }
+
+  EdgeInsets _contentPadding(Size size) {
+    final isMobile = Breakpoints.isMobileDevice(size);
+    return EdgeInsets.symmetric(
+      horizontal: _isWideShortPhone(size)
+          ? 28.0
+          : isMobile
+          ? 30.w
+          : AppDimensions.padding(size.width),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final isWideShortPhone = _isWideShortPhone(screenSize);
+    final isMobile =
+        Breakpoints.isMobileDevice(screenSize) && !isWideShortPhone;
+    final checkIconSize = isWideShortPhone
+        ? 80.0
+        : isMobile
+        ? 100.w
+        : 90.0;
+    final fieldRadius = isWideShortPhone
+        ? 16.0
+        : isMobile
+        ? 20.r
+        : 18.0;
+    final fieldTextSize = isWideShortPhone
+        ? 14.0
+        : isMobile
+        ? 16.0
+        : 14.0;
+    final smallGap = isWideShortPhone
+        ? 8.0
+        : isMobile
+        ? 10.h
+        : 10.0;
+    final fieldGap = isWideShortPhone
+        ? 12.0
+        : isMobile
+        ? 20.h
+        : 18.0;
+    final largeGap = isWideShortPhone
+        ? 20.0
+        : isMobile
+        ? 40.h
+        : 36.0;
+    final photoButtonHeight = isWideShortPhone
+        ? 50.0
+        : isMobile
+        ? 60.h
+        : 56.0;
+    final submitBottom = isWideShortPhone
+        ? 18.0
+        : isMobile
+        ? 40.h
+        : 40.0;
+    final submitWidth = isWideShortPhone
+        ? 140.0
+        : isMobile
+        ? 150.w
+        : 150.0;
+    final submitHeight = isWideShortPhone
+        ? 46.0
+        : isMobile
+        ? 50.h
+        : 48.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 30.w),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/images/check.png',
-                      width: 100.w,
-                      height: 100.w,
-                      fit: BoxFit.contain,
-                    ),
-                    SizedBox(height: 10.h),
-                    const AppText(
-                      text: "Coupon Verified!",
-                      size: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                    SizedBox(height: 40.h),
-
-                    // Bill amount input
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20.r),
-                        color: Colors.white,
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Padding(
+                  padding: _contentPadding(screenSize),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isWideShortPhone
+                            ? 440.0
+                            : _contentMaxWidth(screenSize),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: isWideShortPhone ? 12.0 : 24.0),
+                          Image.asset(
+                            'assets/images/check.png',
+                            width: checkIconSize,
+                            height: checkIconSize,
+                            fit: BoxFit.contain,
                           ),
+                          SizedBox(height: smallGap),
+                          const AppText(
+                            text: "Coupon Verified!",
+                            size: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                          SizedBox(height: largeGap),
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(fieldRadius),
+                              color: Colors.white,
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 10,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: AppTextFeild(
+                              text: "Enter the Bill Amount",
+                              icon: Icons.receipt_long_outlined,
+                              controller: _amountController,
+                              keyboardType: TextInputType.number,
+                              fieldBorderRadius: fieldRadius,
+                              size: fieldTextSize,
+                              height: isWideShortPhone ? 50.0 : null,
+                            ),
+                          ),
+                          SizedBox(height: fieldGap),
+                          if (_pickedImage != null)
+                            _BillPreview(
+                              imagePath: _pickedImage!.path,
+                              onRemove: () =>
+                                  setState(() => _pickedImage = null),
+                            )
+                          else
+                            Container(
+                              height: photoButtonHeight,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(
+                                  fieldRadius,
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: AppButton(
+                                text: 'Take a Photo of Bill',
+                                onPressed: _showChooseSource,
+                                size: 15,
+                                icon: Icons.camera_alt_sharp,
+                                borderRadius: fieldRadius,
+                              ),
+                            ),
+                          SizedBox(height: largeGap),
+                          SizedBox(
+                            width: submitWidth,
+                            height: submitHeight,
+                            child: _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : AppButton(
+                                    text: 'Submit',
+                                    onPressed: _submit,
+                                    bgColor1: Colors.blue,
+                                    bgColor2: Colors.blue,
+                                    size: 16,
+                                  ),
+                          ),
+                          SizedBox(height: submitBottom),
                         ],
                       ),
-                      child: AppTextFeild(
-                        text: "Enter the Bill Amount",
-                        icon: Icons.receipt_long_outlined,
-                        controller: _amountController,
-                        keyboardType: TextInputType.number,
-                      ),
                     ),
-                    SizedBox(height: 20.h),
-
-                    // Bill photo preview or pick button
-                    if (_pickedImage != null)
-                      _BillPreview(
-                        imagePath: _pickedImage!.path,
-                        onRemove: () => setState(() => _pickedImage = null),
-                      )
-                    else
-                      Container(
-                        height: 60.h,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20.r),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 6,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: AppButton(
-                          text: 'Take a Photo of Bill',
-                          onPressed: _showChooseSource,
-                          size: 15,
-                          icon: Icons.camera_alt_sharp,
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-
-            // Submit button
-            Padding(
-              padding: EdgeInsets.only(bottom: 40.h),
-              child: SizedBox(
-                width: 150.w,
-                height: 50.h,
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : AppButton(
-                        text: 'Submit',
-                        onPressed: _submit,
-                        bgColor1: Colors.blue,
-                        bgColor2: Colors.blue,
-                        size: 16,
-                      ),
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -271,17 +366,32 @@ class _BillPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final isWideShortPhone = Breakpoints.isWideShortPhone(screenSize);
+    final isMobile =
+        Breakpoints.isMobileDevice(screenSize) && !isWideShortPhone;
+    final previewHeight = isWideShortPhone
+        ? 130.0
+        : isMobile
+        ? 180.h
+        : 180.0;
+    final radius = isWideShortPhone
+        ? 12.0
+        : isMobile
+        ? 12.r
+        : 12.0;
+
     return Column(
       children: [
         Container(
-          height: 180.h,
+          height: previewHeight,
           width: double.infinity,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12.r),
+            borderRadius: BorderRadius.circular(radius),
             border: Border.all(color: Colors.black12),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12.r),
+            borderRadius: BorderRadius.circular(radius),
             child: Image.file(File(imagePath), fit: BoxFit.cover),
           ),
         ),

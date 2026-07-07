@@ -149,6 +149,7 @@
 // }
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 
 class LocationDropdown extends StatefulWidget {
   final void Function(String)? onLocationSelected;
@@ -160,6 +161,7 @@ class LocationDropdown extends StatefulWidget {
   final void Function(String)? onChange;
   final String? type;
   final bool? isLoading;
+  final double? height;
   final String? externalValue; // ✅ set from outside (e.g. current location)
 
   const LocationDropdown({
@@ -173,6 +175,7 @@ class LocationDropdown extends StatefulWidget {
     this.onChange,
     this.type,
     this.isLoading,
+    this.height,
     this.externalValue,
   }) : super(key: key);
 
@@ -202,13 +205,30 @@ class _LocationDropdownState extends State<LocationDropdown> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final isWideShortPhone =
+        Breakpoints.isMobile(size.width) &&
+        size.width >= 500 &&
+        size.height <= 760;
     final locations = widget.locations ?? [];
+    final dropdownHeight = widget.height ?? (isWideShortPhone ? 46.0 : 60.0);
+    final borderRadius = isWideShortPhone ? 14.0 : 20.0;
+    final iconPadding = isWideShortPhone ? 12.0 : 16.0;
+    final iconSize = isWideShortPhone ? 18.0 : 20.0;
+    final fontSize = widget.fontSize ?? (isWideShortPhone ? 13.0 : 16.0);
+    final verticalPadding = isWideShortPhone ? 10.0 : 16.0;
+    final horizontalPadding = widget.icon != null
+        ? (isWideShortPhone ? 8.0 : 12.0)
+        : (isWideShortPhone ? 14.0 : 20.0);
+    final suggestionsMinWidth = isWideShortPhone
+        ? (size.width - 56).clamp(0.0, 380.0).toDouble()
+        : size.width;
 
     return Container(
-      height: 60,
+      height: dropdownHeight,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -221,8 +241,8 @@ class _LocationDropdownState extends State<LocationDropdown> {
         children: [
           if (widget.icon != null)
             Padding(
-              padding: const EdgeInsets.only(left: 16),
-              child: Icon(widget.icon, color: widget.iconColor, size: 20),
+              padding: EdgeInsets.only(left: iconPadding),
+              child: Icon(widget.icon, color: widget.iconColor, size: iconSize),
             ),
           Expanded(
             child: TypeAheadField<String>(
@@ -277,22 +297,22 @@ class _LocationDropdownState extends State<LocationDropdown> {
                   focusNode: focusNode,
                   cursorColor: Colors.black,
                   style: TextStyle(
-                    fontSize: widget.fontSize ?? 16,
+                    fontSize: fontSize,
                     fontWeight: FontWeight.w400,
                     color: Colors.black,
                   ),
                   decoration: InputDecoration(
                     hintText: widget.hintText ?? 'Location',
                     hintStyle: TextStyle(
-                      fontSize: widget.fontSize ?? 16,
+                      fontSize: fontSize,
                       fontWeight: FontWeight.w500,
                       color: Colors.grey,
                     ),
                     border: InputBorder.none,
                     isCollapsed: true,
                     contentPadding: EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: widget.icon != null ? 12 : 20,
+                      vertical: verticalPadding,
+                      horizontal: horizontalPadding,
                     ),
                   ),
                 );
@@ -302,9 +322,7 @@ class _LocationDropdownState extends State<LocationDropdown> {
                 elevation: 4,
                 borderRadius: BorderRadius.circular(12),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minWidth: MediaQuery.of(context).size.width,
-                  ),
+                  constraints: BoxConstraints(minWidth: suggestionsMinWidth),
                   child: child,
                 ),
               ),

@@ -2,8 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/models/forgotpassword/changepassword-model.dart';
 import 'package:fudiko/models/forgotpassword/finduser-model.dart';
+import 'package:fudiko/utils/tokens.dart';
 
-class ForgotPasswordService{
+class ForgotPasswordService {
   Map<String, dynamic>? _asJsonMap(dynamic data) {
     if (data is Map<String, dynamic>) {
       return data;
@@ -16,13 +17,10 @@ class ForgotPasswordService{
     return null;
   }
 
-  Future<FindUserResponseModel> findUser(FindUserModel user) async{
+  Future<FindUserResponseModel> findUser(FindUserModel user) async {
     final formData = user.toFormData();
-    try{
-      final response = await DioClient.dio.post(
-        '/find-user',
-        data: formData
-      );
+    try {
+      final response = await DioClient.dio.post('/find-user', data: formData);
       final responseData = _asJsonMap(response.data);
       if (responseData != null) {
         return FindUserResponseModel.fromJson(responseData);
@@ -37,21 +35,25 @@ class ForgotPasswordService{
       final responseData = _asJsonMap(e.response?.data);
       return FindUserResponseModel(
         status: false,
-        message: responseData?['message']?.toString() ?? "Something went wrong : ${e.message}",
+        message:
+            responseData?['message']?.toString() ??
+            "Something went wrong : ${e.message}",
         token: responseData?['token']?.toString(),
       );
-    }catch(e){
+    } catch (e) {
       return FindUserResponseModel(
         status: false,
-        message: "Something went wrong : $e"
+        message: "Something went wrong : $e",
       );
     }
   }
 
-  Future<NewPasswordResponseModel> changePassword(NewPasswordModel user,String? token) async{
-
+  Future<NewPasswordResponseModel> changePassword(
+    NewPasswordModel user,
+    String? token,
+  ) async {
     final formData = user.toFormData();
-    try{
+    try {
       final response = await DioClient.dio.post(
         '/change-password',
         data: formData,
@@ -70,15 +72,51 @@ class ForgotPasswordService{
       final responseData = _asJsonMap(e.response?.data);
       return NewPasswordResponseModel(
         status: false,
-        message: responseData?['message']?.toString() ?? "Something went wrong : ${e.message}",
+        message:
+            responseData?['message']?.toString() ??
+            "Something went wrong : ${e.message}",
       );
-    }catch(e){
+    } catch (e) {
       return NewPasswordResponseModel(
-          status: false,
-          message: "Something went wrong : $e"
+        status: false,
+        message: "Something went wrong : $e",
       );
     }
   }
 
+  Future<NewPasswordResponseModel> updatePassword(
+    UpdatePasswordModel user,
+  ) async {
+    final token = await getToken();
+    final formData = user.toFormData();
+    try {
+      final response = await DioClient.dio.post(
+        '/update-password',
+        data: formData,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final responseData = _asJsonMap(response.data);
+      if (responseData != null) {
+        return NewPasswordResponseModel.fromJson(responseData);
+      }
 
+      return NewPasswordResponseModel(
+        message: "Password update failed: ${response.statusCode}",
+        status: false,
+      );
+    } on DioException catch (e) {
+      final responseData = _asJsonMap(e.response?.data);
+      return NewPasswordResponseModel(
+        status: false,
+        message:
+            responseData?['message']?.toString() ??
+            "Something went wrong : ${e.message}",
+      );
+    } catch (e) {
+      return NewPasswordResponseModel(
+        status: false,
+        message: "Something went wrong : $e",
+      );
+    }
+  }
 }

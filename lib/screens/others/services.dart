@@ -4,6 +4,8 @@ import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/appswitch.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:dio/dio.dart';
 import 'package:fudiko/utils/tokens.dart';
@@ -38,6 +40,22 @@ class _ServicePageState extends State<ServicePage> {
   bool _cateringEnabled = true;
   bool _isLoadingServices = true;
   bool _isSavingServices = false;
+
+  bool _isWideShortPhone(BuildContext context) {
+    return Breakpoints.isWideShortPhone(MediaQuery.sizeOf(context));
+  }
+
+  EdgeInsetsGeometry _pagePadding(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    if (_isWideShortPhone(context)) {
+      return const EdgeInsets.symmetric(horizontal: 24.0);
+    }
+    final isMobile = Breakpoints.isMobileDevice(size);
+    return EdgeInsets.symmetric(
+      horizontal: isMobile ? 20.w : AppDimensions.padding(width),
+    );
+  }
 
   @override
   void initState() {
@@ -159,14 +177,58 @@ class _ServicePageState extends State<ServicePage> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    final isWideShortPhone = _isWideShortPhone(context);
+    final isTablet = Breakpoints.isTabletDevice(size);
+    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
+    final verticalPadding = isWideShortPhone
+        ? 16.0
+        : isMobile
+        ? 20.h
+        : 24.0;
+    final backIconSize = isWideShortPhone
+        ? 24.0
+        : isMobile
+        ? 28.w
+        : 28.0;
+    final headerGap = isWideShortPhone
+        ? 28.0
+        : isMobile
+        ? 40.h
+        : 42.0;
+    final smallGap = isWideShortPhone
+        ? 8.0
+        : isMobile
+        ? 10.h
+        : 10.0;
+    final distanceTopGap = isWideShortPhone
+        ? 6.0
+        : isMobile
+        ? 8.h
+        : 10.0;
+    final distanceBottomGap = isWideShortPhone
+        ? 16.0
+        : isMobile
+        ? 24.h
+        : 24.0;
+    final bottomGap = isWideShortPhone
+        ? 16.0
+        : isMobile
+        ? 20.h
+        : 24.0;
+
     return Scaffold(
       body: SafeArea(
+        minimum: EdgeInsets.only(
+          top: (isTablet || isWideShortPhone) ? 12.0 : 0.0,
+        ),
         child: _isLoadingServices
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20.h),
+                  padding: EdgeInsets.symmetric(vertical: verticalPadding),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -176,7 +238,13 @@ class _ServicePageState extends State<ServicePage> {
                           Navigator.pop(context);
                         },
                         child: Padding(
-                          padding: EdgeInsets.only(left: 20.w),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isWideShortPhone
+                                ? 24.0
+                                : isMobile
+                                ? 20.w
+                                : AppDimensions.padding(width),
+                          ),
                           child: ColorFiltered(
                             colorFilter: ColorFilter.mode(
                               appTextColor3,
@@ -184,15 +252,15 @@ class _ServicePageState extends State<ServicePage> {
                             ),
                             child: Image.asset(
                               'assets/images/backarrow_icon.png',
-                              width: 28.w,
+                              width: backIconSize,
                               fit: BoxFit.contain,
                             ),
                           ),
                         ),
                       ),
 
-                      SizedBox(height: 40.h),
-                      SizedBox(height: 10.h),
+                      SizedBox(height: headerGap),
+                      SizedBox(height: smallGap),
 
                       // Top divider
                       Divider(color: Colors.deepOrange.shade100, thickness: 1),
@@ -215,17 +283,17 @@ class _ServicePageState extends State<ServicePage> {
 
                       // Distance grid — only shown when delivery is enabled
                       if (_deliveryEnabled) ...[
-                        SizedBox(height: 8.h),
+                        SizedBox(height: distanceTopGap),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20.w),
+                          padding: _pagePadding(context),
                           child: _buildDistanceGrid(),
                         ),
-                        SizedBox(height: 24.h),
+                        SizedBox(height: distanceBottomGap),
                       ],
 
                       // Save button
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        padding: _pagePadding(context),
                         child: Opacity(
                           opacity: _isSavingServices ? 0.7 : 1,
                           child: IgnorePointer(
@@ -246,7 +314,7 @@ class _ServicePageState extends State<ServicePage> {
                         ),
                       ),
 
-                      SizedBox(height: 20.h),
+                      SizedBox(height: bottomGap),
                       Divider(color: Colors.deepOrange.shade100, thickness: 1),
                     ],
                   ),
@@ -257,17 +325,37 @@ class _ServicePageState extends State<ServicePage> {
   }
 
   Widget _buildServiceRow(String label, bool currentValue) {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    final isWideShortPhone = _isWideShortPhone(context);
+    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
+
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 20.w),
+      padding: EdgeInsets.symmetric(
+        vertical: isWideShortPhone
+            ? 8.0
+            : isMobile
+            ? 10.h
+            : 14.0,
+        horizontal: isWideShortPhone
+            ? 24.0
+            : isMobile
+            ? 20.w
+            : AppDimensions.padding(width),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          AppText(
-            text: label,
-            size: 15,
-            fontWeight: FontWeight.w500,
-            color: Colors.deepOrange,
+          Expanded(
+            child: AppText(
+              text: label,
+              size: 15,
+              fontWeight: FontWeight.w500,
+              color: Colors.deepOrange,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
+          SizedBox(width: AppDimensions.gap(width)),
           AppSwitch(
             key: ValueKey('$label-$currentValue'),
             initialValue: currentValue,
@@ -291,6 +379,10 @@ class _ServicePageState extends State<ServicePage> {
   }
 
   Widget _buildDistanceGrid() {
+    final size = MediaQuery.sizeOf(context);
+    final width = size.width;
+    final isWideShortPhone = _isWideShortPhone(context);
+    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
     final left = distances.sublist(0, 5); // Up to 1–5 km
     final right = distances.sublist(5, 10); // Up to 6–10 km
     final last = distances[10]; // More than 10 km
@@ -303,13 +395,25 @@ class _ServicePageState extends State<ServicePage> {
             Expanded(
               child: Column(children: left.map(_buildCheckboxRow).toList()),
             ),
-            SizedBox(width: 20.w),
+            SizedBox(
+              width: isWideShortPhone
+                  ? 16.0
+                  : isMobile
+                  ? 20.w
+                  : AppDimensions.gap(width),
+            ),
             Expanded(
               child: Column(children: right.map(_buildCheckboxRow).toList()),
             ),
           ],
         ),
-        SizedBox(height: 12.h),
+        SizedBox(
+          height: isWideShortPhone
+              ? 10.0
+              : isMobile
+              ? 12.h
+              : 14.0,
+        ),
         // "More than 10 km" centred
         Center(child: _buildCheckboxRow(last)),
       ],
@@ -317,10 +421,29 @@ class _ServicePageState extends State<ServicePage> {
   }
 
   Widget _buildCheckboxRow(String text) {
+    final size = MediaQuery.sizeOf(context);
+    final isWideShortPhone = _isWideShortPhone(context);
+    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
+    final boxSize = isWideShortPhone
+        ? 22.0
+        : isMobile
+        ? 24.w
+        : 24.0;
+    final checkSize = isWideShortPhone
+        ? 14.0
+        : isMobile
+        ? 16.w
+        : 16.0;
     final isChecked = selectedDistance == text;
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 6.h),
+      padding: EdgeInsets.symmetric(
+        vertical: isWideShortPhone
+            ? 5.0
+            : isMobile
+            ? 6.h
+            : 7.0,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -333,7 +456,13 @@ class _ServicePageState extends State<ServicePage> {
               softWrap: true,
             ),
           ),
-          SizedBox(width: 8.w),
+          SizedBox(
+            width: isWideShortPhone
+                ? 8.0
+                : isMobile
+                ? 8.w
+                : 8.0,
+          ),
           GestureDetector(
             onTap: () {
               setState(() {
@@ -341,15 +470,21 @@ class _ServicePageState extends State<ServicePage> {
               });
             },
             child: Container(
-              width: 24.w,
-              height: 24.h,
+              width: boxSize,
+              height: boxSize,
               decoration: BoxDecoration(
                 color: isChecked ? appToggleColor : Colors.transparent,
-                borderRadius: BorderRadius.circular(6.r),
+                borderRadius: BorderRadius.circular(
+                  isWideShortPhone
+                      ? 6.0
+                      : isMobile
+                      ? 6.r
+                      : 6.0,
+                ),
                 border: Border.all(color: appToggleColor, width: 2),
               ),
               child: isChecked
-                  ? Icon(Icons.check, size: 16.w, color: Colors.white)
+                  ? Icon(Icons.check, size: checkSize, color: Colors.white)
                   : null,
             ),
           ),

@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/banquet/all-enquiry-model.dart';
 import 'package:fudiko/screens/others/offerSendPage.dart';
 import 'package:fudiko/services/banquet-service.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:fudiko/utils/translator_service.dart';
 import 'package:intl/intl.dart';
+import 'package:fudiko/services/badge_controller.dart';
 
 class AllEnquiryBox extends StatefulWidget {
   final VoidCallback? onPressed;
@@ -110,6 +113,8 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
         ),
       );
       if (result['status'] == true) widget.onActionCompleted?.call();
+      // refresh global badges when an enquiry is saved
+      BadgeController.instance.refresh();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -142,6 +147,8 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
       if (result['status'] == true) {
         widget.onPressed?.call();
         widget.onActionCompleted?.call();
+        // refresh global badges when an enquiry is deleted
+        BadgeController.instance.refresh();
       }
     } catch (e) {
       if (!mounted) return;
@@ -167,78 +174,93 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
     await showDialog(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (dialogContext) {
+        final screenSize = MediaQuery.sizeOf(dialogContext);
+        final screenWidth = screenSize.width;
+        final isWideShortPhone =
+            Breakpoints.isMobile(screenWidth) &&
+            screenWidth >= 500 &&
+            screenSize.height <= 760;
+        final isMobile = Breakpoints.isMobile(screenWidth) && !isWideShortPhone;
+        final dialogMaxWidth = isMobile ? double.infinity : 420.0;
+        final dialogRadius = isMobile ? 15.r : 15.0;
+        final horizontalPadding = isMobile ? 34.w : 36.0;
+        final verticalPadding = isMobile ? 28.h : 26.0;
+        final buttonHeight = isMobile ? 35.h : 36.0;
+        final buttonGap = isMobile ? 20.w : 18.0;
+        final buttonRadius = isMobile ? 5.r : 5.0;
+        final buttonTextSize = isMobile ? 12.sp : 12.0;
+        final contentGap = isMobile ? 20.h : 18.0;
+        final questionText = title.trim().endsWith('?') ? title : message;
+
         return Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 40.h),
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(
-              left: 40.w,
-              right: 40.w,
-              top: 30.h,
-              bottom: 30.h,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15.r),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppText(
-                  text: title,
-                  size: 15,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                  isCentered: true,
-                  softWrap: true,
-                ),
-                SizedBox(height: 10.h),
-                AppText(
-                  text: message,
-                  size: 15,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black,
-                  isCentered: true,
-                  softWrap: true,
-                ),
-                SizedBox(height: 20.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 35.h,
-                        child: AppButton(
-                          text: confirmText,
-                          onPressed: () async {
-                            Navigator.of(dialogContext).pop();
-                            await onConfirm();
-                          },
-                          borderRadius: 5.r,
-                          bgColor1: confirmColor,
-                          bgColor2: confirmColor,
-                          size: 12,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 20.w : 24.0,
+            vertical: isMobile ? 40.h : 40.0,
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: dialogMaxWidth),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(dialogRadius),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppText(
+                    text: questionText,
+                    size: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black,
+                    isCentered: true,
+                    softWrap: true,
+                    maxLines: 2,
+                  ),
+                  SizedBox(height: contentGap),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: buttonHeight,
+                          child: AppButton(
+                            text: confirmText,
+                            onPressed: () async {
+                              Navigator.of(dialogContext).pop();
+                              await onConfirm();
+                            },
+                            borderRadius: buttonRadius,
+                            bgColor1: confirmColor,
+                            bgColor2: confirmColor,
+                            size: buttonTextSize,
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 20.w),
-                    Expanded(
-                      child: SizedBox(
-                        height: 35.h,
-                        child: AppButton(
-                          text: "No",
-                          onPressed: () => Navigator.of(dialogContext).pop(),
-                          size: 12,
-                          borderRadius: 5.r,
-                          bgColor1: Colors.red,
-                          bgColor2: Colors.red,
+                      SizedBox(width: buttonGap),
+                      Expanded(
+                        child: SizedBox(
+                          height: buttonHeight,
+                          child: AppButton(
+                            text: "No",
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            size: buttonTextSize,
+                            borderRadius: buttonRadius,
+                            bgColor1: const Color(0xFFCE3F3F),
+                            bgColor2: const Color(0xFFCE3F3F),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -249,25 +271,46 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
   @override
   Widget build(BuildContext context) {
     final e = widget.enquiry;
-    return Padding(
-      padding: EdgeInsets.only(bottom: 20.h),
-      child: Container(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final screenSize = MediaQuery.sizeOf(context);
+        final isWideShortPhone =
+            Breakpoints.isMobile(screenSize.width) &&
+            screenSize.width >= 500 &&
+            screenSize.height <= 760;
+        final isMobile = Breakpoints.isMobile(width) && !isWideShortPhone;
+        final cardPadding = isMobile
+            ? EdgeInsets.all(20.w)
+            : EdgeInsets.all(AppDimensions.padding(width) * 0.8);
+        final iconSize = isMobile ? 17.w : 18.0;
+        final smallIconSize = isMobile ? 16.w : 18.0;
+        final gap = isMobile ? 5.w : 6.0;
+        final actionIconSize = isMobile ? 22.w : 22.0;
+        final buttonWidth = isMobile ? 150.w : 168.0;
+        final buttonHeight = isMobile ? 35.h : 36.0;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: isMobile ? 20.h : 18),
+          child: Container(
         // height: 259.h, not giving as menu increases the height and it looks bad with fixed height
         width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20.r),
+          borderRadius: BorderRadius.circular(isMobile ? 20.r : 8),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.10), // 10% opacity
-              offset: Offset(0, 0), // X, Y
-              blurRadius: 10, // Blur
-              spreadRadius: 2, // Spread
+              color: Colors.black.withValues(alpha: 0.10),
+              offset: const Offset(0, 4),
+              blurRadius: 14,
+              spreadRadius: 1,
             ),
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(20.w),
+          padding: cardPadding,
           child: Column(
             children: [
               Row(
@@ -286,13 +329,17 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                         // ),
                         Row(
                           children: [
-                            AppText(
-                              text: e.enquiryId,
-                              size: 20,
-                              fontWeight: FontWeight.bold,
-                              color: appTextColor3,
+                            Flexible(
+                              child: AppText(
+                                text: e.enquiryId,
+                                size: 20,
+                                fontWeight: FontWeight.bold,
+                                color: appTextColor3,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            SizedBox(width: 8.w),
+                            SizedBox(width: isMobile ? 8.w : 8),
                             // if (_isExpired)
                             //   Container(
                             //     padding: EdgeInsets.symmetric(
@@ -332,11 +379,11 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                               ),
                               child: Image.asset(
                                 walletIcon,
-                                width: 17.w,
-                                height: 18.h,
+                                width: iconSize,
+                                height: iconSize,
                               ),
                             ),
-                            SizedBox(width: 5.w),
+                            SizedBox(width: gap),
                             Flexible(
                               child: FutureBuilder<String>(
                                 future: TranslatorService.translate(
@@ -352,7 +399,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                                         TextSpan(
                                           text: e.estimatedAmount,
                                           style: TextStyle(
-                                            fontSize: 14.sp,
+                                            fontSize: isMobile ? 14.sp : 15,
                                             fontWeight: FontWeight.w700,
                                             color: appTextColor5,
                                           ),
@@ -361,7 +408,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                                         TextSpan(
                                           text: ' $translated',
                                           style: TextStyle(
-                                            fontSize: 14.sp,
+                                            fontSize: isMobile ? 14.sp : 15,
                                             fontWeight: FontWeight.w500,
                                             color: appTextColor5,
                                           ),
@@ -390,11 +437,11 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                               ),
                               child: Image.asset(
                                 calenderIcon,
-                                width: 17.w,
-                                height: 17.h,
+                                width: iconSize,
+                                height: iconSize,
                               ),
                             ),
-                            SizedBox(width: 5.h),
+                            SizedBox(width: gap),
                             Flexible(
                               child: RichText(
                                 text: TextSpan(
@@ -402,7 +449,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                                     TextSpan(
                                       text: formatDate(e.date),
                                       style: TextStyle(
-                                        fontSize: 14.sp,
+                                        fontSize: isMobile ? 14.sp : 15,
                                         fontWeight: FontWeight.w700,
                                         color: appTextColor5,
                                       ),
@@ -410,7 +457,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                                     TextSpan(
                                       text: ' - ${formatTime(e.time)}',
                                       style: TextStyle(
-                                        fontSize: 15.sp,
+                                        fontSize: isMobile ? 15.sp : 15,
                                         fontWeight: FontWeight.w500,
                                         color: appTextColor5,
                                       ),
@@ -437,18 +484,18 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                               ),
                               child: Image.asset(
                                 groupIcon,
-                                width: 16.w,
-                                height: 16.h,
+                                width: smallIconSize,
+                                height: smallIconSize,
                               ),
                             ),
-                            SizedBox(width: 5.w),
+                            SizedBox(width: gap),
                             Flexible(
                               child: Row(
                                 children: [
                                   Text(
                                     '${e.people}',
                                     style: TextStyle(
-                                      fontSize: 14.sp,
+                                      fontSize: isMobile ? 14.sp : 15,
                                       fontWeight: FontWeight.w700,
                                       color: appTextColor5,
                                     ),
@@ -486,19 +533,20 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                               ),
                               child: Image.asset(
                                 menuIcon,
-                                width: 17.w,
-                                height: 17.h,
+                                width: iconSize,
+                                height: iconSize,
                               ),
                             ),
-                            SizedBox(width: 5.w),
+                            SizedBox(width: gap),
                             Expanded(
                               child: AppText(
                                 text: e.menuItems,
-                                size: 13,
+                                size: isMobile ? 13 : 14,
                                 fontWeight: FontWeight.w400,
                                 color: appTextColor5,
-
-                                softWrap: true, //good
+                                maxLines: isMobile ? 3 : 2,
+                                overflow: TextOverflow.ellipsis,
+                                softWrap: true,
                               ),
                             ),
                           ],
@@ -506,20 +554,20 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                       ],
                     ),
                   ),
-                  SizedBox(width: 10.w),
+                  SizedBox(width: isMobile ? 10.w : 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       AppText(
                         text: formatDate(e.date),
-                        size: 10.sp,
+                        size: 10,
                         fontWeight: FontWeight.w600,
                         color: appTextColor3,
                       ),
                       SizedBox(height: 5),
                       AppText(
                         text: formatDate(e.time),
-                        size: 10.sp,
+                        size: 10,
                         fontWeight: FontWeight.w400,
                         color: appTextColor3,
                       ),
@@ -542,7 +590,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                             message:
                                 'This action will remove the enquiry from the list permanently.',
                             confirmText: 'Yes',
-                            confirmColor: Colors.green,
+                            confirmColor: const Color(0xFF73B256),
                             onConfirm: _deleteEnquiry,
                           );
                         },
@@ -553,8 +601,9 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                           ),
                           child: Image.asset(
                             enquiryboxDeleteIcon,
-                            width: 20.w,
-                            height: 20.h,
+                            width: actionIconSize,
+                            height: actionIconSize,
+                            fit: BoxFit.cover,
                           ),
                         ),
                         // child: Icon(
@@ -563,7 +612,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                         //   size: 20.w,
                         // ),
                       ),
-                      SizedBox(width: 5.w),
+                      SizedBox(width: isMobile ? 5.w : 6.0),
                       if (widget.showSaveIcon) ...[
                         GestureDetector(
                           onTap: () {
@@ -573,7 +622,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                               message:
                                   'Saving will move this enquiry to the saved list for later follow-up.',
                               confirmText: 'Yes',
-                              confirmColor: appButtonColor,
+                              confirmColor: const Color(0xFF73B256),
                               onConfirm: _saveEnquiry,
                             );
                           },
@@ -584,8 +633,9 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                             ),
                             child: Image.asset(
                               enquiryboxSaveIcon,
-                              width: 26.w,
-                              height: 26.h,
+                              width: actionIconSize,
+                              height: actionIconSize,
+                              fit: BoxFit.cover,
                             ),
                           ),
                           // child: Icon(
@@ -594,7 +644,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                           //   size: 20.w,
                           // ),
                         ),
-                        SizedBox(width: 5.w),
+                        SizedBox(width: isMobile ? 5.w : 6.0),
                       ],
                       // Icon(
                       //   Icons.person_search_sharp,
@@ -607,89 +657,92 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                       //   fontWeight: FontWeight.w500,
                       //   color: appLinkColor,
                       // ),
-                      GestureDetector(
-                        onTap: () async {
-                          final detail = await BanquetEnquiryService()
-                              .showEnquiry(widget.enquiry.uuid);
-                          if (!mounted) return;
-                          showDialog(
-                            context: context,
-                            builder: (context) => Dialog(
-                              backgroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16.r),
-                              ),
-                              child: Padding(
-                                padding: EdgeInsets.all(20.w),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    AppText(
-                                      text: detail.enquiryId,
-                                      size: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: appTextColor3,
-                                    ),
-                                    SizedBox(height: 12.h),
-                                    _detailRow("Date", detail.date),
-                                    _detailRow("Time", detail.time),
-                                    _detailRow(
-                                      "People",
-                                      detail.people.toString(),
-                                    ),
-                                    _detailRow("Menu", detail.menuItems),
-                                    _detailRow(
-                                      "Estimated",
-                                      detail.estimatedAmount,
-                                    ),
-                                    _detailRow("Status", detail.status),
-                                    _detailRow(
-                                      "Expires",
-                                      "${detail.expirationDate} ${detail.expirationTime}",
-                                    ),
-                                    SizedBox(height: 16.h),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: AppText(
-                                          text: "Close",
-                                          size: 14,
-                                          fontWeight: FontWeight.w400,
-                                          color: appButtonColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            ColorFiltered(
-                              colorFilter: ColorFilter.mode(
-                                processDetailsIconColor,
-                                BlendMode.srcIn,
-                              ),
-                              child: Image.asset(
-                                detailsIcon,
-                                width: 15.w,
-                                height: 15.h,
-                                // fit: BoxFit.contain,
-                              ),
-                            ),
-                            AppText(
-                              text: "Details",
-                              size: 13.sp,
-                              fontWeight: FontWeight.w400,
-                              color: processDetailsIconColor,
-                            ),
-                          ],
-                        ),
-                      ),
+                      // GestureDetector(
+                      //   onTap: (){
+                      //   slideRightWidget(newPage: const Profile(), context: context);
+                      // },
+                      //   // onTap: () async {
+                      //   //   final detail = await BanquetEnquiryService()
+                      //   //       .showEnquiry(widget.enquiry.uuid);
+                      //   //   if (!mounted) return;
+                      //   //   showDialog(
+                      //   //     context: context,
+                      //   //     builder: (context) => Dialog(
+                      //   //       backgroundColor: Colors.white,
+                      //   //       shape: RoundedRectangleBorder(
+                      //   //         borderRadius: BorderRadius.circular(16.r),
+                      //   //       ),
+                      //   //       child: Padding(
+                      //   //         padding: EdgeInsets.all(20.w),
+                      //   //         child: Column(
+                      //   //           mainAxisSize: MainAxisSize.min,
+                      //   //           crossAxisAlignment: CrossAxisAlignment.start,
+                      //   //           children: [
+                      //   //             AppText(
+                      //   //               text: detail.enquiryId,
+                      //   //               size: 18,
+                      //   //               fontWeight: FontWeight.bold,
+                      //   //               color: appTextColor3,
+                      //   //             ),
+                      //   //             SizedBox(height: 12.h),
+                      //   //             _detailRow("Date", detail.date),
+                      //   //             _detailRow("Time", detail.time),
+                      //   //             _detailRow(
+                      //   //               "People",
+                      //   //               detail.people.toString(),
+                      //   //             ),
+                      //   //             _detailRow("Menu", detail.menuItems),
+                      //   //             _detailRow(
+                      //   //               "Estimated",
+                      //   //               detail.estimatedAmount,
+                      //   //             ),
+                      //   //             _detailRow("Status", detail.status),
+                      //   //             _detailRow(
+                      //   //               "Expires",
+                      //   //               "${detail.expirationDate} ${detail.expirationTime}",
+                      //   //             ),
+                      //   //             SizedBox(height: 16.h),
+                      //   //             Align(
+                      //   //               alignment: Alignment.centerRight,
+                      //   //               child: TextButton(
+                      //   //                 onPressed: () => Navigator.pop(context),
+                      //   //                 child: AppText(
+                      //   //                   text: "Close",
+                      //   //                   size: 14,
+                      //   //                   fontWeight: FontWeight.w400,
+                      //   //                   color: appButtonColor,
+                      //   //                 ),
+                      //   //               ),
+                      //   //             ),
+                      //   //           ],
+                      //   //         ),
+                      //   //       ),
+                      //   //     ),
+                      //   //   );
+                      //   // },
+                      //   child: Row(
+                      //     children: [
+                      //       ColorFiltered(
+                      //         colorFilter: ColorFilter.mode(
+                      //           processDetailsIconColor,
+                      //           BlendMode.srcIn,
+                      //         ),
+                      //         child: Image.asset(
+                      //           detailsIcon,
+                      //           width: 15.w,
+                      //           height: 15.h,
+                      //           // fit: BoxFit.contain,
+                      //         ),
+                      //       ),
+                      //       AppText(
+                      //         text: "Details",
+                      //         size: 13.sp,
+                      //         fontWeight: FontWeight.w400,
+                      //         color: processDetailsIconColor,
+                      //       ),
+                      //     ],
+                      //   ),
+                      // ),
                     ],
                   ),
                   Column(
@@ -705,8 +758,8 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                             ),
                             child: Image.asset(
                               stopWatchIcon,
-                              width: 17.w,
-                              height: 17.h,
+                            width: isMobile ? 17.w : 17,
+                            height: isMobile ? 17.h : 17,
                             ),
                           ),
                           SizedBox(width: 5),
@@ -721,8 +774,8 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                       SizedBox(height: 5.h),
 
                       SizedBox(
-                        width: 150.w,
-                        height: 35.h,
+                        width: buttonWidth,
+                        height: buttonHeight,
                         child: AppButton(
                           text: _isExpired
                               ? "Offer Discount"
@@ -749,8 +802,8 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                           bgColor2: _isExpired
                               ? Colors.grey
                               : banquetOfferIconColor,
-                          size: 13.sp,
-                          borderRadius: 8.r,
+                          size: isMobile ? 13.sp : 13,
+                          borderRadius: isMobile ? 8.r : 8,
                         ),
                       ),
                     ],
@@ -761,6 +814,8 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
           ),
         ),
       ),
+    );
+      },
     );
   }
 

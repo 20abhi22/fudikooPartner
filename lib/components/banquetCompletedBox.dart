@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:intl/intl.dart';
 
@@ -80,19 +82,34 @@ class BanquetCompletedBox extends StatelessWidget {
     final formattedFullDate = _formatDate(date, format: "MMMM dd");
     final fullDate = "$formattedFullDate - ${_formatTime(time).toLowerCase()}";
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: 20.h),
-      child: Container(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final screenSize = MediaQuery.sizeOf(context);
+        final isWideShortPhone =
+            Breakpoints.isMobile(screenSize.width) &&
+            screenSize.width >= 500 &&
+            screenSize.height <= 760;
+        final isMobile = Breakpoints.isMobile(width) && !isWideShortPhone;
+        final cardPadding = isMobile
+            ? EdgeInsets.symmetric(horizontal: 28.w, vertical: 28.h)
+            : EdgeInsets.all(AppDimensions.padding(width) * 0.8);
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: isMobile ? 20.h : 18),
+          child: Container(
         width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 28.w, vertical: 28.h),
+        padding: cardPadding,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(30.r),
+          borderRadius: BorderRadius.circular(isMobile ? 30.r : 8),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
-              offset: Offset(0, 8.h),
-              blurRadius: 24.r,
+              color: Colors.black.withValues(alpha: 0.10),
+              offset: Offset(0, isMobile ? 8.h : 4),
+              blurRadius: isMobile ? 24.r : 14,
               spreadRadius: 1,
             ),
           ],
@@ -109,6 +126,8 @@ class BanquetCompletedBox extends StatelessWidget {
                     size: 20,
                     fontWeight: FontWeight.w700,
                     color: Colors.black,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Column(
@@ -131,25 +150,38 @@ class BanquetCompletedBox extends StatelessWidget {
               ],
             ),
             SizedBox(height: 18.h),
-            _InfoRow(iconPath: walletIcon, text: "$amountText Per person"),
+            _InfoRow(
+              iconPath: walletIcon,
+              text: "$amountText Per person",
+              isMobile: isMobile,
+            ),
             SizedBox(height: 8.h),
-            _InfoRow(iconPath: offerIcon, text: offerText),
+            _InfoRow(iconPath: offerIcon, text: offerText, isMobile: isMobile),
             SizedBox(height: 8.h),
             _InfoRow(
               iconPath: calenderIcon,
               text: fullDate,
               boldPrefix: formattedFullDate,
+              isMobile: isMobile,
             ),
             SizedBox(height: 8.h),
             _InfoRow(
               iconPath: groupIcon,
               text: "${_shortPeopleCount(people)} Person",
+              isMobile: isMobile,
             ),
             SizedBox(height: 8.h),
-            _InfoRow(iconPath: menuIcon, text: menuText, maxLines: 3),
+            _InfoRow(
+              iconPath: menuIcon,
+              text: menuText,
+              maxLines: isMobile ? 3 : 2,
+              isMobile: isMobile,
+            ),
           ],
         ),
       ),
+    );
+      },
     );
   }
 
@@ -160,7 +192,7 @@ class BanquetCompletedBox extends StatelessWidget {
     if (offer.isEmpty && note.isEmpty) return "Offer applied";
     if (offer.isEmpty) return note;
     if (note.isEmpty) return offer;
-    return "$offer on $note";
+    return "$offer %";
   }
 }
 
@@ -169,10 +201,12 @@ class _InfoRow extends StatelessWidget {
   final String text;
   final String? boldPrefix;
   final int maxLines;
+  final bool isMobile;
 
   const _InfoRow({
     required this.iconPath,
     required this.text,
+    required this.isMobile,
     this.boldPrefix,
     this.maxLines = 2,
   });
@@ -183,7 +217,7 @@ class _InfoRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.only(top: 2.h),
+          padding: EdgeInsets.only(top: isMobile ? 2.h : 2),
           child: ColorFiltered(
             colorFilter:  ColorFilter.mode(
               banquetTagIconColor,
@@ -191,13 +225,13 @@ class _InfoRow extends StatelessWidget {
             ),
             child: Image.asset(
               iconPath,
-              width: 18.w,
-              height: 18.w,
+              width: isMobile ? 18.w : 18,
+              height: isMobile ? 18.w : 18,
               fit: BoxFit.contain,
             ),
           ),
         ),
-        SizedBox(width: 16.w),
+        SizedBox(width: isMobile ? 16.w : 12),
         Expanded(child: _buildText()),
       ],
     );

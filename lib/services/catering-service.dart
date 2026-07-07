@@ -133,6 +133,28 @@ class CateringEnquiryService {
     return CateringEnquiryListResponse.fromJson(response.data);
   }
 
+  Future<Map<String, dynamic>> remindReservation(String reservationId) async {
+    final token = await getToken();
+    final data = FormData.fromMap({'reservation_id': reservationId});
+    final response = await DioClient.dio.post(
+      '/partner/catering-enquiry/reservation/remind',
+      data: data,
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> callbackReservation(String reservationId) async {
+    final token = await getToken();
+    final data = FormData.fromMap({'reservation_id': reservationId});
+    final response = await DioClient.dio.post(
+      '/partner/catering-enquiry/reservation/callback',
+      data: data,
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return response.data;
+  }
+
   Future<Map<String, dynamic>> deleteSentEnquiry(String enquiryId) async {
     final token = await getToken();
     final data = FormData.fromMap({'enquiry_id': enquiryId});

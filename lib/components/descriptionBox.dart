@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 
 class DescriptionTextArea extends StatefulWidget {
   final String hintText;
@@ -21,7 +22,7 @@ class DescriptionTextArea extends StatefulWidget {
     this.icon = Icons.list,
     this.onChanged,
     this.iconColor,
-    this.controller, 
+    this.controller,
     this.maxLines,
     this.iconImagePath,
     this.validator,
@@ -35,23 +36,32 @@ class DescriptionTextArea extends StatefulWidget {
 }
 
 class _DescriptionTextAreaState extends State<DescriptionTextArea> {
-  int _charCount = 0;
-
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final isWideShortPhone = Breakpoints.isWideShortPhone(size);
+    final padding = isWideShortPhone ? 12.0 : 16.0;
+    final iconSize = isWideShortPhone ? 18.0 : 20.0;
+    final maxLines = widget.maxLines ?? (isWideShortPhone ? 3 : 5);
+    final hintFontSize = isWideShortPhone ? 13.0 : null;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: widget.backgroundColor ?? Colors.white,
-        borderRadius: BorderRadius.circular(widget.borderRadius ?? 20),
-        boxShadow: widget.boxShadow ?? [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 15,
-            spreadRadius: 0,
-            offset: const Offset(0, 0),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(
+          widget.borderRadius ?? (isWideShortPhone ? 14 : 20),
+        ),
+        boxShadow:
+            widget.boxShadow ??
+            [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 15,
+                spreadRadius: 0,
+                offset: const Offset(0, 0),
+              ),
+            ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,13 +71,13 @@ class _DescriptionTextAreaState extends State<DescriptionTextArea> {
               widget.iconImagePath != null
                   ? Image.asset(
                       widget.iconImagePath!,
-                      width: 20,
-                      height: 20,
+                      width: iconSize,
+                      height: iconSize,
                       color: widget.iconColor ?? Colors.black,
                     )
                   : Icon(
                       widget.icon,
-                      size: 20,
+                      size: iconSize,
                       color: widget.iconColor ?? Colors.black,
                     ),
               // const Spacer(),
@@ -80,10 +90,9 @@ class _DescriptionTextAreaState extends State<DescriptionTextArea> {
           const SizedBox(width: 8),
           TextFormField(
             controller: widget.controller,
-            maxLines: widget.maxLines ?? 5,
+            maxLines: maxLines,
             maxLength: widget.maxLength,
             onChanged: (val) {
-              setState(() => _charCount = val.length);
               if (widget.onChanged != null) widget.onChanged!(val);
             },
             validator: widget.validator,
@@ -91,9 +100,12 @@ class _DescriptionTextAreaState extends State<DescriptionTextArea> {
             decoration: InputDecoration(
               counterText: "",
               hintText: widget.hintText,
-              hintStyle: const TextStyle(color: Colors.grey,height: 1.2),
+              hintStyle: TextStyle(
+                color: Colors.grey,
+                height: 1.2,
+                fontSize: hintFontSize,
+              ),
               border: InputBorder.none,
-
             ),
           ),
         ],

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/appfilterdropdown.dart';
 import 'package:fudiko/components/apptext.dart';
@@ -10,6 +11,8 @@ import 'package:fudiko/components/confirmedBox.dart';
 import 'package:fudiko/components/processingbox.dart';
 import 'package:fudiko/components/rejectedBox.dart';
 import 'package:fudiko/components/searchResultBox.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/models/rerservation/reservation-cancelled-model.dart';
 import 'package:fudiko/models/rerservation/reservation-comfirmed-model.dart';
@@ -17,12 +20,21 @@ import 'package:fudiko/models/rerservation/reservation-completed-model.dart';
 import 'package:fudiko/models/rerservation/reservation-processing-model.dart';
 import 'package:fudiko/models/rerservation/reservation-search-model.dart';
 import 'package:fudiko/models/rerservation/reservation-status-change.dart';
-import 'package:fudiko/services/profile-service.dart';
 import 'package:fudiko/services/reservation-service.dart';
 import 'package:fudiko/services/offer-service.dart';
+import 'package:fudiko/services/badge_controller.dart';
 import 'package:fudiko/models/offer/offer-list-model.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:fudiko/utils/tab_back_handler.dart';
+
+// Top-level helper to format a date for range display. When [other] is provided
+// and is in the same year, the year is omitted for a cleaner range like
+// "5 Jan - 15 Mar". Uses intl.DateFormat to ensure 3-letter month names.
+String formatDateForRange(DateTime date, [DateTime? other]) {
+  final dayMonth = DateFormat('d MMM').format(date);
+  if (other != null && other.year == date.year) return dayMonth;
+  return DateFormat('d MMM yyyy').format(date);
+}
 
 class Reservation extends StatefulWidget {
   final VoidCallback? onDrawerTap;
@@ -77,7 +89,6 @@ class _ReservationState extends State<Reservation>
   }
 
   @override
-  @override
   void dispose() {
     _searchController.dispose();
     _pollingTimer?.cancel();
@@ -124,21 +135,7 @@ class _ReservationState extends State<Reservation>
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(_pollingInterval, (_) {
       if (!_isInForeground) return;
-      // _refreshData();
     });
-  }
-
-  Future<void> _refreshData() async {
-    setState(() {
-      _isRefreshing = true;
-    });
-    await fetchReservations();
-    if (mounted) {
-      setState(() {
-        _fetchFuture = Future.value();
-        _isRefreshing = false;
-      });
-    }
   }
 
   void _stopPolling() {
@@ -223,11 +220,6 @@ class _ReservationState extends State<Reservation>
         confirmedreservations = confirmedResponse.reservations;
         _cancelledReservations = cancelledResponse.reservations;
         _completedReservations = completedResponse.reservations;
-
-        print('=========== Processing Reservations ===========');
-        print(processingreservations);
-        print('=========== Confirmed Reservations ============');
-        print(confirmedreservations);
       });
       await _fetchOfferDetails();
       // mark the fetch future as completed so FutureBuilder stops showing loader
@@ -236,8 +228,7 @@ class _ReservationState extends State<Reservation>
           _fetchFuture = Future.value();
         });
       }
-    } catch (e) {
-      print('Error fetching reservations: $e');
+    } catch (_) {
     } finally {
       _isFetchingReservations = false;
     }
@@ -288,21 +279,19 @@ class _ReservationState extends State<Reservation>
           .changeStatus(
             ReservationStatusChangeModel(reservationId: uuid, status: status),
           );
+      if (!mounted) return;
+
       if (response.status) {
         SnackBar snackBar = SnackBar(content: Text(response.message));
         ScaffoldMessenger.of(context).showSnackBar(snackBar);
         await fetchReservations();
+        // refresh global badges after a successful status change
+        BadgeController.instance.refresh();
       } else {
         SnackBar snackBar = SnackBar(content: Text(response.message));
         ScaffoldMessenger.of(context).showSnackBar(snackBar);
       }
-    } catch (e) {
-      print(e);
-    }
-  }
-
-  Future<void> _fetchCancelled() async {
-    await fetchReservations();
+    } catch (_) {}
   }
 
   bool _canCallBack(ReservationCancelledModel reservation) {
@@ -325,7 +314,19 @@ class _ReservationState extends State<Reservation>
       return;
     }
 
-    await changeStatus(reservation.uuid, 'Pending');
+    final response = await reservationService.callbackReservation(
+      reservation.uuid,
+    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(response.message)));
+
+    if (response.status) {
+      await fetchReservations(force: true);
+      BadgeController.instance.refresh();
+    }
   }
 
   List<ReservationCompletedModel> get _filteredCompleted {
@@ -377,161 +378,306 @@ class _ReservationState extends State<Reservation>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: appSecondaryBackgroundColor,
-      body: FutureBuilder<void>(
-        future: _fetchFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildFixedHeader(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20.h),
-                  child: const CircularProgressIndicator(),
+      body: SafeArea(
+        minimum: EdgeInsets.only(top: _usesTabletLayout(context) ? 12.0 : 0.0),
+        child: FutureBuilder<void>(
+          future: _fetchFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _buildFixedHeader(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20.h),
+                    child: const CircularProgressIndicator(),
+                  ),
                 ),
-              ),
-            );
-          }
+              );
+            }
 
-          if (snapshot.hasError) {
-            return _buildFixedHeader(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 48.w, color: Colors.red),
-                    SizedBox(height: 16.h),
-                    AppText(
-                      text: 'Error loading reservations',
-                      size: 16,
-                      fontWeight: FontWeight.w500,
-                      color: appTextColor3,
-                    ),
-                  ],
+            if (snapshot.hasError) {
+              return _buildFixedHeader(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 48.w, color: Colors.red),
+                      SizedBox(height: 16.h),
+                      AppText(
+                        text: 'Error loading reservations',
+                        size: 16,
+                        fontWeight: FontWeight.w500,
+                        color: appTextColor3,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          }
+              );
+            }
 
-          return Column(
-            children: [
-              _buildTopSection(),
-              SizedBox(height: 30.h),
-              Expanded(
-                child: RefreshIndicator(
-                  color: Color(0XFFF97A0D),
-                  onRefresh: () async {
-                    setState(() {
-                      _isRefreshing = true;
-                    });
-                    _fetchFuture = fetchReservations(force: true);
-                    await _fetchFuture;
-                    if (mounted) {
-                      setState(() {
-                        _isRefreshing = false;
-                      });
-                    }
-                  },
-                  child: SingleChildScrollView(
+            return RefreshIndicator(
+              color: const Color(0XFFF97A0D),
+              onRefresh: () async {
+                setState(() {
+                  _isRefreshing = true;
+                });
+                _fetchFuture = fetchReservations(force: true);
+                await _fetchFuture;
+                if (mounted) {
+                  setState(() {
+                    _isRefreshing = false;
+                  });
+                }
+              },
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics(),
                     ),
-                    child: Column(
-                      children: [
-                        if (_isRefreshing)
-                          Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12.h),
-                            child: const CircularProgressIndicator(
-                              color: Color(0XFFC95F05),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: Column(
+                        children: [
+                          _buildTopSection(),
+                          SizedBox(height: _contentGap(context)),
+                          if (_isRefreshing)
+                            Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12.h),
+                              child: const CircularProgressIndicator(
+                                color: Color(0XFFC95F05),
+                              ),
                             ),
-                          ),
-                        _buildSelectedTabContent(),
-                      ],
+                          _buildSelectedTabContent(),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
-            ],
-          );
-        },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  double _screenWidth(BuildContext context) => MediaQuery.sizeOf(context).width;
+
+  bool _isWideShortPhone(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return Breakpoints.isWideShortPhone(size);
+  }
+
+  bool _usesTabletLayout(BuildContext context) =>
+      Breakpoints.isTabletDevice(MediaQuery.sizeOf(context)) ||
+      _isWideShortPhone(context);
+
+  double _pagePadding(BuildContext context) {
+    return _usesTabletLayout(context)
+        ? 24.0
+        : AppDimensions.padding(_screenWidth(context));
+  }
+
+  double _contentMaxWidth(BuildContext context) {
+    final width = _screenWidth(context);
+    if (Breakpoints.isDesktop(width)) return 860;
+    if (_usesTabletLayout(context)) return 720;
+    return double.infinity;
+  }
+
+  double _contentGap(BuildContext context) {
+    if (_isWideShortPhone(context)) return 12.0;
+    if (_usesTabletLayout(context)) return 24.0;
+    return 30.h;
+  }
+
+  Widget _responsiveContent({
+    required Widget child,
+    double? maxWidth,
+    EdgeInsetsGeometry? padding,
+    Alignment alignment = Alignment.topCenter,
+  }) {
+    return Padding(
+      padding:
+          padding ??
+          EdgeInsets.only(
+            left: _pagePadding(context),
+            right: _pagePadding(context) + 4,
+          ),
+      child: Align(
+        alignment: alignment,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: maxWidth ?? _contentMaxWidth(context),
+          ),
+          child: child,
+        ),
       ),
     );
   }
 
   Widget _buildTopSection() {
+    final width = _screenWidth(context);
+    final usesTabletLayout = _usesTabletLayout(context);
+    final isWideShortPhone = _isWideShortPhone(context);
+    final topPadding = isWideShortPhone
+        ? 8.0
+        : usesTabletLayout
+        ? 24.0
+        : Breakpoints.isMobile(width)
+        ? 30.h
+        : 24.0;
+    final gap = isWideShortPhone
+        ? 8.0
+        : usesTabletLayout
+        ? 20.0
+        : AppDimensions.gap(width);
+    final nameSize = isWideShortPhone
+        ? 24.0
+        : usesTabletLayout
+        ? 42.0
+        : Breakpoints.isDesktop(width)
+        ? 38.0
+        : 35.0;
+    final typeSize = isWideShortPhone
+        ? 15.0
+        : usesTabletLayout
+        ? 28.0
+        : Breakpoints.isDesktop(width)
+        ? 24.0
+        : 25.0;
+    final addressSize = isWideShortPhone ? 11.0 : 15.0;
+    final locationIconSize = isWideShortPhone
+        ? 13.0
+        : usesTabletLayout
+        ? 16.0
+        : Breakpoints.isMobile(width)
+        ? 15.w
+        : 16.0;
+    final menuIconSize = isWideShortPhone
+        ? 22.0
+        : usesTabletLayout
+        ? 30.0
+        : Breakpoints.isMobile(width)
+        ? 30.w
+        : 30.0;
+
     return Padding(
-      padding: EdgeInsets.only(top: 30.h),
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: Row(
+      padding: EdgeInsets.only(top: topPadding),
+      child: _responsiveContent(
+        child: Column(
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AppText(
-                      text: widget.partnerProfile?.name ?? "Loading",
-                      size: 35,
-                      fontWeight: FontWeight.w600,
-                      color: appTextColor3,
-                    ),
-                    AppText(
-                      text: widget.partnerProfile?.type ?? "",
-                      size: 25,
-                      fontWeight: FontWeight.w600,
-                      color: appTextColor3,
-                    ),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 15.w,
-                          color: appTextColor3,
-                        ),
-                        SizedBox(width: 5.w),
-                        AppText(
-                          text: widget.partnerProfile?.address ?? "",
-                          size: 15,
-                          fontWeight: FontWeight.w400,
-                          color: appTextColor3,
-                        ),
-                      ],
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppText(
+                        text: widget.partnerProfile?.name ?? "Loading",
+                        size: nameSize,
+                        fontWeight: FontWeight.w600,
+                        color: appTextColor3,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      AppText(
+                        text: widget.partnerProfile?.type ?? "",
+                        size: typeSize,
+                        fontWeight: FontWeight.w600,
+                        color: appTextColor3,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: locationIconSize,
+                            color: appTextColor3,
+                          ),
+                          SizedBox(
+                            width: isWideShortPhone
+                                ? 4.0
+                                : usesTabletLayout
+                                ? 6
+                                : Breakpoints.isMobile(width)
+                                ? 5.w
+                                : 6,
+                          ),
+                          Expanded(
+                            child: AppText(
+                              text: widget.partnerProfile?.address ?? "",
+                              size: addressSize,
+                              fontWeight: FontWeight.w400,
+                              color: appTextColor3,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+                SizedBox(width: gap),
                 GestureDetector(
                   onTap: widget.onDrawerTap,
-                  child: Icon(Icons.menu, size: 30.w, color: appTextColor3),
+                  child: Icon(
+                    Icons.menu,
+                    size: menuIconSize,
+                    color: appTextColor3,
+                  ),
                 ),
               ],
             ),
-          ),
-          SizedBox(height: 30.h),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: _buildStatusSearchSwitcher(),
-          ),
-        ],
+            SizedBox(
+              height: usesTabletLayout
+                  ? isWideShortPhone
+                        ? 10.0
+                        : gap
+                  : Breakpoints.isMobile(width)
+                  ? 30.h
+                  : gap,
+            ),
+            _buildStatusSearchSwitcher(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFixedHeader({required Widget child}) {
-    return Column(
-      children: [
-        _buildTopSection(),
-        SizedBox(height: 30.h),
-        Expanded(child: child),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              children: [
+                _buildTopSection(),
+                SizedBox(height: _contentGap(context)),
+                child,
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildSelectedTabContent() {
     if (selectedStatus == "Processing") {
       return processingreservations.isNotEmpty
-          ? Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
+          ? _responsiveContent(
               child: ListView.builder(
                 itemCount: processingreservations.length,
                 shrinkWrap: true,
@@ -608,8 +754,7 @@ class _ReservationState extends State<Reservation>
 
     if (selectedStatus == "Confirmed") {
       return confirmedreservations.isNotEmpty
-          ? Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
+          ? _responsiveContent(
               child: ListView.builder(
                 itemCount: confirmedreservations.length,
                 shrinkWrap: true,
@@ -620,6 +765,7 @@ class _ReservationState extends State<Reservation>
                     uuid: confirmedreservations[index].uuid,
                     reservationId: confirmedreservations[index].reservationId,
                     userId: confirmedreservations[index].userId,
+                    customerId: confirmedreservations[index].customerId,
                     people: confirmedreservations[index].people,
                     restaurantId: confirmedreservations[index].restaurantId,
                     time: confirmedreservations[index].time,
@@ -663,10 +809,14 @@ class _ReservationState extends State<Reservation>
                     status: confirmedreservations[index].status,
                     createdAt: confirmedreservations[index].createdAt,
                     updatedAt: confirmedreservations[index].updatedAt,
-                    onAcceptPressed: () async {
-                      await changeStatus(
-                        confirmedreservations[index].uuid,
-                        "Confirmed",
+                    onRemindPressed: (reservationId) async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final response = await reservationService
+                          .remindReservation(reservationId);
+                      if (!mounted) return;
+
+                      messenger.showSnackBar(
+                        SnackBar(content: Text(response.message)),
                       );
                     },
                   );
@@ -677,29 +827,33 @@ class _ReservationState extends State<Reservation>
     }
 
     if (selectedStatus == "Completed") {
+      final width = _screenWidth(context);
+      final usesTabletLayout = _usesTabletLayout(context);
+      final filterWidth = usesTabletLayout
+          ? 260.0
+          : (width * 0.42).clamp(190.0, 320.0);
+
       return Column(
         children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
+          _responsiveContent(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 SizedBox(
-                  
-                  width: MediaQuery.of(context).size.width / 2.5,
+                  width: filterWidth,
                   child: AppFilterDropDown(
                     fieldBorderRadius: 6,
-                    height: 35.h,
+                    height: usesTabletLayout ? 42.0 : 35.h,
                     hint:
                         _completedFilter == "Custom" &&
                             _customStartDate != null &&
                             _customEndDate != null
-                        ? "${_customStartDate!.day}/${_customStartDate!.month} - ${_customEndDate!.day}/${_customEndDate!.month}"
+                        ? "${formatDateForRange(_customStartDate!, _customEndDate!)} - ${formatDateForRange(_customEndDate!, _customStartDate!)}"
                         : _completedFilter,
                     iconImage: "assets/images/filter_icon.png",
                     icon: Icons.tune,
-                    toogleDropdown: () {
-                      showModalBottomSheet(
+                    toogleDropdown: () async {
+                      await showModalBottomSheet(
                         backgroundColor: Colors.white,
                         context: context,
                         shape: RoundedRectangleBorder(
@@ -727,7 +881,11 @@ class _ReservationState extends State<Reservation>
                                 "Last 3 months",
                               ])
                                 ListTile(
-                                  title: Text(option),
+                                  title: AppText(
+                                    text: option,
+                                    size: 14,
+                                    fontWeight: FontWeight.w400,
+                                  ),
                                   trailing: _completedFilter == option
                                       ? Icon(Icons.check, color: appButtonColor)
                                       : null,
@@ -742,7 +900,11 @@ class _ReservationState extends State<Reservation>
                                   },
                                 ),
                               ListTile(
-                                title: const Text("Custom date range"),
+                                title: AppText(
+                                  text: "Custom date range",
+                                  size: 14,
+                                  fontWeight: FontWeight.w400,
+                                ),
                                 trailing: _completedFilter == "Custom"
                                     ? Icon(Icons.check, color: appButtonColor)
                                     : null,
@@ -763,8 +925,7 @@ class _ReservationState extends State<Reservation>
           ),
           SizedBox(height: 20.h),
           _filteredCompleted.isNotEmpty
-              ? Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
+              ? _responsiveContent(
                   child: ListView.builder(
                     itemCount: _filteredCompleted.length,
                     shrinkWrap: true,
@@ -788,8 +949,7 @@ class _ReservationState extends State<Reservation>
 
     if (selectedStatus == "Rejected") {
       return _cancelledReservations.isNotEmpty
-          ? Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w),
+          ? _responsiveContent(
               child: ListView.builder(
                 itemCount: _cancelledReservations.length,
                 shrinkWrap: true,
@@ -819,8 +979,7 @@ class _ReservationState extends State<Reservation>
         return const Center(child: Text("No results found"));
       }
       if (_searchResults.isNotEmpty) {
-        return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20.w),
+        return _responsiveContent(
           child: ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -836,19 +995,206 @@ class _ReservationState extends State<Reservation>
     return const SizedBox.shrink();
   }
 
+  // Future<void> showReasonDialog(
+  //   BuildContext context,
+  //   Future<void> Function()? onConfirm,
+  // ) async {
+  //   String selectedReason = selectedStatusReason.trim();
+
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder: (context) {
+  //       return StatefulBuilder(
+  //         builder: (context, setDialogState) {
+  //           return Dialog(
+  //             backgroundColor: Colors.transparent,
+  //             insetPadding: EdgeInsets.symmetric(
+  //               horizontal: 20.w,
+  //               vertical: 40.h,
+  //             ),
+  //             child: Container(
+  //               height: 316.h,
+  //               width: double.infinity,
+  //               padding: EdgeInsets.only(
+  //                 left: 20.w,
+  //                 right: 20.w,
+  //                 top: 30.h,
+  //                 bottom: 30.h,
+  //               ),
+  //               decoration: BoxDecoration(
+  //                 color: Colors.white,
+  //                 borderRadius: BorderRadius.circular(17.r),
+  //                 // boxShadow: [
+  //                 //   BoxShadow(
+  //                 //     color: Colors.black.withOpacity(0.1),
+  //                 //     blurRadius: 10,
+  //                 //     offset: const Offset(0, 4),
+  //                 //   ),
+  //                 // ],
+  //               ),
+  //               child: Padding(
+  //                 padding: EdgeInsets.only(
+  //                   top: 20.h,
+  //                   bottom: 10.h,
+  //                   left: 30.w,
+  //                   right: 30.w,
+  //                 ),
+  //                 child: Column(
+  //                   mainAxisSize: MainAxisSize.min,
+  //                   children: [
+  //                     AppText(
+  //                       text: 'Reason',
+  //                       size: 15.sp,
+  //                       fontWeight: FontWeight.w700,
+  //                       color: reasonTextColor,
+  //                       isCentered: true,
+  //                     ),
+  //                     SizedBox(height: 15.h),
+
+  //                     SizedBox(
+  //                       width: double.infinity,
+  //                       child: Column(
+  //                         mainAxisSize: MainAxisSize.min,
+  //                         crossAxisAlignment: CrossAxisAlignment.stretch,
+  //                         children: [
+  //                           // Row 1: "Date or Time is not available" - full width
+  //                           _buildChip(
+  //                             'Date or Time is not available',
+  //                             selectedReason,
+  //                             setDialogState,
+  //                             (r) {
+  //                               selectedReason = r;
+  //                             },
+  //                           ),
+  //                           SizedBox(height: 5.h),
+  //                           // Row 2: "Offer Expired" + "Not Valid" - equal width
+  //                           Row(
+  //                             children: [
+  //                               Expanded(
+  //                                 child: _buildChip(
+  //                                   'Offer Expired',
+  //                                   selectedReason,
+  //                                   setDialogState,
+  //                                   (r) {
+  //                                     selectedReason = r;
+  //                                   },
+  //                                 ),
+  //                               ),
+  //                               SizedBox(width: 5.w),
+  //                               Expanded(
+  //                                 child: _buildChip(
+  //                                   'Not Valid',
+  //                                   selectedReason,
+  //                                   setDialogState,
+  //                                   (r) {
+  //                                     selectedReason = r;
+  //                                   },
+  //                                 ),
+  //                               ),
+  //                             ],
+  //                           ),
+  //                           SizedBox(height: 5.h),
+  //                           // Row 3: "Maximum Redemptions Reached" - full width
+  //                           _buildChip(
+  //                             'Maximum Redemptions Reached',
+  //                             selectedReason,
+  //                             setDialogState,
+  //                             (r) {
+  //                               selectedReason = r;
+  //                             },
+  //                           ),
+  //                           SizedBox(height: 5.h),
+  //                           // Row 4: "Technical Issue" + "Not Opened" - equal width
+  //                           Row(
+  //                             children: [
+  //                               Expanded(
+  //                                 child: _buildChip(
+  //                                   'Technical Issue',
+  //                                   selectedReason,
+  //                                   setDialogState,
+  //                                   (r) {
+  //                                     selectedReason = r;
+  //                                   },
+  //                                 ),
+  //                               ),
+  //                               SizedBox(width: 5.w),
+  //                               Expanded(
+  //                                 child: _buildChip(
+  //                                   'Not Opened',
+  //                                   selectedReason,
+  //                                   setDialogState,
+  //                                   (r) {
+  //                                     selectedReason = r;
+  //                                   },
+  //                                 ),
+  //                               ),
+  //                             ],
+  //                           ),
+  //                         ],
+  //                       ),
+  //                     ),
+  //                     SizedBox(height: 30.h),
+  //                     Row(
+  //                       mainAxisAlignment: MainAxisAlignment.center,
+  //                       children: [
+  //                         SizedBox(
+  //                           height: 27.h,
+  //                           width: 79.w,
+  //                           child: AppButton(
+  //                             fontWeight: FontWeight.w400,
+  //                             text: 'Cancel',
+  //                             onPressed: () {
+  //                               Navigator.of(context).pop();
+  //                             },
+  //                             bgColor1: reasonCancelButtonColor,
+  //                             bgColor2: reasonCancelButtonColor,
+  //                             size: 12.sp,
+  //                             borderRadius: 5,
+  //                           ),
+  //                         ),
+  //                         SizedBox(width: 10.w),
+  //                         SizedBox(
+  //                           height: 27.h,
+  //                           width: 133.w,
+  //                           child: AppButton(
+  //                             fontWeight: FontWeight.w400,
+  //                             text: 'Confirm Rejection',
+  //                             onPressed: () async {
+  //                               setState(() {
+  //                                 selectedStatusReason = selectedReason;
+  //                               });
+  //                               Navigator.of(context).pop();
+  //                               if (onConfirm != null) await onConfirm();
+  //                             },
+  //                             bgColor1: reasonConfirmButtonColor,
+  //                             bgColor2: reasonConfirmButtonColor,
+  //                             size: 12.sp,
+  //                             borderRadius: 5,
+  //                           ),
+  //                         ),
+  //                       ],
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ),
+  //           );
+  //         },
+  //       );
+  //     },
+  //   );
+  // }
+
   Future<void> showReasonDialog(
     BuildContext context,
     Future<void> Function()? onConfirm,
   ) async {
-    final reasons = [
-      'Date or Time is not available',
-      'Offer Expired',
-      'Not Valid',
-      'Maximum Redemptions Reached',
-      'Technical Issue',
-      'Not Opened',
-    ];
     String selectedReason = selectedStatusReason.trim();
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile =
+        Breakpoints.isMobileDevice(MediaQuery.sizeOf(context)) &&
+        !_isWideShortPhone(context);
 
     showDialog(
       context: context,
@@ -859,153 +1205,125 @@ class _ReservationState extends State<Reservation>
             return Dialog(
               backgroundColor: Colors.transparent,
               insetPadding: EdgeInsets.symmetric(
-                horizontal: 20.w,
-                vertical: 40.h,
+                horizontal: isMobile ? 20.w : screenWidth * 0.2,
+                vertical: isMobile ? 40.h : 60,
               ),
               child: Container(
-                height: 316.h,
                 width: double.infinity,
-                padding: EdgeInsets.only(
-                  left: 20.w,
-                  right: 20.w,
-                  top: 30.h,
-                  bottom: 30.h,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 20.w : 28,
+                  vertical: isMobile ? 30.h : 28,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(17.r),
-                  // boxShadow: [
-                  //   BoxShadow(
-                  //     color: Colors.black.withOpacity(0.1),
-                  //     blurRadius: 10,
-                  //     offset: const Offset(0, 4),
-                  //   ),
-                  // ],
+                  borderRadius: BorderRadius.circular(isMobile ? 17.r : 16),
                 ),
                 child: Padding(
-                  padding: EdgeInsets.only(
-                    top: 20.h,
-                    bottom: 10.h,
-                    left: 30.w,
-                    right: 30.w,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 10.w : 16,
+                    vertical: isMobile ? 10.h : 8,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       AppText(
                         text: 'Reason',
-                        size: 15.sp,
+                        size: isMobile ? 15.sp : 15,
                         fontWeight: FontWeight.w700,
                         color: reasonTextColor,
                         isCentered: true,
                       ),
-                      SizedBox(height: 15.h),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // Row 1: "Date or Time is not available" - full width
-                            _buildChip(
-                              'Date or Time is not available',
-                              selectedReason,
-                              setDialogState,
-                              (r) {
-                                selectedReason = r;
-                              },
-                            ),
-                            SizedBox(height: 5.h),
-                            // Row 2: "Offer Expired" + "Not Valid" - equal width
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildChip(
-                                    'Offer Expired',
-                                    selectedReason,
-                                    setDialogState,
-                                    (r) {
-                                      selectedReason = r;
-                                    },
-                                  ),
+                      SizedBox(height: isMobile ? 15.h : 14),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildChip(
+                            'Date or Time is not available',
+                            selectedReason,
+                            setDialogState,
+                            (r) => selectedReason = r,
+                            isMobile: isMobile,
+                          ),
+                          SizedBox(height: isMobile ? 5.h : 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildChip(
+                                  'Offer Expired',
+                                  selectedReason,
+                                  setDialogState,
+                                  (r) => selectedReason = r,
+                                  isMobile: isMobile,
                                 ),
-                                SizedBox(width: 5.w),
-                                Expanded(
-                                  child: _buildChip(
-                                    'Not Valid',
-                                    selectedReason,
-                                    setDialogState,
-                                    (r) {
-                                      selectedReason = r;
-                                    },
-                                  ),
+                              ),
+                              SizedBox(width: isMobile ? 5.w : 8),
+                              Expanded(
+                                child: _buildChip(
+                                  'Not Valid',
+                                  selectedReason,
+                                  setDialogState,
+                                  (r) => selectedReason = r,
+                                  isMobile: isMobile,
                                 ),
-                              ],
-                            ),
-                            SizedBox(height: 5.h),
-                            // Row 3: "Maximum Redemptions Reached" - full width
-                            _buildChip(
-                              'Maximum Redemptions Reached',
-                              selectedReason,
-                              setDialogState,
-                              (r) {
-                                selectedReason = r;
-                              },
-                            ),
-                            SizedBox(height: 5.h),
-                            // Row 4: "Technical Issue" + "Not Opened" - equal width
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildChip(
-                                    'Technical Issue',
-                                    selectedReason,
-                                    setDialogState,
-                                    (r) {
-                                      selectedReason = r;
-                                    },
-                                  ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: isMobile ? 5.h : 6),
+                          _buildChip(
+                            'Maximum Redemptions Reached',
+                            selectedReason,
+                            setDialogState,
+                            (r) => selectedReason = r,
+                            isMobile: isMobile,
+                          ),
+                          SizedBox(height: isMobile ? 5.h : 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildChip(
+                                  'Technical Issue',
+                                  selectedReason,
+                                  setDialogState,
+                                  (r) => selectedReason = r,
+                                  isMobile: isMobile,
                                 ),
-                                SizedBox(width: 5.w),
-                                Expanded(
-                                  child: _buildChip(
-                                    'Not Opened',
-                                    selectedReason,
-                                    setDialogState,
-                                    (r) {
-                                      selectedReason = r;
-                                    },
-                                  ),
+                              ),
+                              SizedBox(width: isMobile ? 5.w : 8),
+                              Expanded(
+                                child: _buildChip(
+                                  'Not Opened',
+                                  selectedReason,
+                                  setDialogState,
+                                  (r) => selectedReason = r,
+                                  isMobile: isMobile,
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 30.h),
+                      SizedBox(height: isMobile ? 24.h : 22),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           SizedBox(
-                            height: 27.h,
-                            width: 79.w,
+                            height: isMobile ? 27.h : 36,
+                            width: isMobile ? 79.w : 100,
                             child: AppButton(
                               fontWeight: FontWeight.w400,
                               text: 'Cancel',
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
+                              onPressed: () => Navigator.of(context).pop(),
                               bgColor1: reasonCancelButtonColor,
                               bgColor2: reasonCancelButtonColor,
-                              size: 12.sp,
+                              size: isMobile ? 12.sp : 13,
                               borderRadius: 5,
                             ),
                           ),
-                          SizedBox(width: 10.w),
+                          SizedBox(width: isMobile ? 10.w : 12),
                           SizedBox(
-                            height: 27.h,
-                            width: 133.w,
+                            height: isMobile ? 27.h : 36,
+                            width: isMobile ? 133.w : 160,
                             child: AppButton(
                               fontWeight: FontWeight.w400,
                               text: 'Confirm Rejection',
@@ -1018,7 +1336,7 @@ class _ReservationState extends State<Reservation>
                               },
                               bgColor1: reasonConfirmButtonColor,
                               bgColor2: reasonConfirmButtonColor,
-                              size: 12.sp,
+                              size: isMobile ? 12.sp : 13,
                               borderRadius: 5,
                             ),
                           ),
@@ -1047,6 +1365,8 @@ class _ReservationState extends State<Reservation>
   Widget _buildAnimatedStatusTabs({
     required double width,
     required double searchButtonWidth,
+    required double tabGap,
+    required double tabHeight,
   }) {
     final tabs = ["Processing", "Confirmed", "Completed", "Rejected"];
     final previousPosition = _statusTabPosition(_previousStatus);
@@ -1063,6 +1383,8 @@ class _ReservationState extends State<Reservation>
         _buildStatusIndicator(
           width: width,
           searchButtonWidth: searchButtonWidth,
+          tabGap: tabGap,
+          tabHeight: tabHeight,
           isAdjacent: isAdjacent,
         ),
         ...tabs.map(
@@ -1070,6 +1392,8 @@ class _ReservationState extends State<Reservation>
             tab,
             width: width,
             searchButtonWidth: searchButtonWidth,
+            tabGap: tabGap,
+            tabHeight: tabHeight,
           ),
         ),
       ],
@@ -1080,11 +1404,15 @@ class _ReservationState extends State<Reservation>
     required double width,
     required double searchButtonWidth,
     required bool isAdjacent,
+    required double tabGap,
+    required double tabHeight,
   }) {
     final rect = _statusTabRect(
       selectedStatus,
       width: width,
       searchButtonWidth: searchButtonWidth,
+      tabGap: tabGap,
+      tabHeight: tabHeight,
     );
     final indicator = Container(
       decoration: BoxDecoration(
@@ -1094,7 +1422,7 @@ class _ReservationState extends State<Reservation>
         borderRadius: BorderRadius.circular(10.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 6,
             offset: const Offset(2, 2),
           ),
@@ -1133,6 +1461,8 @@ class _ReservationState extends State<Reservation>
     String text, {
     required double width,
     required double searchButtonWidth,
+    required double tabGap,
+    required double tabHeight,
   }) {
     final isSelected = selectedStatus == text;
     return Positioned.fromRect(
@@ -1140,6 +1470,8 @@ class _ReservationState extends State<Reservation>
         text,
         width: width,
         searchButtonWidth: searchButtonWidth,
+        tabGap: tabGap,
+        tabHeight: tabHeight,
       ),
       child: GestureDetector(
         onTap: () => _selectStatus(text),
@@ -1156,7 +1488,7 @@ class _ReservationState extends State<Reservation>
                   ? null
                   : [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 6,
                         offset: const Offset(2, 2),
                       ),
@@ -1178,21 +1510,22 @@ class _ReservationState extends State<Reservation>
     String text, {
     required double width,
     required double searchButtonWidth,
+    required double tabGap,
+    required double tabHeight,
   }) {
-    final double gap = 10.w;
-    final double tabHeight = 29.h;
-    final double secondRowTop = tabHeight + gap;
-    final double topTabWidth = (width - gap) / 2;
-    final double bottomTabWidth = (width - searchButtonWidth - (gap * 2)) / 2;
+    final double secondRowTop = tabHeight + tabGap;
+    final double topTabWidth = (width - tabGap) / 2;
+    final double bottomTabWidth =
+        (width - searchButtonWidth - (tabGap * 2)) / 2;
 
     switch (text) {
       case "Confirmed":
-        return Rect.fromLTWH(topTabWidth + gap, 0, topTabWidth, tabHeight);
+        return Rect.fromLTWH(topTabWidth + tabGap, 0, topTabWidth, tabHeight);
       case "Completed":
         return Rect.fromLTWH(0, secondRowTop, bottomTabWidth, tabHeight);
       case "Rejected":
         return Rect.fromLTWH(
-          bottomTabWidth + gap,
+          bottomTabWidth + tabGap,
           secondRowTop,
           bottomTabWidth,
           tabHeight,
@@ -1218,56 +1551,152 @@ class _ReservationState extends State<Reservation>
     }
   }
 
+  // Widget _buildStatusSearchSwitcher() {
+  //   return LayoutBuilder(
+  //     builder: (context, constraints) {
+  //       // final double bottomInset = 10.h;
+  //       // final double expandedHeight = 60.h + bottomInset;
+  //       // final double collapsedHeight = 68.h + bottomInset;
+  //       final double searchButtonWidth = 60.w;
+
+  //       return Padding(
+  //         padding:  EdgeInsets.only(bottom: 16.h),
+  //         child: AnimatedContainer(
+  //           duration: _searchAnimationDuration,
+  //           curve: Curves.easeInOutCubic,
+  //           // height: isSearchClicked ? expandedHeight : collapsedHeight,
+  //           height: isSearchClicked ? 60.h : 78.h,
+  //           child: OverflowBox(
+  //               maxHeight: double.infinity,   // lets children paint beyond the container
+  //               alignment: Alignment.topLeft,
+  //             child: Stack(
+  //               clipBehavior: Clip.none,
+  //               alignment: Alignment.bottomRight,
+  //               children: [
+  //                 AnimatedOpacity(
+  //                   duration: const Duration(milliseconds: 320),
+  //                   curve: Curves.easeOut,
+  //                   opacity: isSearchClicked ? 0 : 1,
+  //                   child: AnimatedSlide(
+  //                     duration: _searchAnimationDuration,
+  //                     curve: Curves.easeInOutCubic,
+  //                     offset: isSearchClicked
+  //                         ? const Offset(-0.05, 0)
+  //                         : Offset.zero,
+  //                     child: IgnorePointer(
+  //                       ignoring: isSearchClicked,
+  //                       child: _buildAnimatedStatusTabs(
+  //                         width: constraints.maxWidth,
+  //                         searchButtonWidth: searchButtonWidth,
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ),
+  //                 _AnimatedSearchField(
+  //                   isExpanded: isSearchClicked,
+  //                   width: isSearchClicked
+  //                       ? constraints.maxWidth
+  //                       : searchButtonWidth,
+  //                   controller: _searchController,
+  //                   onOpen: () {
+  //                     setState(() {
+  //                       isSearchClicked = true;
+  //                       _previousStatus = selectedStatus;
+  //                       selectedStatus = "Search";
+  //                     });
+  //                   },
+  //                   onClose: _closeSearch,
+  //                   onChanged: _onSearchChanged,
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
+
   Widget _buildStatusSearchSwitcher() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double expandedHeight = 60.h;
-        final double collapsedHeight = 68.h;
-        final double searchButtonWidth = 60.w;
+        final usesTabletLayout = _usesTabletLayout(context);
+        final isTablet = Breakpoints.isTabletDevice(MediaQuery.sizeOf(context));
+        final double searchButtonWidth = isTablet
+            ? 60.0
+            : usesTabletLayout
+            ? 72.0
+            : 60.w;
+        final double tabHeight = usesTabletLayout ? 36.0 : 29.h;
+        final double rowGap = usesTabletLayout ? 12.0 : 10.w;
+        final double secondRowTop = tabHeight + rowGap;
+        final double totalHeight = (tabHeight * 2) + rowGap + 8.0;
+        final double collapsedSearchHeight = isTablet ? 29.0 : tabHeight;
+        final double searchHeight = isTablet
+            ? 60.0
+            : usesTabletLayout
+            ? 64.0
+            : 60.h;
+        final double collapsedSearchTop =
+            secondRowTop + ((tabHeight - collapsedSearchHeight) / 2);
 
-        return AnimatedContainer(
-          duration: _searchAnimationDuration,
-          curve: Curves.easeInOutCubic,
-          height: isSearchClicked ? expandedHeight : collapsedHeight,
-          child: Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 320),
-                curve: Curves.easeOut,
-                opacity: isSearchClicked ? 0 : 1,
-                child: AnimatedSlide(
-                  duration: _searchAnimationDuration,
-                  curve: Curves.easeInOutCubic,
-                  offset: isSearchClicked
-                      ? const Offset(-0.05, 0)
-                      : Offset.zero,
-                  child: IgnorePointer(
-                    ignoring: isSearchClicked,
-                    child: _buildAnimatedStatusTabs(
-                      width: constraints.maxWidth,
-                      searchButtonWidth: searchButtonWidth,
+        return Padding(
+          padding: EdgeInsets.only(bottom: usesTabletLayout ? 16.0 : 14.h),
+          child: SizedBox(
+            height: isSearchClicked ? searchHeight : totalHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              // Remove alignment: Alignment.bottomRight — no longer needed
+              children: [
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOut,
+                  opacity: isSearchClicked ? 0 : 1,
+                  child: AnimatedSlide(
+                    duration: _searchAnimationDuration,
+                    curve: Curves.easeInOutCubic,
+                    offset: isSearchClicked
+                        ? const Offset(-0.05, 0)
+                        : Offset.zero,
+                    child: IgnorePointer(
+                      ignoring: isSearchClicked,
+                      child: _buildAnimatedStatusTabs(
+                        width: constraints.maxWidth,
+                        searchButtonWidth: searchButtonWidth,
+                        tabGap: rowGap,
+                        tabHeight: tabHeight,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              _AnimatedSearchField(
-                isExpanded: isSearchClicked,
-                width: isSearchClicked
-                    ? constraints.maxWidth
-                    : searchButtonWidth,
-                controller: _searchController,
-                onOpen: () {
-                  setState(() {
-                    isSearchClicked = true;
-                    _previousStatus = selectedStatus;
-                    selectedStatus = "Search";
-                  });
-                },
-                onClose: _closeSearch,
-                onChanged: _onSearchChanged,
-              ),
-            ],
+
+                // Search field — explicitly placed on row 2, right side
+                AnimatedPositioned(
+                  duration: _searchAnimationDuration,
+                  curve: Curves.easeInOutCubic,
+                  top: isSearchClicked ? 0 : collapsedSearchTop,
+                  right: 0,
+                  child: _AnimatedSearchField(
+                    isExpanded: isSearchClicked,
+                    width: isSearchClicked
+                        ? constraints.maxWidth
+                        : searchButtonWidth,
+                    collapsedHeight: collapsedSearchHeight,
+                    expandedHeight: searchHeight,
+                    controller: _searchController,
+                    onOpen: () {
+                      setState(() {
+                        isSearchClicked = true;
+                        _previousStatus = selectedStatus;
+                        selectedStatus = "Search";
+                      });
+                    },
+                    onClose: _closeSearch,
+                    onChanged: _onSearchChanged,
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -1298,34 +1727,64 @@ class _ReservationState extends State<Reservation>
     _performSearch(val);
   }
 
+  // Widget _buildChip(
+  //   String reason,
+  //   String selectedReason,
+  //   StateSetter setDialogState,
+  //   void Function(String) onSelect,
+  // ) {
+  //   final isSelected = selectedReason == reason;
+  //   return GestureDetector(
+  //     onTap: () {
+  //       setDialogState(() {
+  //         onSelect(reason);
+  //       });
+  //     },
+  //     child: Container(
+  //       width: double.infinity, // ← stretches to parent width
+  //       height: 30.h,
+  //       // padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+  //       decoration: BoxDecoration(
+  //         color: isSelected ? reasonSelectColor : reasonUnselectColor,
+  //         borderRadius: BorderRadius.all(Radius.circular(15.r)),
+  //       ),
+  //       alignment: Alignment.center,
+
+  //       child: Text(
+  //         reason,
+  //         textAlign: TextAlign.center, // ← center the text inside
+  //         style: TextStyle(
+  //           fontSize: 12.sp,
+  //           fontWeight: FontWeight.w500,
+  //           color: isSelected ? Colors.white : Colors.black,
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
   Widget _buildChip(
     String reason,
     String selectedReason,
     StateSetter setDialogState,
-    void Function(String) onSelect,
-  ) {
+    void Function(String) onSelect, {
+    bool isMobile = true,
+  }) {
     final isSelected = selectedReason == reason;
     return GestureDetector(
-      onTap: () {
-        setDialogState(() {
-          onSelect(reason);
-        });
-      },
+      onTap: () => setDialogState(() => onSelect(reason)),
       child: Container(
-        width: double.infinity, // ← stretches to parent width
-        height: 30.h,
-        // padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+        width: double.infinity,
+        height: isMobile ? 30.h : 36,
         decoration: BoxDecoration(
           color: isSelected ? reasonSelectColor : reasonUnselectColor,
-          borderRadius: BorderRadius.all(Radius.circular(15.r)),
+          borderRadius: BorderRadius.all(Radius.circular(isMobile ? 15.r : 12)),
         ),
         alignment: Alignment.center,
-
         child: Text(
           reason,
-          textAlign: TextAlign.center, // ← center the text inside
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 12.sp,
+            fontSize: isMobile ? 12.sp : 13,
             fontWeight: FontWeight.w500,
             color: isSelected ? Colors.white : Colors.black,
           ),
@@ -1541,7 +2000,7 @@ class _CompletedDateRangeDialogState extends State<_CompletedDateRangeDialog> {
         ? 'Select start date'
         : _endDate == null
         ? 'Select end date'
-        : '${_shortDate(_startDate!)} - ${_shortDate(_endDate!)}';
+        : '${formatDateForRange(_startDate!, _endDate!)} - ${formatDateForRange(_endDate!, _startDate!)}';
 
     return Container(
       width: double.infinity,
@@ -1810,7 +2269,9 @@ class _CompletedDateRangeDialogState extends State<_CompletedDateRangeDialog> {
     );
   }
 
-  String _shortDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
+  // _shortDate removed: use top-level formatDateForRange for consistent formatting.
+
+  // removed duplicate _formatDateForRange in favor of top-level formatDateForRange
 
   String _monthName(int month) => const [
     'January',
@@ -1853,6 +2314,8 @@ class _StatusTabPosition {
 class _AnimatedSearchField extends StatelessWidget {
   final bool isExpanded;
   final double width;
+  final double collapsedHeight;
+  final double expandedHeight;
   final TextEditingController controller;
   final VoidCallback onOpen;
   final VoidCallback onClose;
@@ -1861,6 +2324,8 @@ class _AnimatedSearchField extends StatelessWidget {
   const _AnimatedSearchField({
     required this.isExpanded,
     required this.width,
+    required this.collapsedHeight,
+    required this.expandedHeight,
     required this.controller,
     required this.onOpen,
     required this.onClose,
@@ -1871,24 +2336,59 @@ class _AnimatedSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final screenWidth = size.width;
+    final isWideShortPhone = Breakpoints.isWideShortPhone(size);
+    final isTablet = Breakpoints.isTabletDevice(size);
+    final useMobileScale = screenWidth < 550 && !isWideShortPhone;
+    final collapsedIconSize = isTablet
+        ? 20.0
+        : useMobileScale
+        ? 20.w
+        : 16.w;
+    final expandedIconSize = isTablet
+        ? 22.0
+        : useMobileScale
+        ? 22.w
+        : 14.w;
+    final iconSlotWidth = isTablet
+        ? 24.0
+        : useMobileScale
+        ? 24.w
+        : 18.w;
+    final expandedLeftPadding = isTablet ? 18.0 : 18.w;
+    final expandedRightPadding = isTablet ? 12.0 : 12.w;
+    final collapsedHorizontalPadding = isTablet ? 4.0 : 4.w;
+    final fieldGap = isTablet ? 12.0 : 12.w;
+    final fieldTextSize = isTablet ? 15.0 : 15.sp;
+    final fieldVerticalPadding = isTablet ? 16.0 : 16.h;
+    final closeButtonPadding = isTablet ? 6.0 : 6.w;
+    final closeIconSize = isTablet ? 22.0 : 22.w;
+    final expandedRadius = isTablet ? 20.0 : 20.r;
+    final collapsedRadius = isTablet ? 10.0 : 10.r;
+    final expandedShadowBlur = isTablet ? 15.0 : 15.r;
+    final collapsedShadowBlur = isTablet ? 6.0 : 6.r;
+
     return GestureDetector(
       onTap: isExpanded ? null : onOpen,
       child: AnimatedContainer(
         duration: _duration,
         curve: Curves.easeInOutCubic,
         width: width,
-        height: isExpanded ? 60.h : 29.h,
+        height: isExpanded ? expandedHeight : collapsedHeight,
         padding: EdgeInsets.only(
-          left: isExpanded ? 18.w : 4.w,
-          right: isExpanded ? 12.w : 4.w,
+          left: isExpanded ? expandedLeftPadding : collapsedHorizontalPadding,
+          right: isExpanded ? expandedRightPadding : collapsedHorizontalPadding,
         ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(isExpanded ? 20.r : 10.r),
+          borderRadius: BorderRadius.circular(
+            isExpanded ? expandedRadius : collapsedRadius,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isExpanded ? 0.22 : 0.18),
-              blurRadius: isExpanded ? 15.r : 6.r,
+              color: Colors.black.withValues(alpha: isExpanded ? 0.22 : 0.18),
+              blurRadius: isExpanded ? expandedShadowBlur : collapsedShadowBlur,
               offset: isExpanded ? Offset.zero : const Offset(2, 2),
             ),
           ],
@@ -1902,8 +2402,8 @@ class _AnimatedSearchField extends StatelessWidget {
                 return Center(
                   child: Image.asset(
                     "assets/images/search_icon.png",
-                    width: 20.w,
-                    height: 20.w,
+                    width: collapsedIconSize,
+                    height: collapsedIconSize,
                     fit: BoxFit.contain,
                   ),
                 );
@@ -1914,16 +2414,16 @@ class _AnimatedSearchField extends StatelessWidget {
                   AnimatedContainer(
                     duration: _duration,
                     curve: Curves.easeInOutCubic,
-                    width: 24.w,
+                    width: iconSlotWidth,
                     alignment: Alignment.centerLeft,
                     child: Image.asset(
                       "assets/images/search_icon.png",
-                      width: 22.w,
-                      height: 22.w,
+                      width: expandedIconSize,
+                      height: expandedIconSize,
                       fit: BoxFit.contain,
                     ),
                   ),
-                  SizedBox(width: 12.w),
+                  SizedBox(width: fieldGap),
                   Expanded(
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 320),
@@ -1939,20 +2439,20 @@ class _AnimatedSearchField extends StatelessWidget {
                           onChanged: onChanged,
                           style: TextStyle(
                             color: Colors.black87,
-                            fontSize: 15.sp,
+                            fontSize: fieldTextSize,
                             fontWeight: FontWeight.w400,
                           ),
                           decoration: InputDecoration(
                             hintText: "Coupon Number",
                             hintStyle: TextStyle(
                               color: Colors.grey,
-                              fontSize: 15.sp,
+                              fontSize: fieldTextSize,
                               fontWeight: FontWeight.w400,
                             ),
                             border: InputBorder.none,
                             isCollapsed: true,
                             contentPadding: EdgeInsets.symmetric(
-                              vertical: 16.h,
+                              vertical: fieldVerticalPadding,
                             ),
                           ),
                         ),
@@ -1968,13 +2468,15 @@ class _AnimatedSearchField extends StatelessWidget {
                       opacity: isExpanded ? 1 : 0,
                       child: InkWell(
                         onTap: onClose,
-                        borderRadius: BorderRadius.circular(18.r),
+                        borderRadius: BorderRadius.circular(
+                          isTablet ? 18.0 : 18.r,
+                        ),
                         child: Padding(
-                          padding: EdgeInsets.all(6.w),
+                          padding: EdgeInsets.all(closeButtonPadding),
                           child: Icon(
                             Icons.close,
                             color: Colors.grey,
-                            size: 22.w,
+                            size: closeIconSize,
                           ),
                         ),
                       ),

@@ -12,6 +12,7 @@ class CompleteRegistrationModel {
   final String availableDishes;
   final String banquetService;
   final String takeawayService;
+  final String cateringService;
   final String deliveryService;
   final String deliveryServiceArea;
   final String restaurantTypw;
@@ -29,6 +30,7 @@ class CompleteRegistrationModel {
     required this.availableDishes,
     required this.banquetService,
     required this.takeawayService,
+    required this.cateringService,
     required this.deliveryService,
     required this.deliveryServiceArea,
     required this.restaurantTypw,
@@ -47,6 +49,7 @@ final Map<String, dynamic> map  = {
       "available_dishes" : availableDishes,
       "banquet_service" : banquetService,
       "takeaway_service" : takeawayService,
+      "catering_service" : cateringService,
       "delivery_service" : deliveryService,
       "delivery_service_area" : deliveryServiceArea,
       "restaurant_type" : restaurantTypw,

@@ -124,3 +124,15 @@ final String drawerProfileIcon = 'assets/icons/drawerIcon/drawer_profile.png';
 final String drawerPromotionIcon = 'assets/icons/drawerIcon/drawer_promotion.png';
 final String drawerServiceIcon = 'assets/icons/drawerIcon/drawer_service.png';
 final String drawerTranslateIcon = 'assets/icons/drawerIcon/drawer_translate.png';
+
+
+final String padlockIcon = 'assets/icons/drawerIcon/drawer_changepassword.png';
+// Tab icons
+final String tabBanquetIcon = 'assets/icons/tabs/banquet_icon.png';
+final String tabCateringIcon = 'assets/icons/tabs/catering_icon.png';
+final String tabEmailIcon = 'assets/icons/tabs/email_icon.png';
+final String tabOffersIcon = 'assets/icons/tabs/offers_icon.png';
+final String tabProfileIcon = 'assets/icons/tabs/profile_icon.png';
+final String tabReservationIcon = 'assets/icons/tabs/reservation_icon.png';
+final String tabTakeawayIcon = 'assets/icons/tabs/takeaway_icon.png';
+

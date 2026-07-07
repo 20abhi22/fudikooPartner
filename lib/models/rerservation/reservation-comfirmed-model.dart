@@ -3,6 +3,7 @@ class ReservationConfirmedModel {
   final String uuid;
   final String reservationId;
   final String userId;
+  final String customerId;
   final int people;
   final String restaurantId;
   final String time;
@@ -19,6 +20,7 @@ class ReservationConfirmedModel {
     required this.uuid,
     required this.reservationId,
     required this.userId,
+    required this.customerId,
     required this.people,
     required this.restaurantId,
     required this.time,
@@ -36,6 +38,7 @@ class ReservationConfirmedModel {
       uuid: _toString(json['uuid']),
       reservationId: _toString(json['reservation_id']),
       userId: _toString(json['user_id']),
+      customerId: _toString(json['customer_id']),
       people: _toInt(json['people']),
       restaurantId: _toString(json['restaurant_id']),
       time: _toString(json['time']),
@@ -75,13 +78,19 @@ class ReservationConfirmedModelResponse {
     Map<String, dynamic> json,
   ) {
     final reservationsJson = json['reservations'];
-    final reservationsList = reservationsJson is List ? reservationsJson : const [];
+    final reservationsList = reservationsJson is List
+        ? reservationsJson
+        : const [];
 
     return ReservationConfirmedModelResponse(
       status: json['status'] == true,
       reservations: reservationsList
           .whereType<Map>()
-          .map((item) => ReservationConfirmedModel.fromJson(Map<String, dynamic>.from(item)))
+          .map(
+            (item) => ReservationConfirmedModel.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
+          )
           .toList(),
     );
   }

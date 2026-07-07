@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/core/responsive/app_dimensions.dart';
+import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:intl/intl.dart';
 
@@ -100,24 +102,43 @@ class _DeletedBoxState extends State<DeletedBox> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 20.h),
-      child: Container(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final screenSize = MediaQuery.sizeOf(context);
+        final isWideShortPhone =
+            Breakpoints.isMobile(screenSize.width) &&
+            screenSize.width >= 500 &&
+            screenSize.height <= 760;
+        final isMobile = Breakpoints.isMobile(width) && !isWideShortPhone;
+        final cardPadding = isMobile
+            ? EdgeInsets.all(20.w)
+            : EdgeInsets.all(AppDimensions.padding(width) * 0.8);
+        final iconSize = isMobile ? 18.w : 18.0;
+        final gap = isMobile ? 8.w : 8.0;
+        final buttonWidth = isMobile ? 120.w : 118.0;
+        final buttonHeight = isMobile ? 25.h : 32.0;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: isMobile ? 20.h : 18),
+          child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(17.r),
+          borderRadius: BorderRadius.circular(isMobile ? 17.r : 8),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              spreadRadius: 2,
-              offset: const Offset(0, 0),
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 14,
+              spreadRadius: 1,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(20.w),
+          padding: cardPadding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -125,12 +146,17 @@ class _DeletedBoxState extends State<DeletedBox> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppText(
-                    text: widget.enquiry.enquiryId,
-                    size: 24,
-                    fontWeight: FontWeight.w700,
-                    color: rejectedTitleTextColor,
+                  Expanded(
+                    child: AppText(
+                      text: widget.enquiry.enquiryId,
+                      size: isMobile ? 24 : 21,
+                      fontWeight: FontWeight.w700,
+                      color: rejectedTitleTextColor,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  SizedBox(width: isMobile ? 10.w : 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -158,14 +184,18 @@ class _DeletedBoxState extends State<DeletedBox> {
                       banquetTagIconColor,
                       BlendMode.srcIn,
                     ),
-                    child: Image.asset(walletIcon, width: 18.w),
+                    child: Image.asset(walletIcon, width: iconSize),
                   ),
-                  SizedBox(width: 8.w),
-                  AppText(
-                    text: "${widget.enquiry.estimatedAmount} Per person",
-                    size: 18,
-                    fontWeight: FontWeight.w700,
-                    color: appTextColor5,
+                  SizedBox(width: gap),
+                  Expanded(
+                    child: AppText(
+                      text: "${widget.enquiry.estimatedAmount} Per person",
+                      size: isMobile ? 18 : 15,
+                      fontWeight: FontWeight.w700,
+                      color: appTextColor5,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -177,15 +207,19 @@ class _DeletedBoxState extends State<DeletedBox> {
                       banquetTagIconColor,
                       BlendMode.srcIn,
                     ),
-                    child: Image.asset(calenderIcon, width: 18.w),
+                    child: Image.asset(calenderIcon, width: iconSize),
                   ),
-                  SizedBox(width: 8.w),
-                  AppText(
-                    text:
-                        "${_formatDate(widget.enquiry.date)} - ${_formatTime(widget.enquiry.time)}",
-                    size: 14,
-                    fontWeight: FontWeight.w500,
-                    color: appTextColor5,
+                  SizedBox(width: gap),
+                  Expanded(
+                    child: AppText(
+                      text:
+                          "${_formatDate(widget.enquiry.date)} - ${_formatTime(widget.enquiry.time)}",
+                      size: 14,
+                      fontWeight: FontWeight.w500,
+                      color: appTextColor5,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -197,15 +231,19 @@ class _DeletedBoxState extends State<DeletedBox> {
                       banquetTagIconColor,
                       BlendMode.srcIn,
                     ),
-                    child: Image.asset(groupIcon, width: 18.w),
+                    child: Image.asset(groupIcon, width: iconSize),
                   ),
-                  SizedBox(width: 8.w),
-                  AppText(
-                    text:
-                        "${widget.enquiry.people} ${widget.enquiry.people == 1 ? 'Person' : 'Persons'}",
-                    size: 14,
-                    fontWeight: FontWeight.w500,
-                    color: appTextColor5,
+                  SizedBox(width: gap),
+                  Expanded(
+                    child: AppText(
+                      text:
+                          "${widget.enquiry.people} ${widget.enquiry.people == 1 ? 'Person' : 'Persons'}",
+                      size: 14,
+                      fontWeight: FontWeight.w500,
+                      color: appTextColor5,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -218,15 +256,17 @@ class _DeletedBoxState extends State<DeletedBox> {
                       banquetTagIconColor,
                       BlendMode.srcIn,
                     ),
-                    child: Image.asset(menuIcon, width: 18.w),
+                    child: Image.asset(menuIcon, width: iconSize),
                   ),
-                  SizedBox(width: 8.w),
+                  SizedBox(width: gap),
                   Expanded(
                     child: AppText(
                       text: widget.enquiry.menuItems,
                       size: 14,
                       fontWeight: FontWeight.w400,
                       color: appTextColor5,
+                      maxLines: isMobile ? null : 3,
+                      overflow: isMobile ? null : TextOverflow.ellipsis,
                       softWrap: true,
                     ),
                   ),
@@ -246,11 +286,11 @@ class _DeletedBoxState extends State<DeletedBox> {
                         ),
                         child: Image.asset(
                           stopWatchIcon,
-                          width: 17.w,
-                          height: 17.h,
+                          width: isMobile ? 17.w : 17,
+                          height: isMobile ? 17.h : 17,
                         ),
                       ),
-                      SizedBox(width: 5.w),
+                      SizedBox(width: isMobile ? 5.w : 6),
                       AppText(
                         text: _timerText,
                         size: 10,
@@ -260,15 +300,15 @@ class _DeletedBoxState extends State<DeletedBox> {
                     ],
                   ),
                   SizedBox(
-                    width: 120.w,
-                    height: 25.h,
+                    width: buttonWidth,
+                    height: buttonHeight,
                     child: AppButton(
                       text: "Call back",
                       onPressed: widget.onCallBackPressed ?? () {},
                       bgColor1: rejectedCallBackIconColor,
                       bgColor2: rejectedCallBackIconColor,
                       size: 12,
-                      borderRadius: 8,
+                      borderRadius: isMobile ? 8 : 5,
                     ),
                   ),
                 ],
@@ -277,6 +317,8 @@ class _DeletedBoxState extends State<DeletedBox> {
           ),
         ),
       ),
+    );
+      },
     );
   }
 }
