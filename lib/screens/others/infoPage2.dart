@@ -15,12 +15,14 @@ class InfoPage2 extends StatefulWidget {
   final String establishmentType;
   final String locationId;
   final File? profileImage;
+   final String? authToken;
   const InfoPage2({
     super.key,
     required this.establishmentName,
     required this.establishmentType,
     required this.locationId,
     this.profileImage,
+    this.authToken,
   });
 
   @override
@@ -226,6 +228,7 @@ class _InfoPage2State extends State<InfoPage2> {
                                 address: addressController.text,
                                 contact: contactController.text,
                                 profileImage: widget.profileImage,
+                                authToken: widget.authToken,
                               ),
                               context: context,
                             );

@@ -11,11 +11,25 @@ import 'package:fudiko/screens/auth/changepassword.dart';
 import 'package:fudiko/screens/others/infoPage.dart';
 import 'package:fudiko/services/otp_auth-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/widgets/app_shell.dart';
 
 class Otp extends StatefulWidget {
-  // Null means registration flow; a value means forgot-password flow.
+  // token != null  -> forgot-password flow (ChangePassword after verify).
+  // authToken      -> used for send/verify OTP requests when NOT the
+  //                    forgot-password flow (registration flow, or the
+  //                    post-login "not yet otp-verified" flow).
+  // isRegistered   -> only relevant when authToken flow is active; decides
+  //                    whether verify success routes to InfoPage or AppShell.
   final String? token;
-  const Otp({super.key, this.token});
+  final String? authToken;
+  final bool isRegistered;
+
+  const Otp({
+    super.key,
+    this.token,
+    this.authToken,
+    this.isRegistered = false,
+  });
 
   @override
   State<Otp> createState() => _OtpState();
@@ -41,8 +55,10 @@ class _OtpState extends State<Otp> {
     _sendOtp();
   }
 
+  String? get _requestToken => widget.token ?? widget.authToken;
+
   Future<void> _sendOtp() async {
-    final result = await _otpservice.sendOtp(tokenOverride: widget.token);
+    final result = await _otpservice.sendOtp(tokenOverride: _requestToken);
     if (!mounted) return;
     setState(() => _isSending = false);
     if (result.status) {
@@ -68,11 +84,10 @@ class _OtpState extends State<Otp> {
       return;
     }
     setState(() => _isVerifying = true);
-    // final result = await _otpservice.verifyOtp(_otp, _otpId!);
     final result = await _otpservice.verifyOtp(
       _otp,
       _otpId!,
-      tokenOverride: widget.token,
+      tokenOverride: _requestToken,
     );
     if (!mounted) return;
     setState(() => _isVerifying = false);
@@ -80,13 +95,19 @@ class _OtpState extends State<Otp> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(result.message)));
+
       if (widget.token != null) {
+        // Forgot password flow.
         slideRightWidget(
           newPage: ChangePassword(token: widget.token),
           context: context,
         );
+      } else if (widget.isRegistered) {
+        // Login flow: was otp-unverified, but registration already complete.
+        slideRightWidget(newPage: const AppShell(), context: context);
       } else {
-        slideRightWidget(newPage: InfoPage(), context: context);
+        // Registration flow, or login flow with incomplete registration.
+        slideRightWidget(newPage: InfoPage(authToken: widget.authToken), context: context);
       }
     } else {
       ScaffoldMessenger.of(

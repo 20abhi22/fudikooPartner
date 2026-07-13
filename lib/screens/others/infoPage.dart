@@ -23,7 +23,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class InfoPage extends StatefulWidget {
-  const InfoPage({super.key});
+  final String? authToken;
+  const InfoPage({super.key, this.authToken});
 
   @override
   State<InfoPage> createState() => _InfoPageState();
@@ -161,6 +162,7 @@ class _InfoPageState extends State<InfoPage> {
         establishmentType: _selectedType,
         locationId: '$_selectedLat,$_selectedLng', // ✅ pass coordinates
         profileImage: _profileImage,
+        authToken: widget.authToken,
       ),
       context: context,
     );

@@ -8,7 +8,9 @@ import 'package:fudiko/models/login/login-model.dart';
 import 'package:fudiko/models/login/login-response-model.dart';
 import 'package:fudiko/routetransitions.dart';
 import 'package:fudiko/screens/auth/forgotpassword.dart';
+import 'package:fudiko/screens/auth/otp.dart';
 import 'package:fudiko/screens/auth/registration.dart';
+import 'package:fudiko/screens/others/infoPage.dart';
 import 'package:fudiko/services/login-service.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:fudiko/utils/tokens.dart';
@@ -34,7 +36,7 @@ class _LoginState extends State<Login> {
     super.dispose();
   }
 
-  Future<void> loginUser() async {
+    Future<void> loginUser() async {
     setState(() {
       isLoading = true;
     });
@@ -73,16 +75,38 @@ class _LoginState extends State<Login> {
     setState(() {
       isLoading = false;
     });
+
     if (response.status) {
-      await saveToken(response.token!);
-      if (!mounted) return;
-      pushWidgetWhileRemove(newPage: const AppShell(), context: context);
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (context) => const AppShell()),
-      // );
+      final isFullySetUp = response.otpVerified && response.isRegistered;
+
+      if (isFullySetUp) {
+        // Only persist the token once both otp-verification AND
+        // registration are confirmed complete.
+        await saveToken(response.token!);
+        if (!mounted) return;
+        pushWidgetWhileRemove(newPage: const AppShell(), context: context);
+        return;
+      }
+
+      // Not fully set up — do NOT save the token here. Pass it in memory
+      // as authToken so the next screen can still authenticate its
+      // requests; it gets persisted later once setup is actually complete.
+      if (!response.otpVerified) {
+        slideRightWidget(
+          newPage: Otp(
+            authToken: response.token,
+            isRegistered: response.isRegistered,
+          ),
+          context: context,
+        );
+      } else {
+        // otpVerified == true, isRegistered == false
+        slideRightWidget(
+          newPage: InfoPage(authToken: response.token),
+          context: context,
+        );
+      }
     } else {
-      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(response.message)));

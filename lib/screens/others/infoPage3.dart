@@ -13,6 +13,7 @@ import 'package:fudiko/screens/others/infoPage4.dart';
 import 'package:fudiko/services/map-service.dart';
 import 'package:fudiko/services/registration-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/tokens.dart';
 
 class InfoPage3 extends StatefulWidget {
   final String establishmentName;
@@ -23,6 +24,8 @@ class InfoPage3 extends StatefulWidget {
   final String address;
   final String contact;
   final File? profileImage;
+  final String? authToken;
+
 
   const InfoPage3({
     super.key,
@@ -34,6 +37,7 @@ class InfoPage3 extends StatefulWidget {
     required this.address,
     required this.contact,
     this.profileImage,
+    this.authToken,
   });
 
   @override
@@ -140,15 +144,15 @@ class _InfoPage3State extends State<InfoPage3> {
       CompleteRegistrationModelResponse response = await registrationAuthService
           .completeRegistration(details);
       if (response.status) {
+        if (widget.authToken != null) {
+          // Registration is now fully complete — safe to persist the token.
+          await saveToken(widget.authToken!);
+        }
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(response.message)));
         slideRightWidget(newPage: InfoPage4(), context: context);
-        // Navigator.pushReplacement(
-        //   context,
-        //   MaterialPageRoute(builder: (context) => InfoPage4()),
-        // );
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(
