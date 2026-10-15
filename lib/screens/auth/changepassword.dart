@@ -10,6 +10,7 @@ import 'package:fudiko/routetransitions.dart';
 import 'package:fudiko/screens/auth/login.dart';
 import 'package:fudiko/services/fogotpassword-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class ChangePassword extends StatefulWidget {
@@ -21,13 +22,11 @@ class ChangePassword extends StatefulWidget {
 }
 
 class _ChangePasswordState extends State<ChangePassword> {
-  bool _obscureCurrentPassword = true;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool isLoading = false;
   final ForgotPasswordService _forgotPasswordService = ForgotPasswordService();
 
-  final TextEditingController _currentPassword = TextEditingController();
   final TextEditingController _newPassword = TextEditingController();
   final TextEditingController _confirmPassword = TextEditingController();
 
@@ -40,7 +39,6 @@ class _ChangePasswordState extends State<ChangePassword> {
 
   @override
   void dispose() {
-    _currentPassword.dispose();
     _newPassword.dispose();
     _confirmPassword.dispose();
     super.dispose();
@@ -49,53 +47,33 @@ class _ChangePasswordState extends State<ChangePassword> {
   Future<void> changePassword() async {
     if (isLoading) return;
 
-    final currentPassword = _currentPassword.text.trim();
     final newPassword = _newPassword.text.trim();
     final confirmPassword = _confirmPassword.text.trim();
 
-    if (currentPassword.isEmpty ||
-        newPassword.isEmpty ||
-        confirmPassword.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
-      return;
-    }
-
-    if (currentPassword.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password must be at least 6 characters")),
-      );
+    if (newPassword.isEmpty || confirmPassword.isEmpty) {
+      showErrorSnack(context, "Please fill all fields");
       return;
     }
 
     if (newPassword.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password must be at least 6 characters")),
-      );
+      showErrorSnack(context, "Password must be at least 6 characters");
       return;
     }
 
     if (newPassword != confirmPassword) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
+      showErrorSnack(context, "Passwords do not match");
       return;
     }
 
     setState(() => isLoading = true);
     try {
-      final response = await _forgotPasswordService.updatePassword(
-        UpdatePasswordModel(
-          currentPassword: currentPassword,
-          newPassword: newPassword,
-        ),
+      final response = await _forgotPasswordService.changePassword(
+        NewPasswordModel(newPassword: newPassword),
+        widget.token,
       );
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(response.message)));
+      showStatusSnack(context, response.status, response.message);
 
       if (response.status) {
         await removeToken();
@@ -179,23 +157,6 @@ class _ChangePasswordState extends State<ChangePassword> {
                         isCentered: true,
                       ),
                       SizedBox(height: titleGap),
-                      AppTextFeild(
-                        text: "Current Password",
-                        size: fieldTextSize,
-                        height: fieldHeight,
-                        iconImagePath: padlockIcon,
-                        isObscure: _obscureCurrentPassword,
-                        enableInteractiveSelection: false,
-                        suffixIcon: _obscureCurrentPassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        onSuffixTap: () => setState(
-                          () => _obscureCurrentPassword =
-                              !_obscureCurrentPassword,
-                        ),
-                        controller: _currentPassword,
-                      ),
-                      SizedBox(height: fieldGap),
                       AppTextFeild(
                         text: "New Password",
                         size: fieldTextSize,

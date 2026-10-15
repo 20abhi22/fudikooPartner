@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
 
 class AppDropDown extends StatefulWidget {
@@ -93,13 +94,14 @@ class _AppDropDownState extends State<AppDropDown> {
                   SizedBox(width: iconGap),
                 ],
                 Expanded(
-                  child: Text(
-                    selectedValue ?? widget.hint,
-                    style: TextStyle(
-                      fontSize: headerFontSize,
-                      color: selectedValue == null ? Colors.grey : Colors.black,
-                      fontWeight: FontWeight.w400,
-                    ),
+                  // AppText so the hint and the picked item are translated
+                  // like the rest of the UI.
+                  child: AppText(
+                    text: selectedValue ?? widget.hint,
+                    size: headerFontSize,
+                    fontWeight: FontWeight.w400,
+                    color: selectedValue == null ? Colors.grey : Colors.black,
+                    maxLines: 1,
                   ),
                 ),
                 Icon(
@@ -148,17 +150,16 @@ class _AppDropDownState extends State<AppDropDown> {
                             )
                           : null,
                     ),
-                    child: Text(
-                      item,
-                      style: TextStyle(
-                        fontSize: itemFontSize,
-                        fontWeight: selectedValue == item
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: selectedValue == item
-                            ? Colors.orange
-                            : Colors.black,
-                      ),
+                    child: AppText(
+                      text: item,
+                      size: itemFontSize,
+                      fontWeight: selectedValue == item
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                      color: selectedValue == item
+                          ? Colors.orange
+                          : Colors.black,
+                      maxLines: 1,
                     ),
                   ),
                 );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -14,6 +15,8 @@ import 'package:fudiko/models/registration/mapplace-model.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/screens/others/restaurantBioPage.dart';
 import 'package:fudiko/services/map-service.dart';
+import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart' as geolocator;
 import 'package:geocoding/geocoding.dart';
@@ -706,41 +709,30 @@ class _RestaurantProfileEditState extends State<RestaurantProfileEdit> {
                         size: 15,
                         onPressed: () async {
                           if (_nameController.text.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Please enter establishment name',
-                                ),
-                              ),
+                            showErrorSnack(
+                              context,
+                              'Please enter establishment name',
                             );
                             return;
                           }
                           if (_selectedEstablishmentType == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Please select establishment type',
-                                ),
-                              ),
+                            showErrorSnack(
+                              context,
+                              'Please select establishment type',
                             );
                             return;
                           }
                           if (_locationController.text.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please enter location'),
-                              ),
-                            );
+                            showErrorSnack(context, 'Please enter location');
                             return;
                           }
                           final hasResolvedLocation =
                               await _resolveTypedLocationIfNeeded();
                           if (!context.mounted) return;
                           if (!hasResolvedLocation) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please select a valid location'),
-                              ),
+                            showErrorSnack(
+                              context,
+                              'Please select a valid location',
                             );
                             return;
                           }
@@ -795,15 +787,15 @@ class _MapPickerPageState extends State<_MapPickerPage> {
   Timer? _placeSearchDebounce;
   static final BitmapDescriptor _orangeMarker =
       BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+
   late LatLng _pickedLocation;
-  late String _placeName;
+  String _placeName = 'Fetching location...';
   bool _isGeocoding = false;
   bool _isSearchingPlaces = false;
   bool _isFetchingNextPage = false;
   bool _isFetchingCurrentLocation = false;
   bool _hasSubmittedSearch = false;
   String? _placeSearchError;
-  List<MapPlacesResponse> _placeSuggestions = [];
   List<MapPlacesResponse> _textSearchResults = [];
   List<MapPlacesResponse> _savedAddresses = [];
   List<MapPlacesResponse> _recentSearches = [];
@@ -813,13 +805,15 @@ class _MapPickerPageState extends State<_MapPickerPage> {
   bool _showPickedMarker = false;
   static const String _recentSearchPrefsKey = 'recent_map_place_searches';
 
+  /// Secondary copy — subtitles, section headers, empty/error states.
+  /// [AppText] defaults its color to the brand orange, so body text has to
+  /// pass a color explicitly.
+  Color get _mutedTextColor => appTextColor5.withValues(alpha: 0.6);
+
   @override
   void initState() {
     super.initState();
     _pickedLocation = widget.initialLocation;
-    _placeName = 'Fetching location...';
-    _placeSearchController.clear();
-    _showPickedMarker = false;
     _updateMarker(_pickedLocation);
     _loadSavedAndRecent();
     _getCurrentLocation();
@@ -835,30 +829,24 @@ class _MapPickerPageState extends State<_MapPickerPage> {
   Future<void> _getCurrentLocation({bool selectLocation = false}) async {
     if (_isFetchingCurrentLocation) return;
 
-    setState(() {
-      _isFetchingCurrentLocation = true;
-    });
-
+    setState(() => _isFetchingCurrentLocation = true);
     try {
-      geolocator.LocationPermission permission =
-          await geolocator.Geolocator.requestPermission();
+      final permission = await geolocator.Geolocator.requestPermission();
       if (permission == geolocator.LocationPermission.denied ||
           permission == geolocator.LocationPermission.deniedForever) {
         await _reverseGeocode(_pickedLocation);
         return;
       }
 
-      final geolocator.Position position =
-          await geolocator.Geolocator.getCurrentPosition(
-            desiredAccuracy: geolocator.LocationAccuracy.high,
-          );
+      final position = await geolocator.Geolocator.getCurrentPosition(
+        desiredAccuracy: geolocator.LocationAccuracy.high,
+      );
 
       final latLng = LatLng(position.latitude, position.longitude);
       setState(() {
         _pickedLocation = latLng;
         if (selectLocation) {
           _showPickedMarker = true;
-          _placeSuggestions = [];
           _textSearchResults = [];
           _isSearchDropdownOpen = false;
           _hasSubmittedSearch = false;
@@ -872,11 +860,7 @@ class _MapPickerPageState extends State<_MapPickerPage> {
       debugPrint('Location error: $e');
       await _reverseGeocode(_pickedLocation);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isFetchingCurrentLocation = false;
-        });
-      }
+      if (mounted) setState(() => _isFetchingCurrentLocation = false);
     }
   }
 
@@ -888,7 +872,7 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         latLng.longitude,
       );
       if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
+        final Placemark p = placemarks.first;
         final parts = [
           p.street,
           p.subLocality,
@@ -896,15 +880,10 @@ class _MapPickerPageState extends State<_MapPickerPage> {
           p.administrativeArea,
           p.country,
         ].where((value) => value != null && value.isNotEmpty).toList();
-        final address = parts.join(', ');
-        setState(() {
-          _placeName = address;
-        });
+        setState(() => _placeName = parts.join(', '));
       }
     } catch (e) {
-      setState(() {
-        _placeName = '${latLng.latitude}, ${latLng.longitude}';
-      });
+      setState(() => _placeName = '${latLng.latitude}, ${latLng.longitude}');
     }
     setState(() => _isGeocoding = false);
   }
@@ -916,7 +895,6 @@ class _MapPickerPageState extends State<_MapPickerPage> {
 
     if (trimmed.length < 3) {
       setState(() {
-        _placeSuggestions = [];
         _textSearchResults = [];
         _isSearchDropdownOpen = true;
         _isSearchingPlaces = false;
@@ -933,38 +911,10 @@ class _MapPickerPageState extends State<_MapPickerPage> {
       _placeSearchError = null;
       _hasSubmittedSearch = true;
     });
-    _placeSearchDebounce = Timer(const Duration(milliseconds: 1500), () {
+
+    _placeSearchDebounce = Timer(const Duration(milliseconds: 500), () {
       if (!mounted || requestId != _placeSearchRequestId) return;
       smartPlaceSearch();
-    });
-  }
-
-  Future<void> fetchAutocompleteSuggestions(String query) async {
-    final trimmedQuery = query.trim();
-    List<MapPlacesResponse> suggestions = [];
-    try {
-      suggestions = await _mapService.fetchAutocompleteSuggestions(
-        trimmedQuery,
-        // _pickedLocation,
-      );
-    } catch (e) {
-      if (!mounted || _placeSearchController.text.trim() != trimmedQuery) {
-        return;
-      }
-      setState(() {
-        _placeSearchError = e is MapPlaceSearchException
-            ? e.message
-            : 'Could not load suggestions. Please try again.';
-        _isSearchingPlaces = false;
-      });
-      return;
-    }
-
-    if (!mounted || _placeSearchController.text.trim() != trimmedQuery) return;
-
-    setState(() {
-      _placeSuggestions = suggestions;
-      _isSearchingPlaces = false;
     });
   }
 
@@ -973,7 +923,6 @@ class _MapPickerPageState extends State<_MapPickerPage> {
     if (query.isEmpty) return;
 
     _placeSearchDebounce?.cancel();
-    // final searchLocation = location ?? _pickedLocation;
     final requestId = ++_placeSearchRequestId;
 
     setState(() {
@@ -982,14 +931,12 @@ class _MapPickerPageState extends State<_MapPickerPage> {
       _isSearchingPlaces = true;
       _isFetchingNextPage = false;
       _placeSearchError = null;
-      _placeSuggestions = [];
       _textSearchResults = [];
     });
 
     try {
       final results = await _mapService.smartPlaceSearchProgressive(
         query,
-        // userLatLng: searchLocation,
         onResults: (results, isLoadingMore) {
           if (!mounted || requestId != _placeSearchRequestId) return;
 
@@ -1020,66 +967,25 @@ class _MapPickerPageState extends State<_MapPickerPage> {
     }
   }
 
-  List<MapPlacesResponse> mergeAndRemoveDuplicates(
-    List<MapPlacesResponse> results,
-  ) {
-    return _mapService.mergeAndRemoveDuplicates(results);
-  }
-
-  Future<void> _selectPlaceSuggestion(MapPlacesResponse place) async {
-    final placeId = place.placeId;
-    final placeName = place.mainText ?? '';
-    if (placeId == null || placeId.isEmpty) return;
-
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _isSearchingPlaces = true;
-      _placeName = placeName;
-      _placeSearchController.text = placeName;
-      _placeSuggestions = [];
-      _textSearchResults = [];
-      _isSearchDropdownOpen = false;
-      _hasSubmittedSearch = false;
-      _isFetchingNextPage = false;
-      _placeSearchError = null;
-    });
-
-    final coordinates = await _mapService.getPlace(placeId);
-    if (!mounted) return;
-
-    final lat = coordinates.lat;
-    final lng = coordinates.lng;
-    if (lat == null || lng == null) {
-      setState(() => _isSearchingPlaces = false);
-      return;
-    }
-
-    final latLng = LatLng(lat, lng);
-    setState(() {
-      _pickedLocation = latLng;
-      _showPickedMarker = true;
-    });
-    _updateMarker(latLng);
-    await _animateTo(latLng, 15);
-    await _reverseGeocode(latLng);
-    await _saveRecentSearch(
-      MapPlacesResponse(
-        placeId: placeId,
-        mainText: placeName,
-        secondaryText: place.secondaryText,
-        lat: latLng.latitude,
-        lng: latLng.longitude,
-      ),
-    );
-    if (mounted) {
-      setState(() => _isSearchingPlaces = false);
-    }
-  }
-
   Future<void> _selectSearchResult(MapPlacesResponse place) async {
+    // Predictions are listed before their coordinates are resolved, so fetch
+    // the details on tap instead of silently ignoring the selection.
+    if ((place.lat == null || place.lng == null) &&
+        (place.placeId ?? '').isNotEmpty) {
+      try {
+        place = await _mapService.fetchPlaceDetails(place.placeId!);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _placeSearchError = e is MapPlaceSearchException
+            ? e.message
+            : 'Could not load place details. Please try again.');
+        return;
+      }
+    }
     final lat = place.lat;
     final lng = place.lng;
     if (lat == null || lng == null) return;
+    if (!mounted) return;
 
     final latLng = LatLng(lat, lng);
     final label = [
@@ -1092,7 +998,6 @@ class _MapPickerPageState extends State<_MapPickerPage> {
       _pickedLocation = latLng;
       _placeName = label;
       _placeSearchController.text = place.mainText ?? label;
-      _placeSuggestions = [];
       _textSearchResults = [];
       _isSearchDropdownOpen = false;
       _hasSubmittedSearch = false;
@@ -1108,7 +1013,6 @@ class _MapPickerPageState extends State<_MapPickerPage> {
   Future<void> _animateTo(LatLng latLng, double zoom) async {
     final controller = _mapController;
     if (controller == null) return;
-
     await controller.animateCamera(CameraUpdate.newLatLngZoom(latLng, zoom));
   }
 
@@ -1166,17 +1070,17 @@ class _MapPickerPageState extends State<_MapPickerPage> {
     if (!mounted) return;
     setState(() {
       _savedAddresses = saved;
-      _recentSearches = mergeAndRemoveDuplicates(recent);
+      _recentSearches = _mapService.mergeAndRemoveDuplicates(recent);
     });
   }
 
   Future<void> _saveRecentSearch(MapPlacesResponse place) async {
     if ((place.mainText ?? '').isEmpty) return;
 
-    final merged = mergeAndRemoveDuplicates([
-      place,
-      ..._recentSearches,
-    ]).take(6).toList();
+    final merged = _mapService
+        .mergeAndRemoveDuplicates([place, ..._recentSearches])
+        .take(6)
+        .toList();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
       _recentSearchPrefsKey,
@@ -1191,55 +1095,71 @@ class _MapPickerPageState extends State<_MapPickerPage> {
     return _isSearchDropdownOpen &&
         !_hasSubmittedSearch &&
         !_isSearchingPlaces &&
-        (_savedAddresses.isNotEmpty ||
-            _recentSearches.isNotEmpty ||
-            _placeSuggestions.isNotEmpty);
+        (_savedAddresses.isNotEmpty || _recentSearches.isNotEmpty);
   }
 
   Widget _buildPlaceSearchField({
     required bool isMobile,
-    required double panelRadius,
+    required double fieldRadius,
   }) {
     final hasText = _placeSearchController.text.trim().isNotEmpty;
     final iconSize = isMobile ? 22.0 : 20.0;
 
-    return TextField(
-      controller: _placeSearchController,
-      textInputAction: TextInputAction.search,
-      onTap: () {
-        setState(() => _isSearchDropdownOpen = true);
-      },
-      onChanged: _onPlaceSearchChanged,
-      decoration: InputDecoration(
-        hintText: 'Search place',
-        prefixIcon: Icon(Icons.search, color: Colors.orange, size: iconSize),
-        suffixIcon: hasText
-            ? IconButton(
-                icon: Icon(Icons.close, color: Colors.orange, size: iconSize),
-                onPressed: () {
-                  _placeSearchDebounce?.cancel();
-                  _placeSearchRequestId++;
-                  setState(() {
-                    _placeSearchController.clear();
-                    _placeSuggestions = [];
-                    _textSearchResults = [];
-                    _isSearchingPlaces = false;
-                    _isFetchingNextPage = false;
-                    _hasSubmittedSearch = false;
-                    _placeSearchError = null;
-                    _isSearchDropdownOpen = true;
-                  });
-                },
-              )
-            : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(panelRadius),
-          borderSide: BorderSide.none,
+    return TranslatedBuilder(
+      text: 'Search place',
+      builder: (context, hintText) => TextField(
+        controller: _placeSearchController,
+        textInputAction: TextInputAction.search,
+        onTap: () => setState(() => _isSearchDropdownOpen = true),
+        onChanged: _onPlaceSearchChanged,
+        style: TextStyle(fontSize: 14, color: appTextColor5),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: TextStyle(fontSize: 14, color: _mutedTextColor),
+          prefixIcon: Icon(Icons.search, color: appTextColor, size: iconSize),
+          suffixIcon: hasText
+              ? IconButton(
+                  icon: Icon(Icons.close, color: appTextColor, size: iconSize),
+                  onPressed: () {
+                    _placeSearchDebounce?.cancel();
+                    _placeSearchRequestId++;
+                    setState(() {
+                      _placeSearchController.clear();
+                      _textSearchResults = [];
+                      _isSearchingPlaces = false;
+                      _isFetchingNextPage = false;
+                      _hasSubmittedSearch = false;
+                      _placeSearchError = null;
+                      _isSearchDropdownOpen = true;
+                    });
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(fieldRadius),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: appSecondaryBackgroundColor,
+          contentPadding: EdgeInsets.symmetric(vertical: isMobile ? 12.h : 12.0),
         ),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        contentPadding: EdgeInsets.symmetric(vertical: isMobile ? 12.h : 12.0),
       ),
+    );
+  }
+
+  Widget _buildListShell({
+    required double maxHeight,
+    required double panelRadius,
+    required Widget child,
+  }) {
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(panelRadius),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+      ),
+      child: child,
     );
   }
 
@@ -1273,14 +1193,6 @@ class _MapPickerPageState extends State<_MapPickerPage> {
               isMobile: isMobile,
               onTap: _selectSearchResult,
             ),
-          if (_placeSuggestions.isNotEmpty)
-            _buildPlaceSection(
-              title: 'Suggestions',
-              places: _placeSuggestions,
-              icon: Icons.location_on_outlined,
-              isMobile: isMobile,
-              onTap: _selectPlaceSuggestion,
-            ),
         ],
       ),
     );
@@ -1301,10 +1213,12 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         panelRadius: panelRadius,
         child: Padding(
           padding: EdgeInsets.all(isMobile ? 14.w : 14.0),
-          child: Text(
-            _placeSearchError!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.black54),
+          child: AppText(
+            text: _placeSearchError!,
+            size: 13,
+            fontWeight: FontWeight.w400,
+            color: _mutedTextColor,
+            isCentered: true,
           ),
         ),
       );
@@ -1316,13 +1230,13 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         panelRadius: panelRadius,
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: isMobile ? 18.h : 18.0),
-          child: const Center(
+          child: Center(
             child: SizedBox(
               height: 20,
               width: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Colors.orange,
+                color: appTextColor,
               ),
             ),
           ),
@@ -1336,10 +1250,12 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         panelRadius: panelRadius,
         child: Padding(
           padding: EdgeInsets.all(isMobile ? 14.w : 14.0),
-          child: const Text(
-            'No places found',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.black54),
+          child: AppText(
+            text: 'No places found',
+            size: 13,
+            fontWeight: FontWeight.w400,
+            color: _mutedTextColor,
+            isCentered: true,
           ),
         ),
       );
@@ -1355,18 +1271,18 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         padding: EdgeInsets.zero,
         itemCount: _textSearchResults.length + (_isFetchingNextPage ? 1 : 0),
         separatorBuilder: (_, __) =>
-            Divider(height: 1, color: Colors.grey.withValues(alpha: 0.18)),
+            Divider(height: 1, color: appTextColor5.withValues(alpha: 0.12)),
         itemBuilder: (context, index) {
           if (index >= _textSearchResults.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
               child: Center(
                 child: SizedBox(
                   height: 18,
                   width: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.orange,
+                    color: appTextColor,
                   ),
                 ),
               ),
@@ -1382,22 +1298,6 @@ class _MapPickerPageState extends State<_MapPickerPage> {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildListShell({
-    required double maxHeight,
-    required double panelRadius,
-    required Widget child,
-  }) {
-    return Container(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(panelRadius),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-      ),
-      child: child,
     );
   }
 
@@ -1418,13 +1318,11 @@ class _MapPickerPageState extends State<_MapPickerPage> {
             isMobile ? 14.w : 14.0,
             isMobile ? 4.h : 4.0,
           ),
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+          child: AppText(
+            text: title,
+            size: 12,
+            fontWeight: FontWeight.w600,
+            color: _mutedTextColor,
           ),
         ),
         ...places.map(
@@ -1447,101 +1345,248 @@ class _MapPickerPageState extends State<_MapPickerPage> {
   }) {
     return ListTile(
       dense: true,
-      leading: Icon(icon, color: Colors.orange, size: isMobile ? 24.0 : 22.0),
+      leading: Icon(icon, color: appTextColor, size: isMobile ? 24.0 : 22.0),
+      // AppText already scales its size responsively, so pass the base value.
       title: AppText(
         text: place.mainText ?? '',
-        size: isMobile ? 14.sp : 14.0,
+        size: 14,
         fontWeight: FontWeight.w500,
+        color: appTextColor5,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
       subtitle: (place.secondaryText ?? '').isEmpty
           ? null
-          : Text(
-              place.secondaryText!,
+          : AppText(
+              text: place.secondaryText!,
+              size: 12,
+              fontWeight: FontWeight.w400,
+              color: _mutedTextColor,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
       onTap: onTap,
     );
   }
 
+  /// White circular control that floats over the map — back arrow,
+  /// my-location. [size] is both the width and the height so it stays round.
+  Widget _floatingCircle({
+    required double size,
+    required Widget child,
+    required VoidCallback? onTap,
+    String? tooltip,
+  }) {
+    final button = Material(
+      color: Colors.white,
+      elevation: 4,
+      shadowColor: Colors.black26,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(child: child),
+        ),
+      ),
+    );
+
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
+  }
+
+  /// White pill that floats over the map — the title, Confirm, and the
+  /// resolved-address panel.
+  Widget _floatingCapsule({
+    required double radius,
+    required Widget child,
+    EdgeInsets? padding,
+    double? height,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      elevation: 4,
+      shadowColor: Colors.black26,
+      borderRadius: BorderRadius.circular(radius),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: height,
+          padding: padding,
+          // widthFactor shrink-wraps the pill around its label, while the
+          // alignment still centres that label inside the pill's fixed height.
+          // Setting Container.alignment instead would stretch the pill to fill
+          // whatever width it is offered.
+          child: Align(
+            alignment: Alignment.center,
+            widthFactor: 1.0,
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(_MapPickerMetrics metrics) {
+    final capsulePadding = EdgeInsets.symmetric(
+      horizontal: metrics.capsulePadding,
+    );
+
+    return Row(
+      children: [
+        _floatingCircle(
+          size: metrics.controlHeight,
+          onTap: () => Navigator.pop(context),
+          child: Image.asset(
+            backOrange,
+            width: metrics.backIconSize,
+            height: metrics.backIconSize,
+          ),
+        ),
+        SizedBox(width: metrics.controlGap),
+        _floatingCapsule(
+          radius: metrics.controlRadius,
+          height: metrics.controlHeight,
+          padding: capsulePadding,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: metrics.titleMaxWidth),
+            child: AppText(
+              text: 'Select Location',
+              size: metrics.titleTextSize,
+              fontWeight: FontWeight.w600,
+              color: appTextColor5,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        SizedBox(width: metrics.controlGap),
+        _confirmCapsule(
+          radius: metrics.controlRadius,
+          height: metrics.controlHeight,
+          padding: capsulePadding,
+          onTap: () {
+            Navigator.pop(context, {
+              'lat': _pickedLocation.latitude,
+              'lng': _pickedLocation.longitude,
+              'place': _placeName,
+            });
+          },
+          child: AppText(
+            text: 'Confirm',
+            size: metrics.titleTextSize,
+            fontWeight: FontWeight.w600,
+            color: appTextColor,
+            maxLines: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Wraps the Confirm pill so it takes the row's leftover width and stays
+  /// pinned to the right edge while the title pill hugs its label.
+  Widget _confirmCapsule({
+    required double radius,
+    required double height,
+    required EdgeInsets padding,
+    required VoidCallback onTap,
+    required Widget child,
+  }) {
+    return Expanded(
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: _floatingCapsule(
+          radius: radius,
+          height: height,
+          padding: padding,
+          onTap: onTap,
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(_MapPickerMetrics metrics) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: _floatingCapsule(
+            radius: metrics.bottomCapsuleRadius,
+            padding: metrics.bottomPanelPadding,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.location_on,
+                  color: appTextColor,
+                  size: metrics.bottomIconSize,
+                ),
+                SizedBox(width: metrics.isMobile ? 10.w : 10.0),
+                Expanded(
+                  child: _isGeocoding
+                      ? SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: appTextColor,
+                          ),
+                        )
+                      : AppText(
+                          text: _placeName,
+                          size: 14,
+                          fontWeight: FontWeight.w500,
+                          color: appTextColor5,
+                          maxLines: metrics.isMobile ? 2 : 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(width: metrics.controlGap),
+        TranslatedBuilder(
+          text: 'Use current location',
+          builder: (context, tooltip) => _floatingCircle(
+            size: metrics.locationButtonSize,
+            tooltip: tooltip,
+            onTap: _isFetchingCurrentLocation
+                ? null
+                : () => _getCurrentLocation(selectLocation: true),
+            child: _isFetchingCurrentLocation
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: appTextColor,
+                    ),
+                  )
+                : Icon(
+                    Icons.my_location,
+                    color: appTextColor,
+                    size: metrics.bottomIconSize,
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final screenWidth = size.width;
-    final isWideShortPhone = Breakpoints.isWideShortPhone(size);
-    final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
-    final isTablet = Breakpoints.isTabletDevice(size);
-    final isLandscape = screenWidth > size.height;
-    final overlayPadding = isWideShortPhone
-        ? 16.0
-        : isMobile
-        ? 16.w
-        : AppDimensions.padding(screenWidth);
-    final overlayTop = isWideShortPhone
-        ? 12.0
-        : isMobile
-        ? 16.h
-        : 24.0;
-    final panelRadius = isMobile ? 14.r : 14.0;
-    final suggestionGap = isMobile ? 8.h : 8.0;
-    final suggestionMaxHeight = isWideShortPhone
-        ? 150.0
-        : isMobile
-        ? 220.h
-        : (isTablet && isLandscape
-              ? 180.0
-              : isTablet
-              ? 280.0
-              : 300.0);
-    final searchPanelMaxWidth = isMobile ? double.infinity : 560.0;
-    final bottomPanelMaxWidth = isMobile ? double.infinity : 680.0;
-    final bottomPanelMargin = isMobile || isWideShortPhone
-        ? EdgeInsets.zero
-        : const EdgeInsets.all(24);
-    final bottomPanelPadding = EdgeInsets.symmetric(
-      horizontal: isWideShortPhone
-          ? 16.0
-          : isMobile
-          ? 20.w
-          : 20.0,
-      vertical: isWideShortPhone
-          ? 10.0
-          : isMobile
-          ? 16.h
-          : 14.0,
-    );
-    final bottomPanelRadius = BorderRadius.circular(
-      isMobile || isWideShortPhone ? 0 : 18.0,
-    );
+    final metrics = _MapPickerMetrics(size: MediaQuery.sizeOf(context));
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: const Text('Select Location'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context, {
-                'lat': _pickedLocation.latitude,
-                'lng': _pickedLocation.longitude,
-                'place': _placeName,
-              });
-            },
-            child: const Text(
-              'Confirm',
-              style: TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: appSecondaryBackgroundColor,
+      // No AppBar — the controls float over the map instead, so the map fills
+      // the screen and every control reads as a card above it.
       body: Stack(
         children: [
           GoogleMap(
@@ -1555,7 +1600,10 @@ class _MapPickerPageState extends State<_MapPickerPage> {
             },
             markers: _markers,
             myLocationEnabled: true,
-            myLocationButtonEnabled: true,
+            // Native grey controls are off; the floating orange my-location
+            // button drives recentering instead.
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
             onTap: (latLng) async {
               setState(() {
                 _pickedLocation = latLng;
@@ -1566,41 +1614,59 @@ class _MapPickerPageState extends State<_MapPickerPage> {
             },
           ),
           Positioned(
-            top: overlayTop,
-            left: overlayPadding,
-            right: overlayPadding,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: searchPanelMaxWidth),
-                child: Column(
-                  children: [
-                    Material(
-                      color: Colors.white,
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(panelRadius),
-                      child: _buildPlaceSearchField(
-                        isMobile: isMobile,
-                        panelRadius: panelRadius,
-                      ),
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  metrics.overlayPadding,
+                  metrics.overlayTop,
+                  metrics.overlayPadding,
+                  0,
+                ),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: metrics.searchPanelMaxWidth,
                     ),
-                    if (_canShowQuickSuggestions()) ...[
-                      SizedBox(height: suggestionGap),
-                      _buildQuickSuggestions(
-                        isMobile: isMobile,
-                        maxHeight: suggestionMaxHeight,
-                        panelRadius: panelRadius,
-                      ),
-                    ],
-                    if (_hasSubmittedSearch) ...[
-                      SizedBox(height: suggestionGap),
-                      _buildTextSearchResults(
-                        isMobile: isMobile,
-                        maxHeight: suggestionMaxHeight,
-                        panelRadius: panelRadius,
-                      ),
-                    ],
-                  ],
+                    child: Column(
+                      children: [
+                        _buildTopBar(metrics),
+                        SizedBox(height: metrics.topBarGap),
+                        Material(
+                          color: Colors.white,
+                          elevation: 4,
+                          shadowColor: Colors.black26,
+                          borderRadius: BorderRadius.circular(
+                            metrics.controlRadius,
+                          ),
+                          child: _buildPlaceSearchField(
+                            isMobile: metrics.isMobile,
+                            fieldRadius: metrics.controlRadius,
+                          ),
+                        ),
+                        if (_canShowQuickSuggestions()) ...[
+                          SizedBox(height: metrics.suggestionGap),
+                          _buildQuickSuggestions(
+                            isMobile: metrics.isMobile,
+                            maxHeight: metrics.suggestionMaxHeight,
+                            panelRadius: metrics.panelRadius,
+                          ),
+                        ],
+                        if (_hasSubmittedSearch) ...[
+                          SizedBox(height: metrics.suggestionGap),
+                          _buildTextSearchResults(
+                            isMobile: metrics.isMobile,
+                            maxHeight: metrics.suggestionMaxHeight,
+                            panelRadius: metrics.panelRadius,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1609,63 +1675,22 @@ class _MapPickerPageState extends State<_MapPickerPage> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: Padding(
-              padding: bottomPanelMargin,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: bottomPanelMaxWidth),
-                  child: Container(
-                    padding: bottomPanelPadding,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: bottomPanelRadius,
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black26, blurRadius: 8),
-                      ],
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  metrics.overlayPadding,
+                  0,
+                  metrics.overlayPadding,
+                  metrics.bottomInset,
+                ),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: metrics.bottomPanelMaxWidth,
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.orange),
-                        SizedBox(width: isMobile ? 10.w : 10.0),
-                        Expanded(
-                          child: _isGeocoding
-                              ? const SizedBox(
-                                  height: 16,
-                                  width: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  _placeName,
-                                  maxLines: isMobile ? 2 : 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                        ),
-                        IconButton(
-                          onPressed: _isFetchingCurrentLocation
-                              ? null
-                              : () => _getCurrentLocation(selectLocation: true),
-                          icon: _isFetchingCurrentLocation
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.orange,
-                                  ),
-                                )
-                              : const Icon(Icons.my_location),
-                          color: Colors.orange,
-                          tooltip: 'Use current location',
-                        ),
-                      ],
-                    ),
+                    child: _buildBottomBar(metrics),
                   ),
                 ),
               ),
@@ -1675,4 +1700,105 @@ class _MapPickerPageState extends State<_MapPickerPage> {
       ),
     );
   }
+}
+
+class _MapPickerMetrics {
+  const _MapPickerMetrics({required this.size});
+
+  final Size size;
+
+  double get width => size.width;
+  double get height => size.height;
+  bool get isMobile => Breakpoints.isMobile(width);
+  bool get isTabletDevice => Breakpoints.isTabletDevice(size);
+  bool get isWideShortPhone => Breakpoints.isWideShortPhone(size);
+  bool get isLandscape => width > height;
+  bool get isCompactLandscape =>
+      isWideShortPhone || (isLandscape && height < 520);
+
+  double get overlayPadding {
+    if (isMobile || isCompactLandscape) return 16.w;
+    return AppDimensions.padding(width);
+  }
+
+  double get overlayTop => isCompactLandscape
+      ? 10.0
+      : isMobile
+      ? 12.h
+      : 20.0;
+
+  // ── Floating controls ───────────────────────────────────────────────────
+  // Circles and pills share one height so the top row lines up. The values
+  // stay plain doubles: a circle needs the same number on both axes.
+
+  double get controlHeight {
+    if (isCompactLandscape) return 40.0;
+    if (isTabletDevice) return 52.0;
+    return 46.0;
+  }
+
+  double get controlRadius => controlHeight / 2;
+  double get controlGap => isCompactLandscape ? 8.0 : 10.0;
+  double get capsulePadding => isCompactLandscape ? 14.0 : 18.0;
+  double get backIconSize => isCompactLandscape ? 18.0 : 20.0;
+
+  double get titleTextSize {
+    if (isCompactLandscape) return 13.0;
+    if (isTabletDevice) return 16.0;
+    return 15.0;
+  }
+
+  double get topBarGap => isCompactLandscape ? 8.0 : 12.0;
+
+  /// Ceiling for the title pill so an unusually long label ellipsizes instead
+  /// of squeezing the Confirm pill off the row.
+  double get titleMaxWidth {
+    if (isCompactLandscape) return 150.0;
+    if (isTabletDevice) return 260.0;
+    return math.min(200.0, width * 0.42);
+  }
+
+  double get locationButtonSize {
+    if (isCompactLandscape) return 44.0;
+    if (isTabletDevice) return 56.0;
+    return 50.0;
+  }
+
+  double get bottomIconSize => isCompactLandscape ? 20.0 : 22.0;
+  double get bottomCapsuleRadius => isCompactLandscape ? 20.0 : 26.0;
+  double get bottomInset => isCompactLandscape ? 10.0 : 16.0;
+
+  EdgeInsets get bottomPanelPadding => EdgeInsets.symmetric(
+    horizontal: isMobile ? 18.w : 18.0,
+    vertical: isCompactLandscape
+        ? 10.0
+        : isMobile
+        ? 14.h
+        : 14.0,
+  );
+
+  // ── Search dropdown ─────────────────────────────────────────────────────
+
+  double get panelRadius => isMobile || isCompactLandscape ? 14.r : 14.0;
+  double get suggestionGap => isCompactLandscape
+      ? 6.0
+      : isMobile
+      ? 8.h
+      : 8.0;
+  double get suggestionMaxHeight {
+    final rawHeight = isMobile
+        ? 220.h
+        : isTabletDevice
+        ? 280.0
+        : 300.0;
+    final usableHeight = height - 156.0;
+    final capFraction = isLandscape ? 0.36 : 0.44;
+    return math.max(
+      96.0,
+      math.min(rawHeight, math.min(usableHeight, height * capFraction)),
+    );
+  }
+
+  double get searchPanelMaxWidth => isMobile ? double.infinity : 560.0;
+  double get bottomPanelMaxWidth => isMobile ? double.infinity : 680.0;
 }

@@ -10,8 +10,10 @@ import 'package:fudiko/components/apptextfeild.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/scanner/scanner_complete_model.dart';
-import 'package:fudiko/screens/others/nav/mainnav.dart';
 import 'package:fudiko/services/scanner_service.dart';
+import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
+import 'package:fudiko/widgets/app_shell.dart';
 import 'package:image_picker/image_picker.dart';
 
 class Scanner2 extends StatefulWidget {
@@ -131,14 +133,14 @@ class _Scanner2State extends State<Scanner2> {
   void _onSuccess(ScannerCompleteResponse data) {
     // Even when status == false (e.g. "already completed"), the backend
     // returns 200 with a message — show it, then navigate home.
-    _showSnack(data.message);
+    _showSnack(data.message, isError: !data.status);
 
     Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => MainNavPage(initialIndex: _homeTabIndex),
+          builder: (_) => AppShell(initialIndex: _homeTabIndex),
         ),
         (route) => false,
       );
@@ -151,8 +153,8 @@ class _Scanner2State extends State<Scanner2> {
     ScannerType.catering => 3,
   };
 
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _showSnack(String msg, {bool isError = true}) {
+    showStatusSnack(context, !isError, msg);
   }
 
   // ── UI ─────────────────────────────────────────────────────────────────────
@@ -270,7 +272,7 @@ class _Scanner2State extends State<Scanner2> {
                             text: "Coupon Verified!",
                             size: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.green,
+                            color: Color(0xFF00A52C),
                           ),
                           SizedBox(height: largeGap),
                           Container(
@@ -287,7 +289,8 @@ class _Scanner2State extends State<Scanner2> {
                             ),
                             child: AppTextFeild(
                               text: "Enter the Bill Amount",
-                              icon: Icons.receipt_long_outlined,
+                              // icon: Icons.receipt_long_outlined,
+                              iconImagePath: drawerDocumentIcon,
                               controller: _amountController,
                               keyboardType: TextInputType.number,
                               fieldBorderRadius: fieldRadius,
@@ -318,28 +321,34 @@ class _Scanner2State extends State<Scanner2> {
                                 ],
                               ),
                               child: AppButton(
+                                imageIcon:cameraIcon,
                                 text: 'Take a Photo of Bill',
                                 onPressed: _showChooseSource,
                                 size: 15,
-                                icon: Icons.camera_alt_sharp,
+                                // icon: Icons.camera_alt_sharp,
                                 borderRadius: fieldRadius,
+                                bgColor1: Color(0xFFF97A0D),
+                                bgColor2: Color(0xFFF97A0D),
                               ),
                             ),
                           SizedBox(height: largeGap),
-                          SizedBox(
-                            width: submitWidth,
-                            height: submitHeight,
-                            child: _isLoading
-                                ? const Center(
-                                    child: CircularProgressIndicator(),
-                                  )
-                                : AppButton(
-                                    text: 'Submit',
-                                    onPressed: _submit,
-                                    bgColor1: Colors.blue,
-                                    bgColor2: Colors.blue,
-                                    size: 16,
-                                  ),
+                          Align(
+                            alignment:AlignmentGeometry.bottomCenter,
+                            child: SizedBox(
+                              width: submitWidth,
+                              height: submitHeight,
+                              child: _isLoading
+                                  ? const Center(
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : AppButton(
+                                      text: 'OK',
+                                      onPressed: _submit,
+                                      bgColor1: Color(0xFF3F7DCE),
+                                      bgColor2: Color(0xFF3F7DCE),
+                                      size: 16,
+                                    ),
+                            ),
                           ),
                           SizedBox(height: submitBottom),
                         ],
@@ -395,7 +404,7 @@ class _BillPreview extends StatelessWidget {
             child: Image.file(File(imagePath), fit: BoxFit.cover),
           ),
         ),
-        TextButton(onPressed: onRemove, child: const Text('Remove photo')),
+        TextButton(onPressed: onRemove, child: const AppText(text:'Remove photo',color: Colors.redAccent, fontWeight: FontWeight.w400, size: 14,)),
       ],
     );
   }

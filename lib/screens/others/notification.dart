@@ -7,6 +7,8 @@ import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/notification/notification-settings-model.dart';
 import 'package:fudiko/services/notification-settings-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -61,16 +63,17 @@ class _NotificationPageState extends State<NotificationPage> {
     try {
       final success = await _service.saveSettings(_settings!);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(success ? "Settings updated" : "Failed to update"),
-        ),
+      showStatusSnack(
+        context,
+        success,
+        success ? "Settings updated" : "Failed to update",
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showErrorSnack(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error saving settings")));
+        friendlyErrorMessage(e, fallback: 'Error saving settings'),
+      );
     }
     setState(() => _isSaving = false);
   }

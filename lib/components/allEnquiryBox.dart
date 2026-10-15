@@ -10,9 +10,11 @@ import 'package:fudiko/models/banquet/all-enquiry-model.dart';
 import 'package:fudiko/screens/others/offerSendPage.dart';
 import 'package:fudiko/services/banquet-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/translator_service.dart';
 import 'package:intl/intl.dart';
 import 'package:fudiko/services/badge_controller.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class AllEnquiryBox extends StatefulWidget {
   final VoidCallback? onPressed;
@@ -36,9 +38,14 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
   Duration _remaining = Duration.zero;
   bool get _isExpired => _remaining == Duration.zero;
 
+  /// The countdown and the Offer Discount button only make sense while the
+  /// enquiry is still open — a Confirmed or Completed one has nothing left to
+  /// offer on.
+  bool get _isPending => widget.enquiry.status.trim().toLowerCase() == 'pending';
+
   String formatDate(String dateString, {String format = "MMM dd"}) {
     try {
-      DateTime date = DateTime.parse(dateString);
+      DateTime date = DateTime.parse(dateString).toLocal();
       return DateFormat(format).format(date);
     } catch (e) {
       return dateString;
@@ -47,7 +54,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
 
   String formatTime(String dateString) {
     try {
-      DateTime dateTime = DateTime.parse(dateString);
+      DateTime dateTime = DateTime.parse(dateString).toLocal();
       return DateFormat('hh:mm a').format(dateTime);
     } catch (e) {
       return dateString;
@@ -61,6 +68,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
   }
 
   void _startTimer() {
+    if (!_isPending) return;
     try {
       final format = DateFormat("yyyy-MM-dd hh:mm a");
       final expiry = format.parse(
@@ -103,28 +111,19 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
         widget.enquiry.uuid,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText(
-            text: result['message'] ?? "Saved",
-            size: 14,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+      showStatusSnack(
+        context,
+        result['status'] == true,
+        result['message'] ?? "Saved",
       );
       if (result['status'] == true) widget.onActionCompleted?.call();
       // refresh global badges when an enquiry is saved
       BadgeController.instance.refresh();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: AppText(
-            text: "Error saving enquiry",
-            size: 14,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+      showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Error saving enquiry'),
       );
     }
   }
@@ -135,14 +134,10 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
         widget.enquiry.uuid,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText(
-            text: result['message'] ?? "Deleted",
-            size: 14,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+      showStatusSnack(
+        context,
+        result['status'] == true,
+        result['message'] ?? "Deleted",
       );
       if (result['status'] == true) {
         widget.onPressed?.call();
@@ -152,14 +147,9 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: AppText(
-            text: "Error deleting enquiry",
-            size: 14,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+      showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Error deleting enquiry'),
       );
     }
   }
@@ -544,8 +534,6 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                                 size: isMobile ? 13 : 14,
                                 fontWeight: FontWeight.w400,
                                 color: appTextColor5,
-                                maxLines: isMobile ? 3 : 2,
-                                overflow: TextOverflow.ellipsis,
                                 softWrap: true,
                               ),
                             ),
@@ -745,6 +733,7 @@ class _AllEnquiryBoxState extends State<AllEnquiryBox> {
                       // ),
                     ],
                   ),
+                  if (_isPending)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [

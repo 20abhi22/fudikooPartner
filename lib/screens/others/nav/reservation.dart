@@ -2,11 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/appfilterdropdown.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/components/completedDateRangeDialog.dart';
 import 'package:fudiko/components/completedBox.dart';
+import 'package:fudiko/components/dateFilterSheet.dart';
 import 'package:fudiko/components/confirmedBox.dart';
 import 'package:fudiko/components/processingbox.dart';
 import 'package:fudiko/components/rejectedBox.dart';
@@ -25,16 +26,9 @@ import 'package:fudiko/services/offer-service.dart';
 import 'package:fudiko/services/badge_controller.dart';
 import 'package:fudiko/models/offer/offer-list-model.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tab_back_handler.dart';
-
-// Top-level helper to format a date for range display. When [other] is provided
-// and is in the same year, the year is omitted for a cleaner range like
-// "5 Jan - 15 Mar". Uses intl.DateFormat to ensure 3-letter month names.
-String formatDateForRange(DateTime date, [DateTime? other]) {
-  final dayMonth = DateFormat('d MMM').format(date);
-  if (other != null && other.year == date.year) return dayMonth;
-  return DateFormat('d MMM yyyy').format(date);
-}
+import 'package:fudiko/utils/tab_refreshable.dart';
 
 class Reservation extends StatefulWidget {
   final VoidCallback? onDrawerTap;
@@ -47,7 +41,7 @@ class Reservation extends StatefulWidget {
 
 class _ReservationState extends State<Reservation>
     with WidgetsBindingObserver
-    implements TabBackHandler {
+    implements TabBackHandler, TabRefreshable {
   String selectedStatus = "Processing";
   String _previousStatus = "Processing";
   String selectedStatusReason = "Date or Time is not available";
@@ -143,8 +137,9 @@ class _ReservationState extends State<Reservation>
     _pollingTimer = null;
   }
 
+  @override
   Future<void> refresh() async {
-    // await fetchReservations(force: true);
+    await fetchReservations(force: true);
   }
 
   Future<void> _performSearch(String query) async {
@@ -281,15 +276,12 @@ class _ReservationState extends State<Reservation>
           );
       if (!mounted) return;
 
+      showStatusSnack(context, response.status, response.message);
+
       if (response.status) {
-        SnackBar snackBar = SnackBar(content: Text(response.message));
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
         await fetchReservations();
         // refresh global badges after a successful status change
         BadgeController.instance.refresh();
-      } else {
-        SnackBar snackBar = SnackBar(content: Text(response.message));
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
       }
     } catch (_) {}
   }
@@ -306,10 +298,9 @@ class _ReservationState extends State<Reservation>
 
   Future<void> _onCallBackPressed(ReservationCancelledModel reservation) async {
     if (!_canCallBack(reservation)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Call back is available only before the event date'),
-        ),
+      showInfoSnack(
+        context,
+        'Call back is available only before the event date',
       );
       return;
     }
@@ -319,9 +310,7 @@ class _ReservationState extends State<Reservation>
     );
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(response.message)));
+    showStatusSnack(context, response.status, response.message);
 
     if (response.status) {
       await fetchReservations(force: true);
@@ -356,7 +345,7 @@ class _ReservationState extends State<Reservation>
   Future<void> _selectCompletedDateRange() async {
     final picked = await showDialog<DateTimeRange>(
       context: context,
-      builder: (context) => _CompletedDateRangeDialog(
+      builder: (context) => CompletedDateRangeDialog(
         initialStartDate: _customStartDate,
         initialEndDate: _customEndDate,
         firstDate: DateTime(2020),
@@ -374,10 +363,16 @@ class _ReservationState extends State<Reservation>
     fetchReservations(force: true);
   }
 
+  bool get _isLandscape =>
+      MediaQuery.orientationOf(context) == Orientation.landscape;
+
+  double get _keyboardInset => MediaQuery.viewInsetsOf(context).bottom;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: appSecondaryBackgroundColor,
+      resizeToAvoidBottomInset: !_isLandscape,
       body: SafeArea(
         minimum: EdgeInsets.only(top: _usesTabletLayout(context) ? 12.0 : 0.0),
         child: FutureBuilder<void>(
@@ -450,6 +445,7 @@ class _ReservationState extends State<Reservation>
                               ),
                             ),
                           _buildSelectedTabContent(),
+                          if (_isLandscape) SizedBox(height: _keyboardInset),
                         ],
                       ),
                     ),
@@ -666,6 +662,7 @@ class _ReservationState extends State<Reservation>
                 _buildTopSection(),
                 SizedBox(height: _contentGap(context)),
                 child,
+                if (_isLandscape) SizedBox(height: _keyboardInset),
               ],
             ),
           ),
@@ -735,7 +732,7 @@ class _ReservationState extends State<Reservation>
                       showReasonDialog(context, () async {
                         await changeStatus(
                           processingreservations[index].uuid,
-                          "Cancelled",
+                          "Rejected",
                         );
                       });
                     },
@@ -749,7 +746,15 @@ class _ReservationState extends State<Reservation>
                 },
               ),
             )
-          : const Center(child: Text("No Reservations Found"));
+          : Center(
+              child: AppText(
+                text: "No Reservations Found",
+                size: 15,
+                fontWeight: FontWeight.w500,
+                color: appTextColor2,
+                isCentered: true,
+              ),
+            );
     }
 
     if (selectedStatus == "Confirmed") {
@@ -810,20 +815,29 @@ class _ReservationState extends State<Reservation>
                     createdAt: confirmedreservations[index].createdAt,
                     updatedAt: confirmedreservations[index].updatedAt,
                     onRemindPressed: (reservationId) async {
-                      final messenger = ScaffoldMessenger.of(context);
                       final response = await reservationService
                           .remindReservation(reservationId);
                       if (!mounted) return;
 
-                      messenger.showSnackBar(
-                        SnackBar(content: Text(response.message)),
+                      showStatusSnack(
+                        context,
+                        response.status,
+                        response.message,
                       );
                     },
                   );
                 },
               ),
             )
-          : const Center(child: Text("No Reservations Found"));
+          : Center(
+              child: AppText(
+                text: "No Reservations Found",
+                size: 15,
+                fontWeight: FontWeight.w500,
+                color: appTextColor2,
+                isCentered: true,
+              ),
+            );
     }
 
     if (selectedStatus == "Completed") {
@@ -853,69 +867,24 @@ class _ReservationState extends State<Reservation>
                     iconImage: "assets/images/filter_icon.png",
                     icon: Icons.tune,
                     toogleDropdown: () async {
-                      await showModalBottomSheet(
-                        backgroundColor: Colors.white,
+                      await showDateFilterSheet(
                         context: context,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(25.r),
-                          ),
-                        ),
-                        builder: (context) => Padding(
-                          padding: EdgeInsets.all(20.w),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 40.w,
-                                height: 5.h,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(10.r),
-                                ),
-                              ),
-                              SizedBox(height: 16.h),
-                              for (final option in [
-                                "Last 7 days",
-                                "Last 30 days",
-                                "Last 3 months",
-                              ])
-                                ListTile(
-                                  title: AppText(
-                                    text: option,
-                                    size: 14,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                  trailing: _completedFilter == option
-                                      ? Icon(Icons.check, color: appButtonColor)
-                                      : null,
-                                  onTap: () {
-                                    setState(() {
-                                      _completedFilter = option;
-                                      _customStartDate = null;
-                                      _customEndDate = null;
-                                    });
-                                    Navigator.pop(context);
-                                    fetchReservations(force: true);
-                                  },
-                                ),
-                              ListTile(
-                                title: AppText(
-                                  text: "Custom date range",
-                                  size: 14,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                trailing: _completedFilter == "Custom"
-                                    ? Icon(Icons.check, color: appButtonColor)
-                                    : null,
-                                onTap: () async {
-                                  Navigator.pop(context);
-                                  await _selectCompletedDateRange();
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                        options: const [
+                          "Last 7 days",
+                          "Last 30 days",
+                          "Last 3 months",
+                        ],
+                        selectedValue: _completedFilter,
+                        customValue: "Custom",
+                        onOptionSelected: (option) {
+                          setState(() {
+                            _completedFilter = option;
+                            _customStartDate = null;
+                            _customEndDate = null;
+                          });
+                          fetchReservations(force: true);
+                        },
+                        onCustomTap: _selectCompletedDateRange,
                       );
                     },
                   ),
@@ -942,7 +911,15 @@ class _ReservationState extends State<Reservation>
                     },
                   ),
                 )
-              : const Center(child: Text("No Completed Reservations")),
+              : Center(
+                  child: AppText(
+                    text: "No Completed Reservations",
+                    size: 15,
+                    fontWeight: FontWeight.w500,
+                    color: appTextColor2,
+                    isCentered: true,
+                  ),
+                ),
         ],
       );
     }
@@ -968,7 +945,15 @@ class _ReservationState extends State<Reservation>
                 },
               ),
             )
-          : const Center(child: Text("No Rejected Reservations"));
+          : Center(
+              child: AppText(
+                text: "No Rejected Reservations",
+                size: 15,
+                fontWeight: FontWeight.w500,
+                color: appTextColor2,
+                isCentered: true,
+              ),
+            );
     }
 
     if (selectedStatus == "Search") {
@@ -976,7 +961,15 @@ class _ReservationState extends State<Reservation>
         return const Center(child: CircularProgressIndicator());
       }
       if (_searchDone && _searchResults.isEmpty) {
-        return const Center(child: Text("No results found"));
+        return Center(
+          child: AppText(
+            text: "No results found",
+            size: 15,
+            fontWeight: FontWeight.w500,
+            color: appTextColor2,
+            isCentered: true,
+          ),
+        );
       }
       if (_searchResults.isNotEmpty) {
         return _responsiveContent(
@@ -1780,529 +1773,18 @@ class _ReservationState extends State<Reservation>
           borderRadius: BorderRadius.all(Radius.circular(isMobile ? 15.r : 12)),
         ),
         alignment: Alignment.center,
-        child: Text(
-          reason,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: isMobile ? 12.sp : 13,
-            fontWeight: FontWeight.w500,
-            color: isSelected ? Colors.white : Colors.black,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CompletedDateRangeDialog extends StatefulWidget {
-  final DateTime? initialStartDate;
-  final DateTime? initialEndDate;
-  final DateTime firstDate;
-  final DateTime lastDate;
-
-  const _CompletedDateRangeDialog({
-    required this.initialStartDate,
-    required this.initialEndDate,
-    required this.firstDate,
-    required this.lastDate,
-  });
-
-  @override
-  State<_CompletedDateRangeDialog> createState() =>
-      _CompletedDateRangeDialogState();
-}
-
-class _CompletedDateRangeDialogState extends State<_CompletedDateRangeDialog> {
-  late DateTime _displayMonth;
-  late int _pickerYear;
-  DateTime? _startDate;
-  DateTime? _endDate;
-  bool _showMonthYearPicker = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _startDate = widget.initialStartDate;
-    _endDate = widget.initialEndDate;
-    final seedDate = _startDate ?? widget.lastDate;
-    _displayMonth = DateTime(seedDate.year, seedDate.month);
-    _pickerYear = _displayMonth.year;
-  }
-
-  void _prevMonth() {
-    final previous = DateTime(_displayMonth.year, _displayMonth.month - 1);
-    if (previous.isBefore(
-      DateTime(widget.firstDate.year, widget.firstDate.month),
-    )) {
-      return;
-    }
-    setState(() => _displayMonth = previous);
-  }
-
-  void _nextMonth() {
-    final next = DateTime(_displayMonth.year, _displayMonth.month + 1);
-    if (next.isAfter(DateTime(widget.lastDate.year, widget.lastDate.month))) {
-      return;
-    }
-    setState(() => _displayMonth = next);
-  }
-
-  void _togglePicker() {
-    setState(() {
-      _showMonthYearPicker = !_showMonthYearPicker;
-      _pickerYear = _displayMonth.year;
-    });
-  }
-
-  void _selectDate(DateTime date) {
-    setState(() {
-      if (_startDate == null || (_startDate != null && _endDate != null)) {
-        _startDate = date;
-        _endDate = null;
-        return;
-      }
-
-      if (date.isBefore(_startDate!)) {
-        _endDate = _startDate;
-        _startDate = date;
-      } else {
-        _endDate = date;
-      }
-    });
-  }
-
-  void _selectMonthYear(int month, int year) {
-    setState(() {
-      _displayMonth = DateTime(year, month);
-      _showMonthYearPicker = false;
-    });
-  }
-
-  bool _isSameMonth(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month;
-  }
-
-  bool _isDateDisabled(DateTime date) {
-    final first = DateTime(
-      widget.firstDate.year,
-      widget.firstDate.month,
-      widget.firstDate.day,
-    );
-    final last = DateTime(
-      widget.lastDate.year,
-      widget.lastDate.month,
-      widget.lastDate.day,
-    );
-    return date.isBefore(first) || date.isAfter(last);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final canApply = _startDate != null && _endDate != null;
-    final monthName = _monthName(_displayMonth.month);
-
-    return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: _showMonthYearPicker ? null : _prevMonth,
-                ),
-                GestureDetector(
-                  onTap: _togglePicker,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$monthName  ${_displayMonth.year}',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(width: 4.w),
-                      Icon(
-                        _showMonthYearPicker
-                            ? Icons.arrow_drop_up
-                            : Icons.arrow_drop_down,
-                        color: Colors.black54,
-                        size: 20.sp,
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: _showMonthYearPicker ? null : _nextMonth,
-                ),
-              ],
-            ),
-            if (_showMonthYearPicker) ...[
-              SizedBox(height: 6.h),
-              _buildMonthYearPicker(),
-            ] else ...[
-              SizedBox(height: 6.h),
-              _buildWeekdayLabels(),
-              SizedBox(height: 6.h),
-              _buildDayGrid(),
-            ],
-            SizedBox(height: 12.h),
-            _buildSelectedRangeLabel(),
-            SizedBox(height: 8.h),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10.w),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(color: Colors.black54, fontSize: 14.sp),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: canApply
-                        ? () => Navigator.pop(
-                            context,
-                            DateTimeRange(start: _startDate!, end: _endDate!),
-                          )
-                        : null,
-                    child: Text(
-                      'Apply',
-                      style: TextStyle(
-                        color: canApply ? appButtonColor : Colors.black26,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSelectedRangeLabel() {
-    final label = _startDate == null
-        ? 'Select start date'
-        : _endDate == null
-        ? 'Select end date'
-        : '${formatDateForRange(_startDate!, _endDate!)} - ${formatDateForRange(_endDate!, _startDate!)}';
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 9.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Colors.black87,
-          fontSize: 13.sp,
+        child: AppText(
+          text: reason,
+          size: isMobile ? 12 : 13,
           fontWeight: FontWeight.w500,
+          color: isSelected ? Colors.white : Colors.black,
+          isCentered: true,
         ),
       ),
     );
   }
-
-  Widget _buildMonthYearPicker() {
-    final firstYear = widget.firstDate.year;
-    final lastYear = widget.lastDate.year;
-
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left, size: 20),
-              onPressed: _pickerYear > firstYear
-                  ? () => setState(() => _pickerYear--)
-                  : null,
-            ),
-            GestureDetector(
-              onTap: () => _showYearScrollPicker(context),
-              child: Text(
-                '$_pickerYear',
-                style: TextStyle(
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w600,
-                  color: appButtonColor,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right, size: 20),
-              onPressed: _pickerYear < lastYear
-                  ? () => setState(() => _pickerYear++)
-                  : null,
-            ),
-          ],
-        ),
-        SizedBox(height: 8.h),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 12,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 2.2,
-          ),
-          itemBuilder: (context, index) {
-            final month = index + 1;
-            final monthDate = DateTime(_pickerYear, month);
-            final isSelected = _isSameMonth(monthDate, _displayMonth);
-            final isDisabled =
-                monthDate.isBefore(
-                  DateTime(widget.firstDate.year, widget.firstDate.month),
-                ) ||
-                monthDate.isAfter(
-                  DateTime(widget.lastDate.year, widget.lastDate.month),
-                );
-
-            return GestureDetector(
-              onTap: isDisabled
-                  ? null
-                  : () => _selectMonthYear(month, _pickerYear),
-              child: Container(
-                height: 50.h,
-                decoration: BoxDecoration(
-                  color: isSelected ? appButtonColor : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8.r),
-                  border: Border.all(
-                    color: isSelected ? appButtonColor : Colors.black12,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    _shortMonth(month),
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white
-                          : isDisabled
-                          ? Colors.black26
-                          : Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-        SizedBox(height: 8.h),
-      ],
-    );
-  }
-
-  void _showYearScrollPicker(BuildContext context) {
-    final years = List.generate(
-      widget.lastDate.year - widget.firstDate.year + 1,
-      (index) => widget.firstDate.year + index,
-    );
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
-      ),
-      builder: (_) => SizedBox(
-        height: 250.h,
-        child: ListView.builder(
-          itemCount: years.length,
-          itemBuilder: (context, index) {
-            final year = years[index];
-            final isSelected = year == _pickerYear;
-            return ListTile(
-              onTap: () {
-                setState(() => _pickerYear = year);
-                Navigator.pop(context);
-              },
-              title: Center(
-                child: Text(
-                  '$year',
-                  style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                    color: isSelected ? appButtonColor : Colors.black87,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWeekdayLabels() {
-    return Container(
-      color: const Color(0xFFF5F7FA),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-            .map(
-              (day) => SizedBox(
-                width: 36.w,
-                child: Center(
-                  child: Text(
-                    day,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildDayGrid() {
-    final today = DateTime.now();
-    final daysInMonth = DateUtils.getDaysInMonth(
-      _displayMonth.year,
-      _displayMonth.month,
-    );
-    final firstWeekday =
-        DateTime(_displayMonth.year, _displayMonth.month, 1).weekday % 7;
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: firstWeekday + daysInMonth,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 0,
-        childAspectRatio: 1,
-      ),
-      itemBuilder: (context, index) {
-        if (index < firstWeekday) return const SizedBox();
-
-        final day = index - firstWeekday + 1;
-        final date = DateTime(_displayMonth.year, _displayMonth.month, day);
-        final isDisabled = _isDateDisabled(date);
-        final isStart =
-            _startDate != null && DateUtils.isSameDay(date, _startDate);
-        final isEnd = _endDate != null && DateUtils.isSameDay(date, _endDate);
-        final isSelected = isStart || isEnd;
-        final isToday = DateUtils.isSameDay(date, today);
-        final isInRange =
-            _startDate != null &&
-            _endDate != null &&
-            date.isAfter(_startDate!) &&
-            date.isBefore(_endDate!);
-
-        return GestureDetector(
-          onTap: isDisabled ? null : () => _selectDate(date),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 34.w,
-                height: 32.w,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? appButtonColor
-                      : isInRange
-                      ? appButtonColor.withValues(alpha: 0.14)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Center(
-                  child: Text(
-                    '$day',
-                    style: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: isSelected || isToday
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                      color: isSelected
-                          ? Colors.white
-                          : isDisabled
-                          ? Colors.black26
-                          : Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 2.h),
-              isToday
-                  ? Container(
-                      width: 5.w,
-                      height: 5.w,
-                      decoration: const BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                      ),
-                    )
-                  : SizedBox(height: 5.w),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // _shortDate removed: use top-level formatDateForRange for consistent formatting.
-
-  // removed duplicate _formatDateForRange in favor of top-level formatDateForRange
-
-  String _monthName(int month) => const [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ][month - 1];
-
-  String _shortMonth(int month) => const [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ][month - 1];
 }
+
 
 class _StatusTabPosition {
   final int row;
@@ -2431,28 +1913,31 @@ class _AnimatedSearchField extends StatelessWidget {
                       opacity: isExpanded ? 1 : 0,
                       child: IgnorePointer(
                         ignoring: !isExpanded,
-                        child: TextField(
-                          autofocus: isExpanded,
-                          controller: controller,
-                          cursorColor: appTextColor,
-                          keyboardType: TextInputType.text,
-                          onChanged: onChanged,
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: fieldTextSize,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: "Coupon Number",
-                            hintStyle: TextStyle(
-                              color: Colors.grey,
+                        child: TranslatedBuilder(
+                          text: "Coupon Number",
+                          builder: (context, hintText) => TextField(
+                            autofocus: isExpanded,
+                            controller: controller,
+                            cursorColor: appTextColor,
+                            keyboardType: TextInputType.text,
+                            onChanged: onChanged,
+                            style: TextStyle(
+                              color: Colors.black87,
                               fontSize: fieldTextSize,
                               fontWeight: FontWeight.w400,
                             ),
-                            border: InputBorder.none,
-                            isCollapsed: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              vertical: fieldVerticalPadding,
+                            decoration: InputDecoration(
+                              hintText: hintText,
+                              hintStyle: TextStyle(
+                                color: Colors.grey,
+                                fontSize: fieldTextSize,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              border: InputBorder.none,
+                              isCollapsed: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: fieldVerticalPadding,
+                              ),
                             ),
                           ),
                         ),

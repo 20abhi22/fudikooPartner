@@ -26,7 +26,7 @@ class RejectedBox extends StatelessWidget {
 
   String formatDate(String dateString, {String format = "MMM dd"}) {
     try {
-      DateTime date = DateTime.parse(dateString);
+      DateTime date = DateTime.parse(dateString).toLocal();
       return DateFormat(format).format(date);
     } catch (e) {
       return dateString;
@@ -35,7 +35,7 @@ class RejectedBox extends StatelessWidget {
 
   String formatTime(String dateString) {
     try {
-      DateTime dateTime = DateTime.parse(dateString);
+      DateTime dateTime = DateTime.parse(dateString).toLocal();
       return DateFormat('hh:mm a').format(dateTime);
     } catch (e) {
       return dateString;

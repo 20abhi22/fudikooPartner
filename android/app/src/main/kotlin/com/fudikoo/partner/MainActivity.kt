@@ -1,4 +1,4 @@
-package com.example.fudiko
+package com.fudikoo.partner
 
 import io.flutter.embedding.android.FlutterActivity
 

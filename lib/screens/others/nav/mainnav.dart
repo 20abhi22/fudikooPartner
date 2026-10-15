@@ -26,10 +26,15 @@ import 'package:fudiko/screens/others/scanner.dart';
 import 'package:fudiko/screens/others/scanner2.dart';
 import 'package:fudiko/screens/others/services.dart';
 import 'package:fudiko/screens/others/totalOrders.dart';
+import 'package:fudiko/services/badge_controller.dart';
+import 'package:fudiko/services/device-token-service.dart';
 import 'package:fudiko/services/profile-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tab_back_handler.dart';
+import 'package:fudiko/utils/tab_refreshable.dart';
 import 'package:fudiko/utils/tokens.dart';
+import 'package:fudiko/utils/translator_service.dart';
 
 class MainNavPage extends StatefulWidget {
   final int initialIndex;
@@ -54,19 +59,27 @@ class _MainNavPageState extends State<MainNavPage> {
   bool _banquetEnabled = true;
   bool _cateringEnabled = true;
   bool _takeawayEnabled = true;
+  int? _pendingRefreshTab;
 
   @override
   void initState() {
     super.initState();
     currentIndex = widget.initialIndex;
     _fetchProfile();
+    // Listener only, no subscribe(): the bottom bar keeps the poll alive, and
+    // this just gives a popup-blocked refresh another chance each tick.
+    BadgeController.instance.addListener(_flushPendingRefresh);
+  }
+
+  @override
+  void dispose() {
+    BadgeController.instance.removeListener(_flushPendingRefresh);
+    super.dispose();
   }
 
   void onTabChanged(int index) {
     if (!_isTabEnabled(index)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_tabLabel(index)} is disabled in Services')),
-      );
+      showInfoSnack(context, '${_tabLabel(index)} is disabled in Services');
       return;
     }
     setState(() {
@@ -117,10 +130,45 @@ class _MainNavPageState extends State<MainNavPage> {
     }
   }
 
+  /// Reloads one tab.
+  ///
+  /// Held back while a dialog or bottom sheet covers the shell: reloading the
+  /// list underneath would pull the ground out from under whatever the partner
+  /// has open. The reload runs on the next badge poll once the popup is gone.
+  /// Tabs with their own inline overlays apply the same rule in `refresh()`.
+  void _refreshTab(int index) {
+    if (_isPopupOpen) {
+      _pendingRefreshTab = index;
+      return;
+    }
+
+    _pendingRefreshTab = null;
+    final tabState = _tabKeys[index].currentState;
+    if (tabState is TabRefreshable) {
+      (tabState as TabRefreshable).refresh();
+    }
+  }
+
+  /// True while a route (dialog, bottom sheet, pushed page) sits above the
+  /// shell.
+  bool get _isPopupOpen => ModalRoute.of(context)?.isCurrent == false;
+
+  /// Retries a refresh that a popup blocked. Driven by the badge poll, so it
+  /// gets a chance every tick until the popup closes.
+  void _flushPendingRefresh() {
+    final pending = _pendingRefreshTab;
+    if (pending == null || _isPopupOpen) return;
+    if (pending != currentIndex) {
+      _pendingRefreshTab = null;
+      return;
+    }
+    _refreshTab(pending);
+  }
+
   bool _isTabEnabled(int index) {
     if (index == 1) return _banquetEnabled;
     if (index == 3) return _cateringEnabled;
-    if (index == 4) return _takeawayEnabled;
+    // Take Away stays reachable when off; it shows a Coming Soon page.
     return true;
   }
 
@@ -178,6 +226,7 @@ class _MainNavPageState extends State<MainNavPage> {
       ),
       TakeAway(
         key: _tabKeys[4],
+        isEnabled: _takeawayEnabled,
         onDrawerTap: () {
           setState(() {
             isDrawerOpen = !isDrawerOpen;
@@ -241,6 +290,8 @@ class _MainNavPageState extends State<MainNavPage> {
                     banquetEnabled: _banquetEnabled,
                     cateringEnabled: _cateringEnabled,
                     takeawayEnabled: _takeawayEnabled,
+                    // A bumped badge on the open tab means its list is stale.
+                    onSelectedTabBadgeChanged: () => _refreshTab(currentIndex),
                   ),
                 ],
               ),
@@ -554,9 +605,7 @@ class _MainNavPageState extends State<MainNavPage> {
     }
 
     _lastBackPressedAt = now;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Press back again to exit')));
+    showInfoSnack(context, 'Press back again to exit');
   }
 
   // (double, double) _scannerOffset(double width) {
@@ -773,12 +822,15 @@ Widget _scannerButton() {
         Future.delayed(Duration(milliseconds: 100), () async {
           if (routeWidget != null) {
             if (routeWidget is Login) {
+              await DeviceTokenService().unregisterDeviceToken();
+              await removeToken();
+              // Reset before showing Login so it renders in English.
+              await TranslatorService.setLanguage('en');
               if (!mounted) return;
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => routeWidget),
               );
-              await removeToken();
             } else {
               if (!mounted) return;
               await Navigator.push(

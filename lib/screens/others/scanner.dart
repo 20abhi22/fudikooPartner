@@ -1,15 +1,32 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:fudiko/api/api_config.dart';
 import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/services/scanner_service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:fudiko/screens/others/scanner2.dart';
+
+/// Explicit camera lifecycle states. Replaces the old combination of
+/// `_isScanning` / `_isResolvingCode` bools, which could disagree with
+/// each other and leave the UI stuck on the built-in mobile_scanner
+/// error icon with no way to recover.
+enum _CameraState {
+  idle, // showing the "tap to scan" placeholder
+  starting, // start() in flight
+  scanning, // camera live, actively detecting
+  resolving, // a code was found and is being verified with the backend
+  permissionDenied,
+  error,
+}
 
 class Scanner extends StatefulWidget {
   final ScannerType scannerType;
@@ -20,123 +37,230 @@ class Scanner extends StatefulWidget {
   State<Scanner> createState() => _ScannerState();
 }
 
-class _ScannerState extends State<Scanner> {
+class _ScannerState extends State<Scanner> with WidgetsBindingObserver {
   static const String _allowedQrUrlPrefix =
-      'https://fudikko.bitwissenddev.in/api/';
+      '${ApiConfig.baseUrl}/';
 
-  final MobileScannerController _controller = MobileScannerController();
   final ScannerVerificationService _verificationService =
       ScannerVerificationService();
-  bool _isScanning = false;
+
+  MobileScannerController? _controller;
+  _CameraState _cameraState = _CameraState.idle;
   bool _torchOn = false;
-  bool _isResolvingCode = false;
-  String? _scannedCode;
-  _ScanPayload? _scanPayload;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _controller?.dispose();
     super.dispose();
   }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final controller = _controller;
+    if (controller == null) return;
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      if (controller.value.isRunning) {
+        controller.stop();
+        if (mounted && _cameraState == _CameraState.scanning) {
+          setState(() => _cameraState = _CameraState.idle);
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Camera lifecycle
+  // ---------------------------------------------------------------------
+
+  Future<void> _startScanning() async {
+    if (_cameraState == _CameraState.starting ||
+        _cameraState == _CameraState.scanning) {
+      return;
+    }
+
+    setState(() {
+      _cameraState = _CameraState.starting;
+      _errorMessage = null;
+    });
+
+    // mobile_scanner leaves a blank preview if start() is called again on
+    // a controller that was previously stopped, so every scan attempt
+    // gets a freshly created controller.
+final oldController = _controller;
+final newController = MobileScannerController(autoStart: false); // <-- key change
+_controller = newController;
+
+if (oldController != null) {
+  try { await oldController.stop(); } catch (_) {}
+  try { await oldController.dispose(); } catch (_) {}
+}
+
+try {
+  await newController.start(); // <-- uncommented, now safe
+  if (!mounted) return;
+  setState(() {
+    _cameraState = _CameraState.scanning;
+    _torchOn = false;
+  });
+} on MobileScannerException catch (e) {
+  if (!mounted) return;
+  setState(() {
+    _cameraState = e.errorCode == MobileScannerErrorCode.permissionDenied
+        ? _CameraState.permissionDenied
+        : _CameraState.error;
+    _errorMessage = _messageForError(e);
+  });
+} catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _cameraState = _CameraState.error;
+        _errorMessage = 'Could not start the camera. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _stopScanning() async {
+    final controller = _controller;
+    if (controller == null) return;
+    try {
+      await controller.stop();
+    } catch (_) {
+      // Already stopped/disposed — nothing to do.
+    }
+  }
+
+  String _messageForError(MobileScannerException e) {
+    switch (e.errorCode) {
+      case MobileScannerErrorCode.permissionDenied:
+        return 'Camera access is denied. Enable it in Settings to scan a QR code.';
+      case MobileScannerErrorCode.unsupported:
+        return 'Scanning is not supported on this device.';
+      default:
+        return e.errorDetails?.message ??
+            'Something went wrong opening the camera.';
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Scanning / verification
+  // ---------------------------------------------------------------------
 
   Future<void> _pickFromGallery() async {
     final XFile? image = await ImagePicker().pickImage(
       source: ImageSource.gallery,
     );
-    if (image == null) return;
+    if (image == null || !mounted) return;
 
-    final result = await _controller.analyzeImage(image.path);
-    if (result == null || result.barcodes.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No QR code found in image")),
-      );
+    // Stop the live camera (if running) so a live detection can't race
+    // with the code we're about to resolve from the picked image.
+    await _stopScanning();
+    if (!mounted) return;
+
+    _controller ??= MobileScannerController();
+    final controller = _controller!;
+
+    setState(() => _cameraState = _CameraState.resolving);
+
+    BarcodeCapture? result;
+    try {
+      result = await controller.analyzeImage(image.path);
+    } catch (_) {
+      result = null;
+    }
+    if (!mounted) return;
+
+    final code = (result?.barcodes.isNotEmpty ?? false)
+        ? result!.barcodes.first.rawValue
+        : null;
+
+    if (code == null) {
+      setState(() => _cameraState = _CameraState.idle);
+      showErrorSnack(context, 'No QR code found in image');
       return;
     }
 
-    final code = result.barcodes.first.rawValue;
-    if (code != null) {
-      await _handleScannedCode(code);
-    }
+    await _handleScannedCode(code);
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (_scannedCode != null || _isResolvingCode) return;
-    // firstOrNull requires package:collection — use isNotEmpty instead
-    final barcode = capture.barcodes.isNotEmpty ? capture.barcodes.first : null;
-    if (barcode?.rawValue != null) {
-      _controller.stop();
-      _handleScannedCode(barcode!.rawValue!);
-    }
+    if (_cameraState != _CameraState.scanning) return;
+    final barcode =
+        capture.barcodes.isNotEmpty ? capture.barcodes.first : null;
+    final value = barcode?.rawValue;
+    if (value == null) return;
+
+    // Flip state synchronously so a burst of frames arriving before the
+    // controller actually stops can't trigger this twice.
+    setState(() => _cameraState = _CameraState.resolving);
+    unawaited(_processDetectedCode(value));
   }
 
-  Future<bool> _handleScannedCode(String code) async {
-    setState(() => _isResolvingCode = true);
-
-    final payload = await _resolveScanPayload(code);
-
-    if (!mounted) return false;
-    setState(() => _isResolvingCode = false);
-
-    if (payload == null) {
-      if (_isScanning) await _controller.start();
-      if (!mounted) return false;
-      setState(() => _scannedCode = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Invalid QR code. Please scan a Fudikko QR code."),
-        ),
-      );
-      return false;
-    }
-
-    setState(() {
-      _scannedCode = code;
-      _scanPayload = payload;
-    });
-    _showResultDialog(payload);
-    return true;
+  Future<void> _processDetectedCode(String code) async {
+    await _stopScanning();
+    if (!mounted) return;
+    await _handleScannedCode(code);
   }
 
-  Future<_ScanPayload?> _resolveScanPayload(String code) async {
+  Future<void> _handleScannedCode(String code) async {
     final verificationUrl = _verificationUrlFromQrCode(code);
-    if (verificationUrl != null) {
-      final result = await _verificationService.verify(verificationUrl);
-      switch (result) {
-        case ScannerVerifySuccess(:final data):
-          return _ScanPayload.fromVerifiedJson(
-            data,
-            fallbackType: widget.scannerType,
-          );
-        case ScannerVerifyFailure(:final message):
-          if (!mounted) return null;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(message)));
-          return null;
-      }
+    if (verificationUrl == null) {
+      if (!mounted) return;
+      setState(() => _cameraState = _CameraState.idle);
+      _showRejectionDialog('Invalid QR code. Please scan a Fudikko QR code.');
+      return;
     }
 
-    return null;
+    // Loading indicator (resolving state) stays up for the entire network
+    // round trip; the confirmation/rejection dialog only appears once the
+    // verify call has actually returned.
+    final result = await _verificationService.verify(verificationUrl);
+    if (!mounted) return;
+    setState(() => _cameraState = _CameraState.idle);
+
+    switch (result) {
+      case ScannerVerifySuccess(:final data):
+        final payload = _ScanPayload.fromVerifiedJson(
+          data,
+          fallbackType: widget.scannerType,
+        );
+        if (payload == null) {
+          _showRejectionDialog(
+            'Invalid QR code. Please scan a Fudikko QR code.',
+          );
+          return;
+        }
+        _showResultDialog(payload);
+      case ScannerVerifyFailure(:final message):
+        _showRejectionDialog(message);
+    }
   }
 
   String? _verificationUrlFromQrCode(String code) {
     final trimmed = code.trim();
-    final uri = Uri.tryParse(trimmed);
-    if (uri != null && _isAllowedFudikkoApiUrl(trimmed)) {
-      return trimmed;
-    }
+    if (_isAllowedFudikkoApiUrl(trimmed)) return trimmed;
 
     try {
       final decoded = jsonDecode(trimmed);
       if (decoded is Map) {
-        final verificationUrl = decoded['verification_url']?.toString().trim();
+        final verificationUrl =
+            decoded['verification_url']?.toString().trim();
         if (verificationUrl != null &&
             _isAllowedFudikkoApiUrl(verificationUrl)) {
           return verificationUrl;
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Not JSON — fall through to null.
+    }
 
     return null;
   }
@@ -145,9 +269,13 @@ class _ScannerState extends State<Scanner> {
     final uri = Uri.tryParse(value);
     return uri != null &&
         uri.scheme == 'https' &&
-        uri.host == 'fudikko.bitwissenddev.in' &&
+        uri.host == ApiConfig.host &&
         value.startsWith(_allowedQrUrlPrefix);
   }
+
+  // ---------------------------------------------------------------------
+  // UI
+  // ---------------------------------------------------------------------
 
   void _showResultDialog(_ScanPayload payload) {
     showDialog(
@@ -204,7 +332,7 @@ class _ScannerState extends State<Scanner> {
                   Icon(Icons.check_circle, color: Colors.green, size: iconSize),
                   SizedBox(height: gap16),
                   AppText(
-                    text: "Coupon Scanned!",
+                    text: 'Coupon Scanned!',
                     size: 18,
                     fontWeight: FontWeight.w700,
                     color: Colors.black,
@@ -223,43 +351,130 @@ class _ScannerState extends State<Scanner> {
                     children: [
                       Expanded(
                         child: TextButton(
-                          onPressed: () async {
+                          onPressed: () {
                             Navigator.pop(context);
-                            setState(() {
-                              _scannedCode = null;
-                              _scanPayload = null;
-                            });
-                            await _controller.start();
+                            _startScanning();
                           },
-                          child: Text(
-                            "Scan Again",
-                            style: TextStyle(color: appButtonColor),
+                          child: AppText(
+                            text:'Scan Again',
+                            color: appButtonColor,
+                            fontWeight: FontWeight.w400,
+                            size: 14,
                           ),
                         ),
                       ),
                       Expanded(
                         child: TextButton(
                           onPressed: () {
-                            final scan = _scanPayload;
-                            if (scan == null) return;
                             Navigator.pop(context);
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => Scanner2(
-                                  reservationId: scan.reservationUuid,
-                                  scannerType: scan.scannerType,
+                                  reservationId: payload.reservationUuid,
+                                  scannerType: payload.scannerType,
                                 ),
                               ),
                             );
                           },
-                          child: const Text(
-                            "Done",
-                            style: TextStyle(color: Colors.green),
+                          child: const AppText(
+                            text: 'Done',
+                            color: Colors.green,
+                            size: 14,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
                     ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showRejectionDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final screenSize = MediaQuery.sizeOf(context);
+        final isWideShortPhone = _isWideShortPhone(screenSize);
+        final isMobile =
+            Breakpoints.isMobileDevice(screenSize) && !isWideShortPhone;
+        final radius = isWideShortPhone
+            ? 16.0
+            : isMobile
+            ? 16.r
+            : 16.0;
+        final padding = isWideShortPhone
+            ? 24.0
+            : isMobile
+            ? 24.w
+            : 24.0;
+        final iconSize = isWideShortPhone
+            ? 48.0
+            : isMobile
+            ? 50.w
+            : 48.0;
+        final gap16 = isWideShortPhone
+            ? 16.0
+            : isMobile
+            ? 16.h
+            : 16.0;
+        final gap24 = isWideShortPhone
+            ? 24.0
+            : isMobile
+            ? 24.h
+            : 24.0;
+
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: EdgeInsets.all(padding),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.cancel, color: Colors.red, size: iconSize),
+                  SizedBox(height: gap16),
+                  AppText(
+                    text: 'Verification Failed',
+                    size: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                    isCentered: true,
+                  ),
+                  SizedBox(height: gap16 / 2),
+                  AppText(
+                    text: message,
+                    size: 14,
+                    fontWeight: FontWeight.w500,
+                    color: appTextColor2,
+                    isCentered: true,
+                  ),
+                  SizedBox(height: gap24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _startScanning();
+                      },
+                      child: AppText(
+                        text: 'Try Again',
+                        color: appButtonColor,
+                        fontWeight: FontWeight.w400,
+                        size: 14,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -276,9 +491,7 @@ class _ScannerState extends State<Scanner> {
     return double.infinity;
   }
 
-  bool _isWideShortPhone(Size size) {
-    return Breakpoints.isWideShortPhone(size);
-  }
+  bool _isWideShortPhone(Size size) => Breakpoints.isWideShortPhone(size);
 
   EdgeInsets _contentPadding(Size size) {
     final isMobile = Breakpoints.isMobileDevice(size);
@@ -288,6 +501,104 @@ class _ScannerState extends State<Scanner> {
           : isMobile
           ? 30.w
           : AppDimensions.padding(size.width),
+    );
+  }
+
+  Widget _cameraArea(bool shouldRotate) {
+    final controller = _controller;
+    final showLiveCamera =
+        controller != null &&
+        (_cameraState == _CameraState.scanning ||
+            (_cameraState == _CameraState.resolving &&
+                controller.value.isRunning));
+
+    if (showLiveCamera) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          RotatedBox(
+            quarterTurns: shouldRotate ? 3 : 0,
+            child: MobileScanner(
+              key: ValueKey(controller),
+              controller: controller,
+              onDetect: _onDetect,
+              // NOTE: if your installed mobile_scanner version expects
+              // `(context, error, child)`, add a third `Widget? child`
+              // parameter here.
+              errorBuilder: (context, error, child) {
+  return _cameraErrorView(_messageForError(error));
+},
+            ),
+          ),
+          if (_cameraState == _CameraState.resolving)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
+        ],
+      );
+    }
+
+    switch (_cameraState) {
+      case _CameraState.permissionDenied:
+      case _CameraState.error:
+        return _cameraErrorView(_errorMessage);
+      case _CameraState.starting:
+      case _CameraState.resolving:
+        return const ColoredBox(
+          color: Colors.black,
+          child: Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          ),
+        );
+      case _CameraState.idle:
+      case _CameraState.scanning:
+        return GestureDetector(
+          onTap: _startScanning,
+          child: Image.asset('assets/images/scanner.png', fit: BoxFit.contain),
+        );
+    }
+  }
+
+  Widget _cameraErrorView(String? message) {
+    final isPermissionIssue = _cameraState == _CameraState.permissionDenied;
+    return ColoredBox(
+      color: Colors.black,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isPermissionIssue ? Icons.no_photography : Icons.error_outline,
+              color: Colors.white70,
+              size: 28,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message ?? 'Camera unavailable',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
+                if (isPermissionIssue) {
+                  openAppSettings();
+                } else {
+                  _startScanning();
+                }
+              },
+              child: Text(
+                isPermissionIssue ? 'Open Settings' : 'Retry',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -344,6 +655,15 @@ class _ScannerState extends State<Scanner> {
         : isMobile
         ? 40.w
         : 38.0;
+
+    final statusText = switch (_cameraState) {
+      _CameraState.resolving => 'Verifying coupon...',
+      _CameraState.scanning => 'Point camera at QR code',
+      _CameraState.starting => 'Opening camera...',
+      _CameraState.permissionDenied => 'Camera access needed',
+      _CameraState.error => 'Camera unavailable',
+      _CameraState.idle => 'Tap to start scanning',
+    };
 
     return Scaffold(
       backgroundColor: const Color(0xFF545450),
@@ -408,34 +728,12 @@ class _ScannerState extends State<Scanner> {
                                   borderRadius: BorderRadius.circular(
                                     clipRadius,
                                   ),
-                                  child: _isScanning
-                                      ? RotatedBox(
-                                          quarterTurns:
-                                              shouldRotateCameraPreview ? 3 : 0,
-                                          child: MobileScanner(
-                                            controller: _controller,
-                                            onDetect: _onDetect,
-                                          ),
-                                        )
-                                      : GestureDetector(
-                                          onTap: () async {
-                                            setState(() => _isScanning = true);
-                                            await _controller.start();
-                                          },
-                                          child: Image.asset(
-                                            'assets/images/scanner.png',
-                                            fit: BoxFit.contain,
-                                          ),
-                                        ),
+                                  child: _cameraArea(shouldRotateCameraPreview),
                                 ),
                               ),
                               SizedBox(height: statusGap),
                               AppText(
-                                text: _isResolvingCode
-                                    ? "Verifying coupon..."
-                                    : _isScanning
-                                    ? "Point camera at QR code"
-                                    : "Tap to start scanning",
+                                text: statusText,
                                 size: 16,
                                 fontWeight: FontWeight.w300,
                                 color: Colors.white,
@@ -443,7 +741,7 @@ class _ScannerState extends State<Scanner> {
                               ),
                               SizedBox(height: labelGap),
                               AppText(
-                                text: "coupon here",
+                                text: 'coupon here',
                                 size: 16,
                                 fontWeight: FontWeight.w300,
                                 color: Colors.white,
@@ -463,15 +761,27 @@ class _ScannerState extends State<Scanner> {
                                   ),
                                   SizedBox(width: toolGap),
                                   GestureDetector(
-                                    onTap: () {
-                                      _controller.toggleTorch();
-                                      setState(() => _torchOn = !_torchOn);
-                                    },
+                                    onTap: _cameraState == _CameraState.scanning
+                                        ? () {
+                                            final controller = _controller;
+                                            if (controller == null) return;
+                                            try {
+                                              controller.toggleTorch();
+                                              setState(
+                                                () => _torchOn = !_torchOn,
+                                              );
+                                            } catch (_) {
+                                              // Torch unsupported — ignore.
+                                            }
+                                          }
+                                        : null,
                                     child: Image.asset(
                                       flashIcon,
                                       width: toolIconSize,
                                       fit: BoxFit.contain,
-                                      color: _torchOn
+                                      color: _cameraState != _CameraState.scanning
+                                          ? Colors.white38
+                                          : _torchOn
                                           ? Colors.yellow
                                           : Colors.white,
                                     ),

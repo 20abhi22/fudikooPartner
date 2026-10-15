@@ -4,6 +4,7 @@ import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/models/otp/otp-model.dart';
 import 'package:fudiko/models/otp/otp-response-model.dart';
 import 'package:fudiko/models/otp/otp-verified-response-model.dart';
+import 'package:fudiko/utils/error_messages.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class OtpService{
@@ -24,14 +25,20 @@ class OtpService{
       }else{
         return OtpResponseModel(
           status: false,
-          message: 'Otp send failed: ${response.statusCode}',
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: 'We could not send the OTP. Please try again.',
+          ),
           otp: null,
         );
       }
     }catch(e){
       return OtpResponseModel(
         status: false,
-        message: 'Something went wrong: $e',
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'We could not send the OTP. Please try again.',
+        ),
         otp: null
       );
     }
@@ -50,13 +57,19 @@ class OtpService{
         return OtpVerifiedResponseModel.fromJson(response.data);
       }else{
         return OtpVerifiedResponseModel(
-          message: 'Otp verification failed: ${response.statusCode}',
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: 'We could not verify that OTP. Please try again.',
+          ),
           status: false
         );
       }
     }catch(e){
       return OtpVerifiedResponseModel(
-        message: 'Something went wrong: $e',
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'We could not verify that OTP. Please try again.',
+        ),
         status: false
       );
     }

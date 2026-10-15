@@ -4,6 +4,7 @@ import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/menu_formatter.dart';
 import 'package:intl/intl.dart';
 
 class BanquetCompletedBox extends StatelessWidget {
@@ -33,7 +34,7 @@ class BanquetCompletedBox extends StatelessWidget {
   String _formatDate(String? rawDate, {String format = "MMM dd"}) {
     if (rawDate == null || rawDate.trim().isEmpty) return "Loading...";
 
-    final parsed = DateTime.tryParse(rawDate);
+    final parsed = DateTime.tryParse(rawDate)?.toLocal();
     if (parsed != null) return DateFormat(format).format(parsed);
 
     for (final pattern in ["yyyy-MM-dd", "dd-MM-yyyy", "MM/dd/yyyy"]) {
@@ -50,7 +51,7 @@ class BanquetCompletedBox extends StatelessWidget {
   String _formatTime(String? rawTime) {
     if (rawTime == null || rawTime.trim().isEmpty) return "Loading...";
 
-    final parsed = DateTime.tryParse(rawTime);
+    final parsed = DateTime.tryParse(rawTime)?.toLocal();
     if (parsed != null) return DateFormat('hh:mm a').format(parsed);
 
     for (final pattern in ["HH:mm:ss", "HH:mm", "hh:mm a", "h:mm a"]) {
@@ -76,9 +77,10 @@ class BanquetCompletedBox extends StatelessWidget {
         ? estimatedAmount.trim()
         : "Loading...";
     final offerText = _offerText();
-    final menuText = menuItems.trim().isEmpty
+    final formattedMenu = formatMenuItems(menuItems);
+    final menuText = formattedMenu.isEmpty
         ? "Menu not specified"
-        : menuItems.trim();
+        : formattedMenu;
     final formattedFullDate = _formatDate(date, format: "MMMM dd");
     final fullDate = "$formattedFullDate - ${_formatTime(time).toLowerCase()}";
 
@@ -174,7 +176,7 @@ class BanquetCompletedBox extends StatelessWidget {
             _InfoRow(
               iconPath: menuIcon,
               text: menuText,
-              maxLines: isMobile ? 3 : 2,
+              maxLines: null,
               isMobile: isMobile,
             ),
           ],
@@ -200,7 +202,7 @@ class _InfoRow extends StatelessWidget {
   final String iconPath;
   final String text;
   final String? boldPrefix;
-  final int maxLines;
+  final int? maxLines;
   final bool isMobile;
 
   const _InfoRow({
@@ -241,7 +243,7 @@ class _InfoRow extends StatelessWidget {
     return AppText(
       text: text,
       maxLines: maxLines,
-      overflow: TextOverflow.ellipsis,
+      overflow: maxLines != null ? TextOverflow.ellipsis : null,
       size: 14,
       color: offerPageTextColor,
       fontWeight: boldPrefix == null || !text.startsWith(boldPrefix!)

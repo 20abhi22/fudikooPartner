@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fudiko/components/appbutton.dart';
+import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart' as loc;
@@ -94,9 +96,7 @@ class _LocationSelectState extends State<LocationSelect> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Location not found: $query")));
+      showErrorSnack(context, "Location not found: $query");
     }
   }
 
@@ -122,19 +122,22 @@ class _LocationSelectState extends State<LocationSelect> {
               // Search bar
               Padding(
                 padding: const EdgeInsets.only(left: 20, right: 70, top: 30),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: "Search Location",
-                    filled: true,
-                    fillColor: Colors.white,
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                child: TranslatedBuilder(
+                  text: "Search Location",
+                  builder: (context, hintText) => TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      filled: true,
+                      fillColor: Colors.white,
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
+                    onSubmitted: (_) => _searchLocation(),
                   ),
-                  onSubmitted: (_) => _searchLocation(),
                 ),
               ),
               Positioned(
@@ -153,7 +156,7 @@ class _LocationSelectState extends State<LocationSelect> {
                 child: FloatingActionButton(
                   backgroundColor: Colors.white,
                   onPressed: _goToCurrentLocation,
-                  child: const Icon(Icons.my_location, color: Colors.black),
+                  child: Icon(Icons.my_location, color: appTextColor),
                 ),
               ),
 

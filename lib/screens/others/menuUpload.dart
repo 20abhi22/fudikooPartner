@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/components/confirm_dialog.dart';
 import 'package:fudiko/components/apptextfeild.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
@@ -14,9 +16,9 @@ import 'package:fudiko/models/menuupload/menu-update-model.dart';
 import 'package:fudiko/models/menuupload/menu-upload-model.dart';
 import 'package:fudiko/services/menu-upload-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/error_messages.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/translator_service.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 bool _isWideShortPhone(BuildContext context) {
   return Breakpoints.isWideShortPhone(MediaQuery.sizeOf(context));
@@ -158,14 +160,16 @@ class _MenuUploadState extends State<MenuUpload> {
       );
       MenuUploadResponseModel response = await menuUploadService.addMenu(menu);
       if (!mounted) return;
-      _showSnackBar(response.message);
+      _showSnackBar(response.message, isError: !response.status);
       if (response.status) {
         getAllPdfs();
         closeModal();
       }
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Upload failed: ${e.toString()}');
+      _showSnackBar(
+        friendlyErrorMessage(e, fallback: 'Upload failed. Please try again.'),
+      );
     } finally {
       if (mounted)
         setState(() {
@@ -196,6 +200,7 @@ class _MenuUploadState extends State<MenuUpload> {
       if (!mounted) return;
       _showSnackBar(
         response.status ? 'Menu updated successfully' : response.message,
+        isError: !response.status,
       );
       if (response.status) {
         getAllPdfs();
@@ -203,7 +208,9 @@ class _MenuUploadState extends State<MenuUpload> {
       }
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Update failed: ${e.toString()}');
+      _showSnackBar(
+        friendlyErrorMessage(e, fallback: 'Update failed. Please try again.'),
+      );
     } finally {
       if (mounted)
         setState(() {
@@ -257,16 +264,16 @@ class _MenuUploadState extends State<MenuUpload> {
     } catch (e) {
       if (mounted) {
         setState(() => isLoading = false);
-        _showSnackBar('Failed to load menus: ${e.toString()}');
+        _showSnackBar(
+        friendlyErrorMessage(e, fallback: 'Failed to load menus. Please try again.'),
+      );
       }
     }
   }
 
-  void _showSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = true}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showStatusSnack(context, !isError, message);
   }
 
   @override
@@ -309,7 +316,9 @@ class _MenuUploadState extends State<MenuUpload> {
         });
       }
     } catch (e) {
-      _showSnackBar('Failed to pick file: ${e.toString()}');
+      _showSnackBar(
+        friendlyErrorMessage(e, fallback: 'Failed to pick that file. Please try again.'),
+      );
     }
   }
 
@@ -933,37 +942,12 @@ class _MenuUploadState extends State<MenuUpload> {
     );
   }
 
-  void showDeleteConfirmation(MenuModel menu) {
-    showDialog(
+  Future<void> showDeleteConfirmation(MenuModel menu) async {
+    final confirmed = await showConfirmDialog(
       context: context,
-      builder: (BuildContext context) {
-        final size = MediaQuery.sizeOf(context);
-        final isWideShortPhone = _isWideShortPhone(context);
-        final isMobile = Breakpoints.isMobileDevice(size) && !isWideShortPhone;
-
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(isMobile ? 15.r : 15.0),
-          ),
-          title: const Text('Delete Menu'),
-          content: Text('Are you sure you want to delete "${menu.menuName}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                deleteMenu(menu);
-              },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
+      message: 'Are you sure you want to delete "${menu.menuName}"?',
     );
+    if (confirmed) deleteMenu(menu);
   }
 
   Future<void> deleteMenu(MenuModel menu) async {
@@ -977,11 +961,14 @@ class _MenuUploadState extends State<MenuUpload> {
       if (!mounted) return;
       _showSnackBar(
         response.status ? 'Menu "${menu.menuName}" deleted' : response.message,
+        isError: !response.status,
       );
       getAllPdfs();
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Delete failed: ${e.toString()}');
+      _showSnackBar(
+        friendlyErrorMessage(e, fallback: 'Delete failed. Please try again.'),
+      );
     }
   }
 
@@ -991,39 +978,28 @@ class _MenuUploadState extends State<MenuUpload> {
     BuildContext context,
   ) async {
     try {
-      final granted = await requestStoragePermission();
-      if (!granted) {
-        _showSnackBar('Storage permission denied');
-        return;
-      }
-      Directory dir;
-      if (Platform.isAndroid) {
-        dir = Directory('/storage/emulated/0/Download');
-        if (!await dir.exists()) {
-          dir =
-              await getExternalStorageDirectory() ??
-              await getApplicationDocumentsDirectory();
-        }
-      } else {
-        dir = await getApplicationDocumentsDirectory();
-      }
-      final filePath = '${dir.path}/$fileName.pdf';
-      await Dio().download(url, filePath);
+      final response = await Dio().get<List<int>>(
+        url,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = Uint8List.fromList(response.data ?? const <int>[]);
+      if (bytes.isEmpty) throw Exception("Empty download");
+      // System "Save as" dialog: works without any storage permission.
+      final savedPath = await FilePicker.platform.saveFile(
+        dialogTitle: "Save menu PDF",
+        fileName: "$fileName.pdf",
+        type: FileType.custom,
+        allowedExtensions: ["pdf"],
+        bytes: bytes,
+      );
+      if (savedPath == null) return; // user cancelled
       if (!mounted) return;
-      _showSnackBar('Downloaded $fileName');
+      _showSnackBar('Downloaded $fileName', isError: false);
     } catch (e) {
       if (!mounted) return;
-      _showSnackBar('Download failed: ${e.toString()}');
+      _showSnackBar(
+        friendlyErrorMessage(e, fallback: 'Download failed. Please try again.'),
+      );
     }
-  }
-
-  Future<bool> requestStoragePermission() async {
-    if (Platform.isAndroid) {
-      if (await Permission.manageExternalStorage.isGranted) return true;
-      final manageStatus = await Permission.manageExternalStorage.request();
-      final storageStatus = await Permission.storage.request();
-      return manageStatus.isGranted || storageStatus.isGranted;
-    }
-    return true;
   }
 }

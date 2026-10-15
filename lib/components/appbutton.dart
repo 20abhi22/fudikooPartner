@@ -5,11 +5,13 @@ import 'package:fudiko/utils/translator_service.dart';
 
 class AppButton extends StatefulWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final bool isLoading;
   final Color? bgColor1;
   final Color? bgColor2;
   final double? size;
   final IconData? icon;
+  final String? imageIcon;
   final double? borderRadius;
   final bool? isShadow;
   final FontWeight? fontWeight;
@@ -20,10 +22,12 @@ class AppButton extends StatefulWidget {
     super.key,
     required this.text,
     required this.onPressed,
+    this.isLoading = false,
     this.bgColor1,
     this.bgColor2,
     this.size,
     this.icon,
+    this.imageIcon,
     this.borderRadius,
     this.isShadow,
     this.fontWeight,
@@ -113,7 +117,7 @@ class _AppButtonState extends State<AppButton> {
               width: buttonWidth,
               height: height,
               child: TextButton(
-                onPressed: widget.onPressed,
+                onPressed: widget.isLoading ? null : widget.onPressed,
                 style: TextButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   padding: EdgeInsets.zero,
@@ -125,13 +129,15 @@ class _AppButtonState extends State<AppButton> {
                 ),
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: widget.icon == null ? 12 : 16,
+                    horizontal: widget.icon == null && widget.imageIcon == null
+                        ? 12
+                        : 16,
                     vertical: height == null ? 10 : 0,
                   ),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      if (widget.icon != null)
+                      if (widget.icon != null && !widget.isLoading)
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Icon(
@@ -142,23 +148,58 @@ class _AppButtonState extends State<AppButton> {
                               isWideShortPhone,
                             ),
                           ),
-                        ),
-                      Center(
-                        child: Text(
-                          _translated.isEmpty ? widget.text : _translated,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: _responsiveFontSize(
-                              widget.size ?? 20,
+                        )
+                      else if (widget.imageIcon != null && !widget.isLoading)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Image.asset(
+                            widget.imageIcon!,
+                            width: _responsiveIconSize(
                               screenWidth,
                               isWideShortPhone,
                             ),
-                            fontWeight: widget.fontWeight ?? FontWeight.w500,
+                            height: _responsiveIconSize(
+                              screenWidth,
+                              isWideShortPhone,
+                            ),
                             color: Colors.white,
+                            fit: BoxFit.contain,
                           ),
                         ),
+                      Center(
+                        child: widget.isLoading
+                            ? SizedBox(
+                                width: _responsiveIconSize(
+                                  screenWidth,
+                                  isWideShortPhone,
+                                ),
+                                height: _responsiveIconSize(
+                                  screenWidth,
+                                  isWideShortPhone,
+                                ),
+                                child: const CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                _translated.isEmpty ? widget.text : _translated,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: _responsiveFontSize(
+                                    widget.size ?? 20,
+                                    screenWidth,
+                                    isWideShortPhone,
+                                  ),
+                                  fontWeight:
+                                      widget.fontWeight ?? FontWeight.w500,
+                                  color: Colors.white,
+                                ),
+                              ),
                       ),
                     ],
                   ),

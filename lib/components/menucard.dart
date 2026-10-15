@@ -8,6 +8,7 @@ import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/individualMenuUpload/individual-menu-delete-model.dart';
 import 'package:fudiko/screens/others/individuvalMenuUploadEdit.dart';
 import 'package:fudiko/services/individual-menu-upload-service.dart';
+import 'package:fudiko/utils/snackbar.dart';
 
 class MenuCard extends StatefulWidget {
   final String id;
@@ -142,17 +143,8 @@ class _MenuCardState extends State<MenuCard> {
     setState(() {
       isLoading = false;
     });
-    if (response.status) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(response.message)));
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(response.message)));
-    }
+    if (!mounted) return;
+    showStatusSnack(context, response.status, response.message);
     widget.refreshFun();
   }
 

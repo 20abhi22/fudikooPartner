@@ -9,6 +9,7 @@ import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/routetransitions.dart';
 import 'package:fudiko/screens/others/infoPage3.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 
 class InfoPage2 extends StatefulWidget {
   final String establishmentName;
@@ -16,6 +17,11 @@ class InfoPage2 extends StatefulWidget {
   final String locationId;
   final File? profileImage;
    final String? authToken;
+
+  /// Address picked on the map in the previous step. Seeds the Address field
+  /// so it is filled in already; the partner can still edit it.
+  final String? initialAddress;
+
   const InfoPage2({
     super.key,
     required this.establishmentName,
@@ -23,6 +29,7 @@ class InfoPage2 extends StatefulWidget {
     required this.locationId,
     this.profileImage,
     this.authToken,
+    this.initialAddress,
   });
 
   @override
@@ -44,6 +51,7 @@ class _InfoPage2State extends State<InfoPage2> {
   @override
   void initState() {
     super.initState();
+    addressController.text = widget.initialAddress?.trim() ?? '';
   }
 
   @override
@@ -62,6 +70,8 @@ class _InfoPage2State extends State<InfoPage2> {
     final isMobile = Breakpoints.isMobileDevice(size);
     final isTablet = Breakpoints.isTabletDevice(size);
     final isWideShortPhone = Breakpoints.isWideShortPhone(size);
+    final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final shouldCenterContent = isWideShortPhone || isTablet;
     final horizontalPadding = isWideShortPhone
         ? 28.0
@@ -127,7 +137,7 @@ class _InfoPage2State extends State<InfoPage2> {
         : null;
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: !isLandscape,
       body: SafeArea(
         bottom: true,
         child: LayoutBuilder(
@@ -138,7 +148,7 @@ class _InfoPage2State extends State<InfoPage2> {
               horizontalPadding,
               topPadding,
               horizontalPadding,
-              bottomPadding,
+              isLandscape ? bottomPadding + keyboardInset : bottomPadding,
             ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -162,7 +172,7 @@ class _InfoPage2State extends State<InfoPage2> {
                         hintText:
                             "Describe your shop in a short and clear way so customers quickly know your food and theme.",
 
-                        maxLength: 450,
+                        maxLength: 150,
                         maxLines: isWideShortPhone
                             ? 3
                             : isTablet
@@ -208,6 +218,7 @@ class _InfoPage2State extends State<InfoPage2> {
                         controller: contactController,
                         size: fieldTextSize,
                         height: fieldHeight,
+                        keyboardType: TextInputType.numberWithOptions(),
                       ),
 
                       SizedBox(height: buttonGap),
@@ -247,10 +258,9 @@ class _InfoPage2State extends State<InfoPage2> {
                             //     )),
                             //   );
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please fill all the fields'),
-                              ),
+                            showErrorSnack(
+                              context,
+                              'Please fill all the fields',
                             );
                           }
                         },

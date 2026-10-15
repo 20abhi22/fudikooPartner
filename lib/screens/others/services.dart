@@ -8,7 +8,9 @@ import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/utils/constants.dart';
 import 'package:dio/dio.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tokens.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class ServicePage extends StatefulWidget {
   const ServicePage({super.key});
@@ -98,17 +100,12 @@ class _ServicePageState extends State<ServicePage> {
       } else {
         setState(() => _isLoadingServices = false);
       }
-    } on DioException catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _isLoadingServices = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load service settings')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isLoadingServices = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load service settings')),
+      showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Failed to load service settings'),
       );
     }
   }
@@ -150,23 +147,14 @@ class _ServicePageState extends State<ServicePage> {
                 : 'Failed to update service settings');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    } on DioException catch (e) {
+      showStatusSnack(context, isSuccess, message);
+    } catch (e) {
       if (!mounted) return;
-      final errorBody = e.response?.data;
-      final errorMessage = errorBody is Map<String, dynamic>
-          ? (errorBody['message']?.toString() ??
-                'Failed to update service settings')
-          : 'Failed to update service settings';
-      ScaffoldMessenger.of(
+      // friendlyErrorMessage already prefers the API's own message when the
+      // server answered, and says "no internet" when it did not.
+      showErrorSnack(
         context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update service settings')),
+        friendlyErrorMessage(e, fallback: 'Failed to update service settings'),
       );
     } finally {
       if (mounted) {

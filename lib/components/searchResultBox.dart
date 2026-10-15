@@ -13,7 +13,7 @@ class SearchResultBox extends StatelessWidget {
 
   String formatDate(String dateString, {String format = "MMM dd"}) {
     try {
-      return DateFormat(format).format(DateTime.parse(dateString));
+      return DateFormat(format).format(DateTime.parse(dateString).toLocal());
     } catch (_) {
       return dateString;
     }
@@ -21,7 +21,7 @@ class SearchResultBox extends StatelessWidget {
 
   String formatTime(String dateString) {
     try {
-      return DateFormat('hh:mm a').format(DateTime.parse(dateString));
+      return DateFormat('hh:mm a').format(DateTime.parse(dateString).toLocal());
     } catch (_) {
       return dateString;
     }

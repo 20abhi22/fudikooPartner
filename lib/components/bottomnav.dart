@@ -1,14 +1,22 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
-import 'package:fudiko/services/notification-badges-service.dart';
 import 'package:fudiko/services/badge_controller.dart';
 
 // Colors used by the bottom navigation
 const Color _activeColor = Color(0xFFC95F05);
 const Color _inactiveColor = Color.fromARGB(255, 70, 68, 68);
+
+/// Badge key each tab reads its count from, by tab index. A null means the tab
+/// has no badge (Offers, Take Away).
+const List<String?> _badgeKeys = [
+  'reservation',
+  'enquiries',
+  null,
+  'catering',
+  null,
+];
 
 class Bottomnav extends StatefulWidget {
   final int selectedIndex;
@@ -17,6 +25,11 @@ class Bottomnav extends StatefulWidget {
   final bool cateringEnabled;
   final bool takeawayEnabled;
 
+  /// Fired when a poll finds the *selected* tab's badge count has changed —
+  /// new work arrived on the page the partner is looking at, so the shell can
+  /// reload it instead of leaving a stale list under a bumped badge.
+  final VoidCallback? onSelectedTabBadgeChanged;
+
   const Bottomnav({
     super.key,
     required this.selectedIndex,
@@ -24,6 +37,7 @@ class Bottomnav extends StatefulWidget {
     this.banquetEnabled = true,
     this.cateringEnabled = true,
     this.takeawayEnabled = true,
+    this.onSelectedTabBadgeChanged,
   });
 
   @override
@@ -31,39 +45,52 @@ class Bottomnav extends StatefulWidget {
 }
 
 class _BottomnavState extends State<Bottomnav> {
-  final NotificationBadgesService _badgesService = NotificationBadgesService();
-  Map<String, int> _badges = {};
-  Timer? _pollTimer;
+  final BadgeController _controller = BadgeController.instance;
+  late Map<String, int> _badges;
+  late bool _hasSeenCounts;
 
   @override
   void initState() {
     super.initState();
-    _fetchBadges();
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _fetchBadges(),
-    );
-    // Listen for explicit refresh requests from other parts of the app
-    BadgeController.instance.addListener(_fetchBadges);
+    // Seed from whatever the controller already knows so a nav mounted later
+    // paints the right counts on its first frame.
+    _badges = _controller.badges;
+    _hasSeenCounts = _controller.hasFetchedOnce;
+    _controller.addListener(_onBadgesChanged);
+    _controller.subscribe();
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
-    BadgeController.instance.removeListener(_fetchBadges);
+    _controller.removeListener(_onBadgesChanged);
+    _controller.unsubscribe();
     super.dispose();
   }
 
-  Future<void> _fetchBadges() async {
-    try {
-      final data = await _badgesService.getBadges();
-      if (!mounted) return;
-      setState(() => _badges = data);
-    } catch (_) {
-      // ignore network errors silently for now
+  void _onBadgesChanged() {
+    if (!mounted) return;
+
+    final previous = _badges;
+    final hadCounts = _hasSeenCounts;
+    _hasSeenCounts = true;
+    setState(() => _badges = _controller.badges);
+
+    // The first counts only seed — every non-zero badge would otherwise read
+    // as "changed" and refresh a page that just loaded.
+    if (hadCounts &&
+        _badgeFor(widget.selectedIndex, previous) !=
+            _badgeFor(widget.selectedIndex, _badges)) {
+      widget.onSelectedTabBadgeChanged?.call();
     }
   }
-  // ...existing code...
+
+  int _badgeFor(int index, Map<String, int> badges) {
+    final key = index >= 0 && index < _badgeKeys.length
+        ? _badgeKeys[index]
+        : null;
+    if (key == null) return 0;
+    return badges[key] ?? 0;
+  }
 
   @override
   Widget build(BuildContext context) {

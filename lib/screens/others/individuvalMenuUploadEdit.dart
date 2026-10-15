@@ -10,9 +10,10 @@ import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/individualMenuUpload/individual-menu-edit-model.dart';
 import 'package:fudiko/services/individual-menu-upload-service.dart';
 import 'package:fudiko/utils/constants.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class MenuUploadConstants {
   static const double bannerHeight = 150.0;
@@ -177,15 +178,13 @@ class _IndividualMenuUploadEditState extends State<IndividualMenuUploadEdit> {
       final price = _itemPriceController.text.trim();
       final category = foodCategories[selectedCategoryIndex];
       final menuid = widget.menuId;
-      String imagePath = '';
-      if (selectedImageFile != null) {
-        imagePath = selectedImageFile!.path;
-      } else if (existingImageUrl != null && existingImageUrl!.isNotEmpty) {
-        imagePath = existingImageUrl!;
-      }
+      // Only pass a path when the user picked a new local image. The
+      // existing remote image (existingImageUrl) is never uploaded — it's
+      // just kept as-is by omitting the image field.
+      final newImagePath = selectedImageFile?.path;
 
       IndividualMenuEditModel pdfmenu = IndividualMenuEditModel(
-        imageUrl: imagePath,
+        newImagePath: newImagePath,
         itemName: name,
         itemDescription: description,
         itemPrice: price,
@@ -205,7 +204,9 @@ class _IndividualMenuUploadEditState extends State<IndividualMenuUploadEdit> {
       }
     } catch (e) {
       if (!mounted) return;
-      _showErrorMessage('Failed to update menu item: $e');
+      _showErrorMessage(
+        friendlyErrorMessage(e, fallback: 'Failed to update menu item. Please try again.'),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -274,7 +275,9 @@ class _IndividualMenuUploadEditState extends State<IndividualMenuUploadEdit> {
         _showSuccessMessage('Image selected successfully!');
       }
     } catch (e) {
-      _showErrorMessage('Failed to select image: $e');
+      _showErrorMessage(
+        friendlyErrorMessage(e, fallback: 'Failed to select that image. Please try again.'),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -316,31 +319,19 @@ class _IndividualMenuUploadEditState extends State<IndividualMenuUploadEdit> {
 
   // Permission handling
   Future<bool> _requestStoragePermission() async {
-    if (Platform.isAndroid) {
-      if (await Permission.manageExternalStorage.isGranted) {
-        return true;
-      }
-
-      final manageStatus = await Permission.manageExternalStorage.request();
-      final storageStatus = await Permission.storage.request();
-
-      return manageStatus.isGranted || storageStatus.isGranted;
-    }
+    // Files come from the system picker and downloads go to app-private
+    // storage, so no storage permission is needed.
     return true;
   }
 
   void _showErrorMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+    showErrorSnack(context, message);
   }
 
   void _showSuccessMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
-    );
+    showSuccessSnack(context, message);
   }
 
   @override

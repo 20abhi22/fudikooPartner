@@ -7,6 +7,7 @@ import 'package:fudiko/models/rerservation/reservation-processing-model.dart';
 import 'package:fudiko/models/rerservation/reservation-search-model.dart';
 import 'package:fudiko/models/rerservation/reservation-status-change.dart';
 import 'package:fudiko/utils/tokens.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class ReservationService {
   Future<Options> _authOptions() async {
@@ -68,13 +69,19 @@ class ReservationService {
       } else {
         return ReservationStatusChangeResponseModel(
           status: false,
-          message: "Error changing status",
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: 'Could not change the status. Please try again.',
+          ),
         );
       }
     } catch (e) {
       return ReservationStatusChangeResponseModel(
         status: false,
-        message: "Error changing status",
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'Could not change the status. Please try again.',
+        ),
       );
     }
   }
@@ -93,12 +100,18 @@ class ReservationService {
       }
       return ReservationStatusChangeResponseModel(
         status: false,
-        message: 'Error sending reminder',
+        message: statusCodeMessage(
+          response.statusCode,
+          fallback: 'Could not send the reminder. Please try again.',
+        ),
       );
     } catch (e) {
       return ReservationStatusChangeResponseModel(
         status: false,
-        message: 'Error sending reminder',
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'Could not send the reminder. Please try again.',
+        ),
       );
     }
   }
@@ -117,12 +130,18 @@ class ReservationService {
       }
       return ReservationStatusChangeResponseModel(
         status: false,
-        message: 'Error sending callback',
+        message: statusCodeMessage(
+          response.statusCode,
+          fallback: 'Could not send the callback. Please try again.',
+        ),
       );
     } catch (e) {
       return ReservationStatusChangeResponseModel(
         status: false,
-        message: 'Error sending callback',
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'Could not send the callback. Please try again.',
+        ),
       );
     }
   }

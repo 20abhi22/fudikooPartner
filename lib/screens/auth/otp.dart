@@ -11,6 +11,7 @@ import 'package:fudiko/screens/auth/changepassword.dart';
 import 'package:fudiko/screens/others/infoPage.dart';
 import 'package:fudiko/services/otp_auth-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/widgets/app_shell.dart';
 
 class Otp extends StatefulWidget {
@@ -64,23 +65,17 @@ class _OtpState extends State<Otp> {
     if (result.status) {
       _otpId = result.otpId;
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result.message)));
+      showErrorSnack(context, result.message);
     }
   }
 
   Future<void> _verifyOtp() async {
     if (_otp.length < 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter complete OTP')),
-      );
+      showErrorSnack(context, 'Please enter complete OTP');
       return;
     }
     if (_otpId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP not ready, please wait')),
-      );
+      showInfoSnack(context, 'OTP not ready, please wait');
       return;
     }
     setState(() => _isVerifying = true);
@@ -92,27 +87,23 @@ class _OtpState extends State<Otp> {
     if (!mounted) return;
     setState(() => _isVerifying = false);
     if (result.status) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result.message)));
+      showSuccessSnack(context, result.message);
 
       if (widget.token != null) {
         // Forgot password flow.
-        slideRightWidget(
+        replaceWidget(
           newPage: ChangePassword(token: widget.token),
           context: context,
         );
       } else if (widget.isRegistered) {
         // Login flow: was otp-unverified, but registration already complete.
-        slideRightWidget(newPage: const AppShell(), context: context);
+        replaceWidget(newPage: const AppShell(), context: context);
       } else {
         // Registration flow, or login flow with incomplete registration.
-        slideRightWidget(newPage: InfoPage(authToken: widget.authToken), context: context);
+        replaceWidget(newPage: InfoPage(authToken: widget.authToken), context: context);
       }
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result.message)));
+      showErrorSnack(context, result.message);
     }
   }
 

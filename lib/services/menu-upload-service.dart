@@ -4,6 +4,7 @@ import 'package:fudiko/models/menuupload/menu-delete-model.dart';
 import 'package:fudiko/models/menuupload/menu-list-model.dart';
 import 'package:fudiko/models/menuupload/menu-update-model.dart';
 import 'package:fudiko/models/menuupload/menu-upload-model.dart';
+import 'package:fudiko/utils/error_messages.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class MenuUploadService {
@@ -43,7 +44,7 @@ class MenuUploadService {
     } catch (e) {
       return MenuUploadResponseModel(
         status: false,
-        message: 'Something went wrong : $e',
+        message: friendlyErrorMessage(e, fallback: 'PDF upload failed.'),
       );
     }
   }
@@ -83,7 +84,10 @@ class MenuUploadService {
       } else {
         return MenuUpdateResponseModel(
           status: false,
-          message: "Update failed! : ${response.statusCode}",
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: "We could not update the menu. Please try again.",
+          ),
         );
       }
     } on DioException catch (e) {
@@ -94,7 +98,10 @@ class MenuUploadService {
     } catch (e) {
       return MenuUpdateResponseModel(
         status: false,
-        message: "Something went wrong : $e",
+        message: friendlyErrorMessage(
+          e,
+          fallback: "We could not update the menu. Please try again.",
+        ),
       );
     }
   }
@@ -114,7 +121,13 @@ class MenuUploadService {
         return MenuDeleteResponseModel(status: false, message: "Pdf deletion failed!");
       }
     }catch(e){
-      return MenuDeleteResponseModel(status: false, message: "Something went wrong : $e");
+      return MenuDeleteResponseModel(
+        status: false,
+        message: friendlyErrorMessage(
+          e,
+          fallback: "We could not delete the PDF. Please try again.",
+        ),
+      );
     }
   }
 }

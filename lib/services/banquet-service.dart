@@ -152,7 +152,7 @@ class BanquetEnquiryService {
     final token = await getToken();
     final data = FormData.fromMap({'enquiry_id': enquiryId});
     final response = await DioClient.dio.post(
-      '/partner/enquiry/delete-sent',
+      '/partner/enquiry/delete',
       data: data,
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );

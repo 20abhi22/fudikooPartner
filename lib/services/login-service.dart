@@ -1,7 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/models/login/login-model.dart';
 import 'package:fudiko/models/login/login-response-model.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class LoginAuthService {
   Future<LoginResponseModel> loginUser(UserLoginModel user) async {
@@ -18,14 +18,20 @@ class LoginAuthService {
       } else {
         return LoginResponseModel(
           status: false,
-          message: 'Login failed: ${response.statusCode}',
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: 'We could not sign you in. Please try again.',
+          ),
           token: null,
         );
       }
     } catch (e) {
       return LoginResponseModel(
         status: false,
-        message: 'Something went wrong: $e',
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'We could not sign you in. Please try again.',
+        ),
         token: null,
       );
     }

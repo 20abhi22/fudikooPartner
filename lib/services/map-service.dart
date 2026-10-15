@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/models/registration/mapplace-model.dart';
+import 'package:fudiko/utils/tokens.dart';
 
 // ---------------------------------------------------------------------------
 // Exception
@@ -34,12 +36,15 @@ class MapService {
   /// Mirrors the old `fetchAutocompletePredictions` / `fetchAutocompleteSuggestions`
   /// surface but routes through the backend.
   Future<List<MapPlacesResponse>> fetchAutocompletePredictions(
-    String query,
-  ) async {
+    String query, {
+    String? tokenOverride,
+  }) async {
     try {
+      final token = tokenOverride ?? await getToken();
       final response = await DioClient.dio.get(
         '/places/search',
         queryParameters: {'input': query},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       _ensureOkStatus(response.data);
@@ -83,11 +88,16 @@ class MapService {
   // ── Place details ────────────────────────────────────────────────────────
 
   /// Fetches full place details (name, address, lat/lng) for [placeId].
-  Future<MapPlacesResponse> fetchPlaceDetails(String placeId) async {
+  Future<MapPlacesResponse> fetchPlaceDetails(
+    String placeId, {
+    String? tokenOverride,
+  }) async {
     try {
+      final token = tokenOverride ?? await getToken();
       final response = await DioClient.dio.get(
         '/places/details',
         queryParameters: {'place_id': placeId},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       _ensureOkStatus(response.data);
@@ -150,16 +160,18 @@ class MapService {
   Future<List<MapPlacesResponse>> smartPlaceSearchProgressive(
     String query, {
     required PlaceSearchProgressCallback onResults,
+    String? tokenOverride,
   }) async {
     // Emit initial empty loading state.
     onResults([], true);
 
-    final predictions = await fetchAutocompletePredictions(query).catchError(
-      (e) {
-        debugPrint('Skipping autocomplete branch: $e');
-        return <MapPlacesResponse>[];
-      },
-    );
+    final predictions = await fetchAutocompletePredictions(
+      query,
+      tokenOverride: tokenOverride,
+    ).catchError((e) {
+      debugPrint('Skipping autocomplete branch: $e');
+      return <MapPlacesResponse>[];
+    });
 
     // Emit predictions immediately so the UI shows names without coords.
     onResults(predictions, true);
@@ -174,7 +186,10 @@ class MapService {
         continue;
       }
       try {
-        final detail = await fetchPlaceDetails(placeId);
+        final detail = await fetchPlaceDetails(
+          placeId,
+          tokenOverride: tokenOverride,
+        );
         resolved.add(detail);
       } catch (_) {
         resolved.add(prediction);

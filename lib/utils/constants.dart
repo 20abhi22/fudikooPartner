@@ -16,12 +16,19 @@ final Color appIconColor = Color.fromARGB(29, 24, 23, 24);
 final Color menuUploadBoxColor = Color(0xFFFFEBDB).withOpacity(.6);
 final Color individualmenuUploadBoxColor = Color(0xFFFFEBDB).withOpacity(.6);
 
+// Snackbar feedback colors
+final Color snackSuccessColor = Color(0xFF1E9E4A);
+final Color snackErrorColor = Color(0xFFCE3F3F);
+final Color snackInfoColor = Color(0xFF3F7DCE);
+final Color snackTextColor = Color(0xFFFFFFFF);
+
 
 final String backOrange = 'assets/icons/common/backarrow_Orange.png';
 final String backWhite = 'assets/icons/common/backarrow_White.png';
 
 final String imageIcon = 'assets/images/image_icon.png';
 final String flashIcon = 'assets/images/flash_icon.png';
+final String cameraIcon = 'assets/images/camera_icon.png';
 
 // Selected common icons
 final String addressPinIcon = 'assets/icons/common/addresspin_icon.png';

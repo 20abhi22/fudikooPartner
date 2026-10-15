@@ -186,6 +186,13 @@ class LocationDropdown extends StatefulWidget {
 class _LocationDropdownState extends State<LocationDropdown> {
   final TextEditingController _controller = TextEditingController();
 
+  /// Drives the suggestions box by hand. With [showOnFocus] left on its
+  /// default, the box opens on *any* focus gain — including the focus a route
+  /// restores when you pop back to the page, which made the list drop open by
+  /// itself. Opening it explicitly means only real user intent counts.
+  final SuggestionsController<String> _suggestionsController =
+      SuggestionsController<String>();
+
   @override
   void didUpdateWidget(covariant LocationDropdown oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -200,6 +207,7 @@ class _LocationDropdownState extends State<LocationDropdown> {
   @override
   void dispose() {
     _controller.dispose();
+    _suggestionsController.dispose();
     super.dispose();
   }
 
@@ -247,6 +255,9 @@ class _LocationDropdownState extends State<LocationDropdown> {
           Expanded(
             child: TypeAheadField<String>(
               controller: _controller,
+              suggestionsController: _suggestionsController,
+              // Opened explicitly on tap/typing below instead.
+              showOnFocus: false,
               debounceDuration: Duration.zero,
               suggestionsCallback: (pattern) async {
                 if (widget.isLoading == true) return [];
@@ -290,7 +301,11 @@ class _LocationDropdownState extends State<LocationDropdown> {
               },
               builder: (context, controller, focusNode) {
                 return TextField(
+                  // Tapping and typing are the two deliberate ways to ask for
+                  // the list; with showOnFocus off, nothing else opens it.
+                  onTap: _suggestionsController.open,
                   onChanged: (value) {
+                    _suggestionsController.open();
                     widget.onChange?.call(value);
                   },
                   controller: controller,

@@ -3,6 +3,7 @@ import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/models/registration/complete-registration.dart';
 import 'package:fudiko/models/registration/registration-model.dart';
 import 'package:fudiko/models/registration/registration-response-model.dart';
+import 'package:fudiko/utils/error_messages.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class RegistrationAuthService {
@@ -11,7 +12,7 @@ class RegistrationAuthService {
         final formData = user.toFormData();
 
         final response = await DioClient.dio.post(
-          '/register/',
+          '/register',
           data: formData,
         );
 
@@ -21,22 +22,30 @@ class RegistrationAuthService {
       } else {
         return RegResponseModel(
           status: false,
-          message: 'Registration failed: ${response.statusCode}',
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: 'We could not complete your registration. '
+                'Please try again.',
+          ),
           token: null,
         );
       }
     } catch (e) {
       return RegResponseModel(
         status: false,
-        message: 'Something went wrong: $e',
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'We could not complete your registration. '
+              'Please try again.',
+        ),
         token: null,
       );
     }
   }
-  Future<CompleteRegistrationModelResponse> completeRegistration(CompleteRegistrationModel details) async {
+  Future<CompleteRegistrationModelResponse> completeRegistration(CompleteRegistrationModel details, {String? tokenOverride}) async {
     try{
         final formData = details.toFormData();
-        final token = await getToken();
+        final token = tokenOverride ?? await getToken();
       final response = await DioClient.dio.post('/partner/complete-registration', data: formData,options: Options(headers: {'Authorization': 'Bearer $token'}));
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = {
@@ -52,7 +61,14 @@ class RegistrationAuthService {
       }
     }catch(e){
       print(e);
-      return CompleteRegistrationModelResponse(status: false, message: "Something went wrong : $e");
+      return CompleteRegistrationModelResponse(
+        status: false,
+        message: friendlyErrorMessage(
+          e,
+          fallback: "We could not complete your registration. "
+              "Please try again.",
+        ),
+      );
     }
   }
 

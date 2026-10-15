@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/models/scanner/scanner_complete_model.dart';
 import 'package:fudiko/utils/tokens.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 /// Sealed class lets callers pattern-match success vs failure without
 /// catching exceptions in the UI layer.
@@ -40,10 +41,14 @@ class ScannerVerifyFailure extends ScannerVerifyResult {
 class ScannerVerificationService {
   Future<ScannerVerifyResult> verify(String verificationUrl) async {
     try {
+      final token = await getToken();
       final response = await DioClient.dio.get(
         verificationUrl,
         options: Options(
-          headers: {'Accept': 'application/json'},
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
           receiveTimeout: const Duration(seconds: 15),
           sendTimeout: const Duration(seconds: 15),
         ),
@@ -56,14 +61,17 @@ class ScannerVerificationService {
       }
 
       return ScannerVerifyFailure(
-        'Unexpected verification response (${response.statusCode})',
+        statusCodeMessage(
+          response.statusCode,
+          fallback: 'Verification failed. Please try again.',
+        ),
       );
-    } on DioException catch (e) {
-      final data = e.response?.data;
-      final msg = data is Map ? data['message']?.toString() : null;
-      return ScannerVerifyFailure(msg ?? e.message ?? 'Verification failed');
-    } catch (_) {
-      return ScannerVerifyFailure('Verification failed. Please try again.');
+    } catch (e) {
+      // friendlyErrorMessage already prefers the API's own message when the
+      // server answered; e.message would otherwise surface raw Dio text.
+      return ScannerVerifyFailure(
+        friendlyErrorMessage(e, fallback: 'Verification failed. Please try again.'),
+      );
     }
   }
 }
@@ -189,12 +197,15 @@ Future<ScannerResult> _post({
       return ScannerSuccess(parsed);
     }
 
-    return ScannerFailure('Unexpected response (${response.statusCode})');
-  } on DioException catch (e) {
-    final data = e.response?.data;
-    final msg = data is Map ? data['message']?.toString() : null;
-    return ScannerFailure(msg ?? e.message ?? 'Network error');
+    return ScannerFailure(
+      statusCodeMessage(
+        response.statusCode,
+        fallback: 'Something went wrong. Please try again.',
+      ),
+    );
   } catch (e) {
-    return ScannerFailure('Something went wrong. Please try again.');
+    return ScannerFailure(
+      friendlyErrorMessage(e, fallback: 'Something went wrong. Please try again.'),
+    );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/models/registration/otp-model.dart';
+import 'package:fudiko/utils/error_messages.dart';
 import 'package:fudiko/utils/tokens.dart';
 class OtpAuthService {
 Future<SendOtpResponseModel> sendOtp({String? tokenOverride}) async {
@@ -13,10 +14,22 @@ Future<SendOtpResponseModel> sendOtp({String? tokenOverride}) async {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return SendOtpResponseModel.fromJson(response.data);
     } else {
-      return SendOtpResponseModel(status: false, message: 'Failed: ${response.statusCode}');
+      return SendOtpResponseModel(
+        status: false,
+        message: statusCodeMessage(
+          response.statusCode,
+          fallback: 'We could not send the OTP. Please try again.',
+        ),
+      );
     }
   } catch (e) {
-    return SendOtpResponseModel(status: false, message: 'Something went wrong: $e');
+    return SendOtpResponseModel(
+      status: false,
+      message: friendlyErrorMessage(
+        e,
+        fallback: 'We could not send the OTP. Please try again.',
+      ),
+    );
   }
 }
 
@@ -32,10 +45,22 @@ Future<VerifyOtpResponseModel> verifyOtp(String otp, String otpId, {String? toke
     if (response.statusCode == 200 || response.statusCode == 201) {
       return VerifyOtpResponseModel.fromJson(response.data);
     } else {
-      return VerifyOtpResponseModel(status: false, message: 'Failed: ${response.statusCode}');
+      return VerifyOtpResponseModel(
+        status: false,
+        message: statusCodeMessage(
+          response.statusCode,
+          fallback: 'We could not verify that OTP. Please try again.',
+        ),
+      );
     }
   } catch (e) {
-    return VerifyOtpResponseModel(status: false, message: 'Something went wrong: $e');
+    return VerifyOtpResponseModel(
+      status: false,
+      message: friendlyErrorMessage(
+        e,
+        fallback: 'We could not verify that OTP. Please try again.',
+      ),
+    );
   }
 }
 }

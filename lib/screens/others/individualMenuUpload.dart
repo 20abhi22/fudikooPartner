@@ -9,6 +9,7 @@ import 'package:fudiko/routetransitions.dart';
 import 'package:fudiko/screens/others/individualMenuUpload2.dart';
 import 'package:fudiko/services/individual-menu-upload-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/route_observer.dart';
 
 class IndividualMenuUpload extends StatefulWidget {
   const IndividualMenuUpload({super.key});
@@ -17,7 +18,8 @@ class IndividualMenuUpload extends StatefulWidget {
   State<IndividualMenuUpload> createState() => _IndividualMenuUploadState();
 }
 
-class _IndividualMenuUploadState extends State<IndividualMenuUpload> {
+class _IndividualMenuUploadState extends State<IndividualMenuUpload>
+    with RouteAware {
   bool _isLoading = true;
   List<IndividualMenuModel> menuList = [];
   List<IndividualMenuModel> filteredMenuList = [];
@@ -51,6 +53,26 @@ class _IndividualMenuUploadState extends State<IndividualMenuUpload> {
   void initState() {
     getAll();
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Fires whenever a route pushed on top of this one is popped and this
+    // screen becomes visible again (create/edit pages, back button, etc.),
+    // regardless of what value the popped route returned.
+    getAll();
   }
 
   Future<void> getAll() async {
@@ -227,13 +249,10 @@ class _IndividualMenuUploadState extends State<IndividualMenuUpload> {
         padding: EdgeInsets.only(bottom: fabBottom, right: fabRight),
         child: GestureDetector(
           onTap: () async {
-            slideRightWidget(
+            await slideRightWidget(
               newPage: const IndividualMenuUpload2(),
               context: context,
             );
-            if (mounted) {
-              await getAll();
-            }
           },
           child: Container(
             width: fabSize,

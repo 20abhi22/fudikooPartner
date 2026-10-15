@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/support/support-information-model.dart';
 import 'package:fudiko/services/support-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class ContactPage extends StatefulWidget {
   const ContactPage({super.key});
@@ -34,10 +37,11 @@ class _ContactPageState extends State<ContactPage> {
       final supportInformation = await _supportService.getSupportInformation();
       if (!mounted) return;
       setState(() => _supportInformation = supportInformation);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to load support information')),
+      showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Unable to load support information'),
       );
     }
   }
@@ -45,9 +49,7 @@ class _ContactPageState extends State<ContactPage> {
   Future<void> _launchSupportUri(Uri uri) async {
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No app is available for this action')),
-      );
+      showErrorSnack(context, 'No app is available for this action');
     }
   }
 
@@ -126,13 +128,13 @@ class _ContactPageState extends State<ContactPage> {
               SizedBox(width: sideGap),
               Expanded(
                 child: Center(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: textSize,
+                  child: AppText(
+                    text:label,
+                   
+                      size: textSize,
                       fontWeight: FontWeight.w500,
                       color: appTextColor3,
-                    ),
+                    
                   ),
                 ),
               ),

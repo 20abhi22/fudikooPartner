@@ -6,6 +6,7 @@ import 'package:fudiko/models/offer/offer-list-model.dart';
 import 'package:fudiko/models/offer/offer-return-model.dart';
 import 'package:fudiko/models/offer/offer-status-change-model.dart';
 import 'package:fudiko/models/offer/offer-update-model.dart';
+import 'package:fudiko/utils/error_messages.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class OfferService {
@@ -23,13 +24,19 @@ class OfferService {
       } else {
         return OfferReturnModel(
           status: false,
-          message: 'Offer creation failed: ${response.statusCode}',
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: 'We could not create the offer. Please try again.',
+          ),
         );
       }
     } catch (e) {
       return OfferReturnModel(
         status: false,
-        message: 'Something went wrong: $e',
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'We could not create the offer. Please try again.',
+        ),
       );
     }
   }
@@ -48,13 +55,19 @@ class OfferService {
       } else {
         return OfferEditReturnModel(
           status: false,
-          message: 'Offer creation failed: ${response.statusCode}',
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: 'We could not update the offer. Please try again.',
+          ),
         );
       }
     } catch (e) {
       return OfferEditReturnModel(
         status: false,
-        message: 'Something went wrong: $e',
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'We could not update the offer. Please try again.',
+        ),
       );
     }
   }
@@ -128,13 +141,20 @@ class OfferService {
       } else {
         return OfferStatusChangeReturnModel(
           status: false,
-          message: 'Offer status change failed: ${response.statusCode}',
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: 'We could not change the offer status. '
+                'Please try again.',
+          ),
         );
       }
     } catch (e) {
       return OfferStatusChangeReturnModel(
         status: false,
-        message: 'Something went wrong: $e',
+        message: friendlyErrorMessage(
+          e,
+          fallback: 'We could not change the offer status. Please try again.',
+        ),
       );
     }
   }
@@ -159,7 +179,10 @@ class OfferService {
     } catch (e) {
       return OfferDeleteResponseModel(
         status: false,
-        message: "Something went wrong : $e",
+        message: friendlyErrorMessage(
+          e,
+          fallback: "We could not delete the offer. Please try again.",
+        ),
       );
     }
   }

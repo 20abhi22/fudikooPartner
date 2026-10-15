@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/components/confirm_dialog.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/catering/sent-enquiry-model.dart';
@@ -30,7 +31,7 @@ class CateringSentBox extends StatelessWidget {
   String _formatDate(String? rawDate, {String format = "MMM dd"}) {
     if (rawDate == null || rawDate.trim().isEmpty) return "Loading...";
 
-    final parsed = DateTime.tryParse(rawDate);
+    final parsed = DateTime.tryParse(rawDate)?.toLocal();
     if (parsed != null) return DateFormat(format).format(parsed);
 
     for (final pattern in ["yyyy-MM-dd", "dd-MM-yyyy", "MM/dd/yyyy"]) {
@@ -44,10 +45,18 @@ class CateringSentBox extends StatelessWidget {
     return rawDate;
   }
 
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      message: "Are you sure you want to delete this enquiry?",
+    );
+    if (confirmed) onDelete?.call();
+  }
+
   String _formatTime(String? rawTime) {
     if (rawTime == null || rawTime.trim().isEmpty) return "Loading...";
 
-    final parsed = DateTime.tryParse(rawTime);
+    final parsed = DateTime.tryParse(rawTime)?.toLocal();
     if (parsed != null) return DateFormat('hh:mm a').format(parsed);
 
     for (final pattern in ["HH:mm:ss", "HH:mm", "hh:mm a", "h:mm a"]) {
@@ -286,7 +295,9 @@ class CateringSentBox extends StatelessWidget {
                     width: buttonWidth,
                     child: AppButton(
                       text: "Delete",
-                      onPressed: onDelete ?? () {},
+                      onPressed: onDelete == null
+                          ? null
+                          : () => _confirmDelete(context),
                       bgColor1: sentDeleteButtonColor,
                       bgColor2: sentDeleteButtonColor,
                       size: 12,

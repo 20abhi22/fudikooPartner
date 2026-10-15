@@ -11,14 +11,15 @@ import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/individualMenuUpload/individual-menu-upload-model.dart';
 import 'package:fudiko/services/individual-menu-upload-service.dart';
 import 'package:fudiko/utils/constants.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class MenuUploadConstants {
   static const double bannerHeight = 150.0;
   static const double containerHeight = 130.0;
-  static const int maxDescriptionLength = 350;
+  static const int maxDescriptionLength = 150;
   static const List<String> allowedImageExtensions = ['jpg', 'png', 'jpeg'];
   static const List<String> foodCategories = [
     "Starter",
@@ -90,6 +91,7 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
   bool isLoading = false;
   bool isImageUploading = false;
   String _imageUploadStatus = '';
+  bool _hasCreatedItem = false;
 
   final IndividualMenuUploadService _menuUploadService =
       IndividualMenuUploadService();
@@ -159,6 +161,7 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
 
       if (response.status) {
         if (!mounted) return;
+        _hasCreatedItem = true;
         _showSuccessMessage('Menu item added successfully!');
         _resetForm();
       } else {
@@ -167,7 +170,9 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
       }
     } catch (e) {
       if (!mounted) return;
-      _showErrorMessage('Failed to add menu item: $e');
+      _showErrorMessage(
+        friendlyErrorMessage(e, fallback: 'Failed to add menu item. Please try again.'),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -238,7 +243,9 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
         _showSuccessMessage('Image selected successfully!');
       }
     } catch (e) {
-      _showErrorMessage('Failed to select image: $e');
+      _showErrorMessage(
+        friendlyErrorMessage(e, fallback: 'Failed to select that image. Please try again.'),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -250,31 +257,19 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
 
   // Permission handling
   Future<bool> _requestStoragePermission() async {
-    if (Platform.isAndroid) {
-      if (await Permission.manageExternalStorage.isGranted) {
-        return true;
-      }
-
-      final manageStatus = await Permission.manageExternalStorage.request();
-      final storageStatus = await Permission.storage.request();
-
-      return manageStatus.isGranted || storageStatus.isGranted;
-    }
+    // Files come from the system picker and downloads go to app-private
+    // storage, so no storage permission is needed.
     return true;
   }
 
   void _showErrorMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+    showErrorSnack(context, message);
   }
 
   void _showSuccessMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
-    );
+    showSuccessSnack(context, message);
   }
 
   @override
@@ -303,38 +298,45 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
         ? 20.h
         : 40.0;
 
-    return Scaffold(
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(
-            children: [
-              _buildHeader(),
-              SizedBox(height: headerGap),
-              Padding(
-                padding: _contentPadding(size, isWideShortPhone),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: _contentMaxWidth(size, isWideShortPhone),
-                    ),
-                    child: Column(
-                      children: [
-                        _buildImageUploadSection(),
-                        SizedBox(height: fieldGap),
-                        _buildFormFields(),
-                        SizedBox(height: fieldGap),
-                        _buildCategorySelection(),
-                        SizedBox(height: categoryGap),
-                        _buildSubmitButton(),
-                        SizedBox(height: bottomGap),
-                      ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.pop(context, _hasCreatedItem);
+      },
+      child: Scaffold(
+        body: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(
+              children: [
+                _buildHeader(),
+                SizedBox(height: headerGap),
+                Padding(
+                  padding: _contentPadding(size, isWideShortPhone),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: _contentMaxWidth(size, isWideShortPhone),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildImageUploadSection(),
+                          SizedBox(height: fieldGap),
+                          _buildFormFields(),
+                          SizedBox(height: fieldGap),
+                          _buildCategorySelection(),
+                          SizedBox(height: categoryGap),
+                          _buildSubmitButton(),
+                          SizedBox(height: bottomGap),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -377,7 +379,7 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
         Padding(
           padding: EdgeInsets.all(backPadding),
           child: GestureDetector(
-            onTap: () => Navigator.pop(context),
+            onTap: () => Navigator.pop(context, _hasCreatedItem),
             child: Image.asset(
               backWhite,
               width: backIconSize,
@@ -559,6 +561,7 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
           children: [
             Expanded(
               child: AppTextFeild(
+                maxLength: 25,
                 text: "Item Name",
                 iconImagePath: riceBowlIcon,
                 iconColor: individualMenuPlaceholderColor,
@@ -580,11 +583,12 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
         ),
         SizedBox(height: fieldGap),
         AppTextFeild(
-          text: " Weight",
+          text: " Weight(In Grams)",
           iconImagePath: weighIcon,
           iconColor: individualMenuPlaceholderColor,
           controller: _itemWeightController,
           size: fieldTextSize,
+          keyboardType: TextInputType.numberWithOptions(),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.18),
@@ -627,6 +631,7 @@ class _IndividualMenuUpload2State extends State<IndividualMenuUpload2> {
           iconColor: individualMenuPlaceholderColor,
           controller: _itemPriceController,
           isRequired: true,
+          keyboardType: TextInputType.numberWithOptions(),
           size: fieldTextSize,
           validator: MenuItemValidator.validatePrice,
           boxShadow: [

@@ -4,10 +4,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/components/appfilterdropdown.dart';
 import 'package:fudiko/components/apptext.dart';
+import 'package:fudiko/components/completedDateRangeDialog.dart';
 import 'package:fudiko/components/orderDonut.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class TotalOrders extends StatefulWidget {
@@ -116,9 +118,7 @@ class _TotalOrdersState extends State<TotalOrders> {
         _cancelledOrders = 0;
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to load analytics')));
+      showErrorSnack(context, 'Failed to load analytics');
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -126,33 +126,20 @@ class _TotalOrdersState extends State<TotalOrders> {
         _cancelledOrders = 0;
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to load analytics')));
+      showErrorSnack(context, 'Failed to load analytics');
     }
   }
 
   Future<void> _pickCustomDateRange() async {
     final now = DateTime.now();
-    final picked = await showDateRangePicker(
+    final picked = await showDialog<DateTimeRange>(
       context: context,
-      firstDate: DateTime(now.year - 2),
-      lastDate: now,
-      initialDateRange:
-          _customDateRange ??
-          DateTimeRange(start: now.subtract(const Duration(days: 7)), end: now),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFFF97A0D),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context) => CompletedDateRangeDialog(
+        initialStartDate: _customDateRange?.start,
+        initialEndDate: _customDateRange?.end,
+        firstDate: DateTime(now.year - 2),
+        lastDate: now,
+      ),
     );
 
     if (picked != null && mounted) {
@@ -181,10 +168,9 @@ class _TotalOrdersState extends State<TotalOrders> {
       return null;
     }
 
-    final localizations = MaterialLocalizations.of(context);
-    final start = localizations.formatMediumDate(_customDateRange!.start);
-    final end = localizations.formatMediumDate(_customDateRange!.end);
-    return '$start - $end';
+    final start = _customDateRange!.start;
+    final end = _customDateRange!.end;
+    return '${formatDateForRange(start, end)} - ${formatDateForRange(end, start)}';
   }
 
   @override

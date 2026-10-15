@@ -10,9 +10,11 @@ import 'package:fudiko/models/catering/all-enquiry-model.dart';
 import 'package:fudiko/screens/others/OfferCateringSendpage.dart';
 import 'package:fudiko/services/catering-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/translator_service.dart';
 import 'package:intl/intl.dart';
 import 'package:fudiko/services/badge_controller.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class CateringAllEnquiryBox extends StatefulWidget {
   final VoidCallback? onPressed;
@@ -38,6 +40,11 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
 
   bool get _isExpired => _remaining == Duration.zero;
 
+  /// The countdown and the Offer Discount button only make sense while the
+  /// enquiry is still open — a Confirmed or Completed one has nothing left to
+  /// offer on.
+  bool get _isPending => widget.enquiry.status.trim().toLowerCase() == 'pending';
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +52,7 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
   }
 
   void _startTimer() {
+    if (!_isPending) return;
     try {
       final format = DateFormat("yyyy-MM-dd hh:mm a");
       final expiry = format.parse(
@@ -87,28 +95,19 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
         widget.enquiry.uuid,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText(
-            text: result['message'] ?? "Saved",
-            size: 14,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+      showStatusSnack(
+        context,
+        result['status'] == true,
+        result['message'] ?? "Saved",
       );
       if (result['status'] == true) widget.onActionCompleted?.call();
       // refresh badges when catering enquiry saved
       BadgeController.instance.refresh();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: AppText(
-            text: "Error saving enquiry",
-            size: 14,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+      showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Error saving enquiry'),
       );
     }
   }
@@ -119,14 +118,10 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
         widget.enquiry.uuid,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: AppText(
-            text: result['message'] ?? "Deleted",
-            size: 14,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+      showStatusSnack(
+        context,
+        result['status'] == true,
+        result['message'] ?? "Deleted",
       );
       if (result['status'] == true) {
         widget.onPressed?.call();
@@ -136,14 +131,9 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: AppText(
-            text: "Error deleting enquiry",
-            size: 14,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+      showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Error deleting enquiry'),
       );
     }
   }
@@ -275,7 +265,7 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
   String _formatDate(String? rawDate, {String format = "MMM dd"}) {
     if (rawDate == null) return '';
     try {
-      final parsed = DateTime.parse(rawDate);
+      final parsed = DateTime.parse(rawDate).toLocal();
       return DateFormat(format).format(parsed);
     } catch (e) {
       return rawDate;
@@ -285,7 +275,7 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
   String _formatTime(String? rawTime) {
     if (rawTime == null) return '';
     try {
-      final parsed = DateTime.parse(rawTime);
+      final parsed = DateTime.parse(rawTime).toLocal();
       return DateFormat('hh:mm a').format(parsed);
     } catch (e) {
       return rawTime;
@@ -561,8 +551,6 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                                   size: isMobile ? 13 : 14,
                                   fontWeight: FontWeight.w400,
                                   color: appTextColor5,
-                                  maxLines: isMobile ? 3 : 2,
-                                  overflow: TextOverflow.ellipsis,
                                   softWrap: true,
                                 ),
                               ),
@@ -719,6 +707,7 @@ class _CateringAllEnquiryBoxState extends State<CateringAllEnquiryBox> {
                       // ),
                     ],
                   ),
+                  if (_isPending)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [

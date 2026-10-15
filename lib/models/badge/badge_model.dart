@@ -1,3 +1,5 @@
+import 'package:fudiko/api/api_config.dart';
+
 class BadgeItemModel {
   final int id;
   final String name;
@@ -52,7 +54,7 @@ class BadgesResponseModel {
   }
 }
 
-const String _imageHost = 'https://fudikko.bitwissenddev.in';
+const String _imageHost = ApiConfig.origin;
 
 String _resolveImageUrl(dynamic raw) {
   final path = (raw ?? '').toString();

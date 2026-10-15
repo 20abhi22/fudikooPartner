@@ -13,6 +13,7 @@ import 'package:fudiko/screens/others/infoPage4.dart';
 import 'package:fudiko/services/map-service.dart';
 import 'package:fudiko/services/registration-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class InfoPage3 extends StatefulWidget {
@@ -46,6 +47,7 @@ class InfoPage3 extends StatefulWidget {
 
 class _InfoPage3State extends State<InfoPage3> {
   bool banquetToggle = false;
+  bool isLoading = false;
   TextEditingController banquetServiceController = TextEditingController();
   TextEditingController cateringServiceController = TextEditingController();
 
@@ -68,7 +70,7 @@ class _InfoPage3State extends State<InfoPage3> {
   @override
   void initState() {
     banquetServiceController.text = "0";
-    takeawayController.text = "1";
+    takeawayController.text = "0"; // Takeaway is Coming Soon
     cateringServiceController.text = "0";
     deliveryServiceController.text = "1";
     distanceController.text = selectedDistance?.split(' ')[2] ?? '';
@@ -110,14 +112,19 @@ class _InfoPage3State extends State<InfoPage3> {
   TextEditingController typeOfRestaurantController = TextEditingController();
 
   Future<void> complteRegistration() async {
+    if (isLoading) return;
+     final deliveryEnabled = deliveryServiceController.text == "1";
+    // if (takeawayController.text.isEmpty ||
+    //     deliveryServiceController.text.isEmpty ||
+    //     distanceController.text.isEmpty ||
+    //     typeOfRestaurantController.text.isEmpty) {
+    //   if (!mounted) return;
     if (takeawayController.text.isEmpty ||
         deliveryServiceController.text.isEmpty ||
-        distanceController.text.isEmpty ||
-        typeOfRestaurantController.text.isEmpty) {
+        typeOfRestaurantController.text.isEmpty ||
+        (deliveryEnabled && distanceController.text.isEmpty)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill out all fields')),
-      );
+      showErrorSnack(context, 'Please fill out all fields');
       return;
     } else {
       final parts = widget.locationId.split(',');
@@ -141,26 +148,43 @@ class _InfoPage3State extends State<InfoPage3> {
         restaurantTypw: typeOfRestaurantController.text,
         image: widget.profileImage,
       );
-      CompleteRegistrationModelResponse response = await registrationAuthService
-          .completeRegistration(details);
-      if (response.status) {
-        if (widget.authToken != null) {
-          // Registration is now fully complete — safe to persist the token.
-          await saveToken(widget.authToken!);
+      setState(() => isLoading = true);
+      try {
+        CompleteRegistrationModelResponse response =
+            await registrationAuthService.completeRegistration(
+              details,
+              tokenOverride: widget.authToken,
+            );
+        if (response.status) {
+          if (widget.authToken != null) {
+            // Registration is now fully complete — safe to persist the token.
+            await saveToken(widget.authToken!);
+          }
+          if (!mounted) return;
+          showSuccessSnack(context, response.message);
+          slideRightWidget(newPage: InfoPage4(), context: context);
+        } else {
+          if (!mounted) return;
+          showErrorSnack(context, response.message);
         }
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
-        slideRightWidget(newPage: InfoPage4(), context: context);
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
+      } finally {
+        if (mounted) setState(() => isLoading = false);
       }
     }
   }
+
+
+  void _toggleDistance(String text) {
+  setState(() {
+    if (selectedDistance == text) {
+      selectedDistance = null;
+      distanceController.text = '';
+    } else {
+      selectedDistance = text;
+      distanceController.text = text.split(' ')[2];
+    }
+  });
+}
 
   @override
   Widget build(BuildContext context) {
@@ -345,7 +369,7 @@ class _InfoPage3State extends State<InfoPage3> {
                           children: [
                             Expanded(
                               child: AppText(
-                                text: "Takeaway service",
+                                text: "Takeaway service (Coming Soon)",
                                 size: 14,
                                 fontWeight: FontWeight.w500,
                                 maxLines: 1,
@@ -353,15 +377,15 @@ class _InfoPage3State extends State<InfoPage3> {
                               ),
                             ),
                             SizedBox(width: AppDimensions.gap(width)),
-                            AppSwitch(
-                              initialValue: true,
-                              onToggle: (val) {
-                                setState(() {
-                                  takeawayController.text = val == true
-                                      ? "1"
-                                      : "0";
-                                });
-                              },
+                            // Locked off until takeaway launches.
+                            Opacity(
+                              opacity: 0.5,
+                              child: IgnorePointer(
+                                child: AppSwitch(
+                                  initialValue: false,
+                                  onToggle: (_) {},
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -387,16 +411,29 @@ class _InfoPage3State extends State<InfoPage3> {
                               ),
                             ),
                             SizedBox(width: AppDimensions.gap(width)),
+                            // AppSwitch(
+                            //   initialValue: true,
+                            //   onToggle: (val) {
+                            //     setState(() {
+                            //       deliveryServiceController.text = val == true
+                            //           ? "1"
+                            //           : "0";
+                            //     });
+                            //   },
+                            // ),
                             AppSwitch(
-                              initialValue: true,
-                              onToggle: (val) {
-                                setState(() {
-                                  deliveryServiceController.text = val == true
-                                      ? "1"
-                                      : "0";
-                                });
-                              },
-                            ),
+  initialValue: true,
+  onToggle: (val) {
+    setState(() {
+      deliveryServiceController.text = val == true ? "1" : "0";
+      if (!val) {
+        // Delivery turned off — clear any selected distance
+        selectedDistance = null;
+        distanceController.text = '';
+      }
+    });
+  },
+),
                           ],
                         ),
                       ),
@@ -595,6 +632,7 @@ class _InfoPage3State extends State<InfoPage3> {
                                   fontWeight: FontWeight.w400,
                                   color: appLinkColor,
                                   isCentered: true,
+                                  maxLines: 3,
                                 ),
                                 SizedBox(height: smallGap),
                                 GestureDetector(
@@ -629,9 +667,12 @@ class _InfoPage3State extends State<InfoPage3> {
                             padding: _pagePadding(size),
                             child: AppButton(
                               text: 'Proceed',
-                              onPressed: () {
-                                complteRegistration();
-                              },
+                              isLoading: isLoading,
+                              onPressed: isLoading
+                                  ? null
+                                  : () {
+                                      complteRegistration();
+                                    },
                               height: buttonHeight,
                               size: buttonTextSize,
                             ),
@@ -683,62 +724,120 @@ class _InfoPage3State extends State<InfoPage3> {
     );
   }
 
-  Widget _buildCheckboxRow(String text) {
-    final isMobile = Breakpoints.isMobileDevice(MediaQuery.sizeOf(context));
-    final verticalPadding = isMobile ? 4.r : 5.0;
-    final textSize = isMobile ? 14.sp : 14.0;
-    final checkboxGap = isMobile ? 15.w : 12.0;
-    final boxSize = isMobile ? 20.w : 20.0;
-    final boxRadius = isMobile ? 6.r : 6.0;
-    final checkRadius = isMobile ? 4.r : 4.0;
-    final isChecked = selectedDistance == text;
+  // Widget _buildCheckboxRow(String text) {
+  //   final isMobile = Breakpoints.isMobileDevice(MediaQuery.sizeOf(context));
+  //   final verticalPadding = isMobile ? 4.r : 5.0;
+  //   final textSize = isMobile ? 14.sp : 14.0;
+  //   final checkboxGap = isMobile ? 15.w : 12.0;
+  //   final boxSize = isMobile ? 20.w : 20.0;
+  //   final boxRadius = isMobile ? 6.r : 6.0;
+  //   final checkRadius = isMobile ? 4.r : 4.0;
+  //   final isChecked = selectedDistance == text;
 
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: verticalPadding),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Flexible(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: textSize, color: appTextColor2),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          SizedBox(width: checkboxGap),
-          Container(
-            width: boxSize,
-            height: boxSize,
-            decoration: BoxDecoration(
-              color: isChecked ? appToggleColor : Colors.transparent,
-              borderRadius: BorderRadius.circular(boxRadius),
-              border: Border.all(color: appToggleColor, width: 2),
-            ),
-            child: Checkbox(
-              value: isChecked,
-              onChanged: (bool? value) {
-                setState(() {
-                  if (value == true) {
-                    selectedDistance = text;
-                    distanceController.text = text.split(' ')[2];
-                  } else {
-                    selectedDistance = null;
-                    distanceController.text = '';
-                  }
-                });
-              },
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(checkRadius),
+  //   return Padding(
+  //     padding: EdgeInsets.symmetric(vertical: verticalPadding),
+  //     child: Row(
+  //       mainAxisAlignment: MainAxisAlignment.center,
+  //       children: [
+  //         Flexible(
+  //           child: Text(
+  //             text,
+  //             style: TextStyle(fontSize: textSize, color: appTextColor2),
+  //             maxLines: 1,
+  //             overflow: TextOverflow.ellipsis,
+  //           ),
+  //         ),
+  //         SizedBox(width: checkboxGap),
+  //         Container(
+  //           width: boxSize,
+  //           height: boxSize,
+  //           decoration: BoxDecoration(
+  //             color: isChecked ? appToggleColor : Colors.transparent,
+  //             borderRadius: BorderRadius.circular(boxRadius),
+  //             border: Border.all(color: appToggleColor, width: 2),
+  //           ),
+  //           child: Checkbox(
+  //             value: isChecked,
+  //             onChanged: (bool? value) {
+  //               setState(() {
+  //                 if (value == true) {
+  //                   selectedDistance = text;
+  //                   distanceController.text = text.split(' ')[2];
+  //                 } else {
+  //                   selectedDistance = null;
+  //                   distanceController.text = '';
+  //                 }
+  //               });
+  //             },
+  //             shape: RoundedRectangleBorder(
+  //               borderRadius: BorderRadius.circular(checkRadius),
+  //             ),
+  //             side: BorderSide.none,
+  //             checkColor: Colors.white,
+  //             activeColor: appToggleColor,
+  //             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  Widget _buildCheckboxRow(String text) {
+  final isMobile = Breakpoints.isMobileDevice(MediaQuery.sizeOf(context));
+  final verticalPadding = isMobile ? 4.r : 5.0;
+  final textSize = isMobile ? 14.sp : 14.0;
+  final checkboxGap = isMobile ? 15.w : 12.0;
+  final boxSize = isMobile ? 20.w : 20.0;
+  final boxRadius = isMobile ? 6.r : 6.0;
+  final checkRadius = isMobile ? 4.r : 4.0;
+  final isChecked = selectedDistance == text;
+  final deliveryEnabled = deliveryServiceController.text == "1";
+
+  return Opacity(
+    opacity: deliveryEnabled ? 1.0 : 0.4,
+    child: GestureDetector(
+      onTap: deliveryEnabled ? () => _toggleDistance(text) : null,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: verticalPadding),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                text,
+                style: TextStyle(fontSize: textSize, color: appTextColor2),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              side: BorderSide.none,
-              checkColor: Colors.white,
-              activeColor: appToggleColor,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-          ),
-        ],
+            SizedBox(width: checkboxGap),
+            Container(
+              width: boxSize,
+              height: boxSize,
+              decoration: BoxDecoration(
+                color: isChecked ? appToggleColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(boxRadius),
+                border: Border.all(color: appToggleColor, width: 2),
+              ),
+              child: IgnorePointer(
+                child: Checkbox(
+                  value: isChecked,
+                  onChanged: null, // handled by outer GestureDetector
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(checkRadius),
+                  ),
+                  side: BorderSide.none,
+                  checkColor: Colors.white,
+                  activeColor: appToggleColor,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

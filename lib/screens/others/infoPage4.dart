@@ -6,6 +6,7 @@ import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
 import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/routetransitions.dart';
+import 'package:fudiko/screens/auth/login.dart';
 import 'package:fudiko/screens/others/nav/mainnav.dart';
 import 'package:fudiko/utils/constants.dart';
 
@@ -38,6 +39,14 @@ class _InfoPage4State extends State<InfoPage4> {
     super.dispose();
   }
 
+  /// Registration is already submitted by the time this screen shows, so
+  /// popping back into the onboarding forms would be meaningless. Back sends
+  /// the partner to Login instead, with the whole onboarding stack discarded.
+  void _backToLogin() {
+    _redirectTimer?.cancel();
+    pushWidgetWhileRemove(newPage: const Login(), context: context);
+  }
+
   double _contentMaxWidth(double width) {
     if (Breakpoints.isDesktop(width)) return 460;
     if (Breakpoints.isTablet(width)) return 440;
@@ -51,7 +60,8 @@ class _InfoPage4State extends State<InfoPage4> {
     final isMobile = Breakpoints.isMobileDevice(size);
     final isTablet = Breakpoints.isTabletDevice(size);
     final isWideShortPhone = Breakpoints.isWideShortPhone(size);
-    final shouldCenterContent = isWideShortPhone || isTablet;
+    // final shouldCenterContent = isWideShortPhone || isTablet;
+    final shouldCenterContent = true;
     final horizontalPadding = isWideShortPhone
         ? 28.0
         : isTablet
@@ -103,54 +113,61 @@ class _InfoPage4State extends State<InfoPage4> {
         ? 17.0
         : 15.0;
 
-    return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.symmetric(
-              horizontal: horizontalPadding,
-              vertical: verticalPadding,
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: shouldCenterContent
-                    ? (constraints.maxHeight - (verticalPadding * 2))
-                          .clamp(0.0, double.infinity)
-                          .toDouble()
-                    : 0,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _backToLogin();
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: verticalPadding,
               ),
-              child: Align(
-                alignment: shouldCenterContent
-                    ? Alignment.center
-                    : Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: contentMaxWidth),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedCheckmark(
-                        size: imageSize,
-                        circleColor: const Color(0xFF34C37C),
-                      ),
-                      SizedBox(height: imageGap),
-                      AppText(
-                        text: "You're all set!",
-                        size: titleSize,
-                        fontWeight: FontWeight.bold,
-                        isCentered: true,
-                      ),
-                      SizedBox(height: titleGap),
-                      AppText(
-                        text:
-                            "Your details are under review.\nOnce approved, you’ll be able to manage \nyour orders, reach more food lovers.",
-                        size: bodySize,
-                        fontWeight: FontWeight.w400,
-                        color: appTextColor2,
-                        isCentered: true,
-                        lineSpacing: 1.2,
-                      ),
-                    ],
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: shouldCenterContent
+                      ? (constraints.maxHeight - (verticalPadding * 2))
+                            .clamp(0.0, double.infinity)
+                            .toDouble()
+                      : 0,
+                ),
+                child: Align(
+                  alignment: shouldCenterContent
+                      ? Alignment.center
+                      : Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedCheckmark(
+                          size: imageSize,
+                          circleColor: const Color(0xFF34C37C),
+                        ),
+                        SizedBox(height: imageGap),
+                        AppText(
+                          text: "You're all set!",
+                          size: titleSize,
+                          fontWeight: FontWeight.bold,
+                          isCentered: true,
+                        ),
+                        SizedBox(height: titleGap),
+                        AppText(
+                          text:
+                              "Your details are under review.\nOnce approved, you’ll be able to manage \nyour orders, reach more food lovers.",
+                          size: bodySize,
+                          fontWeight: FontWeight.w400,
+                          color: appTextColor2,
+                          isCentered: true,
+                          lineSpacing: 1.2,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

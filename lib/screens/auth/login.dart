@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fudiko/components/appbutton.dart';
@@ -11,8 +13,10 @@ import 'package:fudiko/screens/auth/forgotpassword.dart';
 import 'package:fudiko/screens/auth/otp.dart';
 import 'package:fudiko/screens/auth/registration.dart';
 import 'package:fudiko/screens/others/infoPage.dart';
+import 'package:fudiko/services/device-token-service.dart';
 import 'package:fudiko/services/login-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tokens.dart';
 import 'package:fudiko/widgets/app_shell.dart';
 
@@ -48,9 +52,7 @@ class _LoginState extends State<Login> {
       setState(() {
         isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill out all fields')),
-      );
+      showErrorSnack(context, 'Please fill out all fields');
       return;
     }
 
@@ -59,11 +61,7 @@ class _LoginState extends State<Login> {
       setState(() {
         isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password must be at least 6 characters long'),
-        ),
-      );
+      showErrorSnack(context, 'Password must be at least 6 characters long');
       return;
     }
 
@@ -83,6 +81,9 @@ class _LoginState extends State<Login> {
         // Only persist the token once both otp-verification AND
         // registration are confirmed complete.
         await saveToken(response.token!);
+        // Not awaited: push-permission/registration failures must never
+        // block navigation into the app.
+        unawaited(DeviceTokenService().registerDeviceToken());
         if (!mounted) return;
         pushWidgetWhileRemove(newPage: const AppShell(), context: context);
         return;
@@ -107,9 +108,7 @@ class _LoginState extends State<Login> {
         );
       }
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(response.message)));
+      showErrorSnack(context, response.message);
     }
   }
 

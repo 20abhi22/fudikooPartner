@@ -14,6 +14,7 @@ import 'package:fudiko/models/offer/offer-update-model.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/services/offer-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tab_back_handler.dart';
 import 'package:fudiko/utils/tokens.dart';
 
@@ -217,17 +218,8 @@ class _OffersState extends State<Offers> implements TabBackHandler {
     if (isDeletePressed) {
       OfferDeleteModel offer = OfferDeleteModel(offerId: selecteduuid);
       OfferDeleteResponseModel response = await offerService.deleteOffer(offer);
-      if (response.status) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
-      }
+      if (!mounted) return;
+      showStatusSnack(context, response.status, response.message);
       setState(() {
         isLoading = true;
         selectedOption = "Both Active & InActive";
@@ -276,9 +268,7 @@ class _OffersState extends State<Offers> implements TabBackHandler {
     if (selectedPercentageIndex == percentageList.length - 1) {
       discountPercentage = customPercentageController.text;
       if (double.parse(discountPercentage) > 100) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Select a percentage less than 100")),
-        );
+        showErrorSnack(context, "Select a percentage less than 100");
         return;
       }
     } else {
@@ -315,9 +305,7 @@ class _OffersState extends State<Offers> implements TabBackHandler {
     if (dineTypeArr != null) {
       dineType = dineTypeArr.join(",");
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Select dine type")));
+      showErrorSnack(context, "Select dine type");
       return;
     }
 
@@ -348,24 +336,15 @@ class _OffersState extends State<Offers> implements TabBackHandler {
         activeDays: activeDaysString,
       );
       OfferReturnModel response = await offerService.createOffer(offerModel);
+      if (!mounted) return;
+      showStatusSnack(context, response.status, response.message);
       if (response.status) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
         setState(() {
           isOpen = !isOpen;
         });
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
       }
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Fill all the fields")));
+      showErrorSnack(context, "Fill all the fields");
     }
 
     setState(() {
@@ -386,9 +365,7 @@ class _OffersState extends State<Offers> implements TabBackHandler {
     if (selectedPercentageIndex == percentageList.length - 1) {
       discountPercentage = customPercentageController.text;
       if (double.parse(discountPercentage) > 100) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Select a percentage less than 100")),
-        );
+        showErrorSnack(context, "Select a percentage less than 100");
         return;
       }
     } else {
@@ -425,9 +402,7 @@ class _OffersState extends State<Offers> implements TabBackHandler {
     if (dineTypeArr != null) {
       dineType = dineTypeArr.join(",");
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Select dine type")));
+      showErrorSnack(context, "Select dine type");
       return;
     }
 
@@ -461,24 +436,15 @@ class _OffersState extends State<Offers> implements TabBackHandler {
         uuid: selectedOffer!.uuid,
       );
       OfferEditReturnModel response = await offerService.editOffer(offerModel);
+      if (!mounted) return;
+      showStatusSnack(context, response.status, response.message);
       if (response.status) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
         setState(() {
           isEditOpen = !isEditOpen;
         });
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
       }
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Fill all the fields")));
+      showErrorSnack(context, "Fill all the fields");
     }
 
     setState(() {
@@ -528,11 +494,22 @@ class _OffersState extends State<Offers> implements TabBackHandler {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
-          title: Text('Custom Percentage'),
+          title: AppText(
+            text: 'Custom Percentage',
+            size: 20,
+            fontWeight: FontWeight.w500,
+            color: Colors.black,
+          ),
           content: SingleChildScrollView(
             child: ListBody(
               children: [
-                Text('Enter your custom discount percentage:'),
+                AppText(
+                  text: 'Enter your custom discount percentage:',
+                  size: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black,
+                  softWrap: true,
+                ),
                 SizedBox(height: 10.h),
                 TextField(
                   controller: customPercentageController,
@@ -548,7 +525,12 @@ class _OffersState extends State<Offers> implements TabBackHandler {
           ),
           actions: [
             TextButton(
-              child: Text('Cancel'),
+              child: AppText(
+                text: 'Cancel',
+                size: 14,
+                fontWeight: FontWeight.w500,
+                color: appButtonColor,
+              ),
               onPressed: () {
                 Navigator.of(context).pop();
                 setState(() {
@@ -557,15 +539,18 @@ class _OffersState extends State<Offers> implements TabBackHandler {
               },
             ),
             TextButton(
-              child: Text('OK'),
+              child: AppText(
+                text: 'OK',
+                size: 14,
+                fontWeight: FontWeight.w500,
+                color: appButtonColor,
+              ),
               onPressed: () {
                 if (customPercentageController.text.isNotEmpty) {
                   Navigator.of(context).pop();
                 } else {
                   // Show error if empty
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Please enter a percentage value')),
-                  );
+                  showErrorSnack(context, 'Please enter a percentage value');
                 }
               },
             ),
@@ -1052,12 +1037,11 @@ class _OffersState extends State<Offers> implements TabBackHandler {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Offer Details",
-                      style: TextStyle(
-                        fontSize: isMobile ? 20.sp : 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    AppText(
+                      text: "Offer Details",
+                      size: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
                     ),
                     SizedBox(height: isMobile ? 16.h : 16),
                     _detailItem("Discount", "${offer.discountPercentage}%"),
@@ -1072,9 +1056,11 @@ class _OffersState extends State<Offers> implements TabBackHandler {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: Text(
-                          "Close",
-                          style: TextStyle(fontSize: isMobile ? 16.sp : 16),
+                        child: AppText(
+                          text: "Close",
+                          size: 16,
+                          fontWeight: FontWeight.w400,
+                          color: appButtonColor,
                         ),
                       ),
                     ),
@@ -1089,34 +1075,36 @@ class _OffersState extends State<Offers> implements TabBackHandler {
   }
 
   Widget _detailItem(String title, String value) {
-    final isMobile = _usesMobileScale(context);
+  final isMobile = _usesMobileScale(context);
 
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: isMobile ? 6.h : 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "$title: ",
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: isMobile ? 15.sp : 15,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontWeight: FontWeight.w400,
-                fontSize: isMobile ? 15.sp : 15,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Add a space after commas so wrapping breaks between words,
+  // not in the middle of a word like "Fri".
+  final displayValue = value.replaceAll(',', ', ');
 
+  return Padding(
+    padding: EdgeInsets.symmetric(vertical: isMobile ? 6.h : 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppText(
+          text: "$title: ",
+          size: 15,
+          fontWeight: FontWeight.w600,
+          color: Colors.black,
+        ),
+        Expanded(
+          child: AppText(
+            text: displayValue,
+            size: 15,
+            fontWeight: FontWeight.w400,
+            color: Colors.black,
+            softWrap: true,
+          ),
+        ),
+      ],
+    ),
+  );
+}
   void _setDefaultsFromOffer() {
     if (selectedOffer == null) return;
 
@@ -1900,15 +1888,13 @@ class _OffersState extends State<Offers> implements TabBackHandler {
           border: Border.all(color: appTextColor3, width: 1),
           borderRadius: BorderRadius.circular(isMobile ? 5.r : 5),
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isSelected
-                ? Colors.white
-                : (text == "Custom" ? Color(0xFFBDB23A) : appTextColor2),
-            fontWeight: FontWeight.w700,
-            fontSize: isMobile ? 15.sp : 15,
-          ),
+        child: AppText(
+          text: text,
+          size: 15,
+          fontWeight: FontWeight.w700,
+          color: isSelected
+              ? Colors.white
+              : (text == "Custom" ? Color(0xFFBDB23A) : appTextColor2),
         ),
       ),
     );
@@ -1960,14 +1946,12 @@ class _OffersState extends State<Offers> implements TabBackHandler {
             ],
           ),
           SizedBox(height: isMobile ? 32.h : 28),
-          Text(
-            "Active Days",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: offerPageTextColor,
-              fontSize: isMobile ? 17.sp : 17,
-              fontWeight: FontWeight.w600,
-            ),
+          AppText(
+            text: "Active Days",
+            size: 17,
+            fontWeight: FontWeight.w600,
+            color: offerPageTextColor,
+            isCentered: true,
           ),
           SizedBox(height: isMobile ? 18.h : 16),
           Wrap(
@@ -2006,13 +1990,12 @@ class _OffersState extends State<Offers> implements TabBackHandler {
 
     return Column(
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: offerPageTextColor,
-            fontSize: isMobile ? 17.sp : 17,
-            fontWeight: FontWeight.w600,
-          ),
+        AppText(
+          text: title,
+          size: 17,
+          fontWeight: FontWeight.w600,
+          color: offerPageTextColor,
+          isCentered: true,
         ),
         SizedBox(height: isMobile ? 9.h : 9),
         ClipRRect(
@@ -2068,13 +2051,11 @@ class _OffersState extends State<Offers> implements TabBackHandler {
                     ),
                   ),
                   child: Center(
-                    child: Text(
-                      time.period == DayPeriod.am ? 'AM' : 'PM',
-                      style: TextStyle(
-                        fontSize: isMobile ? 13.sp : 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                    child: AppText(
+                      text: time.period == DayPeriod.am ? 'AM' : 'PM',
+                      size: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -2125,13 +2106,11 @@ class _OffersState extends State<Offers> implements TabBackHandler {
           builder: (context, index) {
             final val = index + min;
             return Center(
-              child: Text(
-                val.toString().padLeft(2, '0'),
-                style: TextStyle(
-                  fontSize: isMobile ? 16.sp : 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
+              child: AppText(
+                text: val.toString().padLeft(2, '0'),
+                size: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
               ),
             );
           },
@@ -2153,13 +2132,11 @@ class _OffersState extends State<Offers> implements TabBackHandler {
           color: isSelected ? const Color(0xFF53534F) : const Color(0xFFC7C7C7),
           borderRadius: BorderRadius.circular(isMobile ? 8.r : 8),
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isSelected ? Colors.white : offerPageTextColor,
-            fontSize: isMobile ? 14.sp : 14,
-            fontWeight: FontWeight.w500,
-          ),
+        child: AppText(
+          text: text,
+          size: 14,
+          fontWeight: FontWeight.w500,
+          color: isSelected ? Colors.white : offerPageTextColor,
         ),
       ),
     );
@@ -2180,15 +2157,13 @@ class _OffersState extends State<Offers> implements TabBackHandler {
           border: Border.all(color: appTextColor3, width: 1),
           borderRadius: BorderRadius.circular(isMobile ? 5.r : 5),
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isSelected
-                ? Colors.white
-                : (text == "Custom" ? Color(0xFFBDB23A) : appTextColor2),
-            fontWeight: FontWeight.w500,
-            fontSize: isMobile ? 15.sp : 15,
-          ),
+        child: AppText(
+          text: text,
+          size: 15,
+          fontWeight: FontWeight.w500,
+          color: isSelected
+              ? Colors.white
+              : (text == "Custom" ? Color(0xFFBDB23A) : appTextColor2),
         ),
       ),
     );

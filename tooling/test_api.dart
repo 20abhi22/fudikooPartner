@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 
 Future<void> main() async {
-  final baseUrl = 'https://fudikko.bitwissenddev.in/api';
+  final baseUrl = 'https://admin.fudikoo.com/api';
   final token = Platform.environment['API_TOKEN'];
 
   final dio = Dio(BaseOptions(

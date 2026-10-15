@@ -10,7 +10,13 @@ import 'package:fudiko/utils/tab_back_handler.dart';
 class TakeAway extends StatefulWidget {
   final VoidCallback? onDrawerTap;
   final PartnerProfileModel? partnerProfile;
-  const TakeAway({super.key, this.onDrawerTap, this.partnerProfile});
+  final bool isEnabled;
+  const TakeAway({
+    super.key,
+    this.onDrawerTap,
+    this.partnerProfile,
+    this.isEnabled = true,
+  });
 
   @override
   State<TakeAway> createState() => _TakeAwayState();
@@ -94,8 +100,15 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
     return false;
   }
 
+  bool get _isLandscape =>
+      MediaQuery.orientationOf(context) == Orientation.landscape;
+
+  double get _keyboardInset => MediaQuery.viewInsetsOf(context).bottom;
+
   @override
   Widget build(BuildContext context) {
+    if (!widget.isEnabled) return _buildComingSoon();
+
     final width = _screenWidth(context);
     final isWideShortPhone = _isWideShortPhone(context);
     final usesTabletLayout = _usesTabletLayout(context);
@@ -109,12 +122,17 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
 
     return Scaffold(
       backgroundColor: appSecondaryBackgroundColor,
+      resizeToAvoidBottomInset: !_isLandscape,
       body: SafeArea(
         minimum: EdgeInsets.only(top: usesTabletLayout ? 12.0 : 0.0),
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding: EdgeInsets.only(bottom: AppDimensions.margin(width)),
+              padding: EdgeInsets.only(
+                bottom: _isLandscape
+                    ? _keyboardInset
+                    : AppDimensions.margin(width),
+              ),
               physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics(),
               ),
@@ -139,7 +157,15 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
                                   : Breakpoints.isMobile(width)
                                   ? 280.h
                                   : 360,
-                              child: const Center(child: Text("No orders yet")),
+                              child: Center(
+                                child: AppText(
+                                  text: "No orders yet",
+                                  size: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: appTextColor2,
+                                  isCentered: true,
+                                ),
+                              ),
                             ),
                     ),
                   ],
@@ -147,6 +173,39 @@ class _TakeAwayState extends State<TakeAway> implements TabBackHandler {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComingSoon() {
+    return Scaffold(
+      backgroundColor: appSecondaryBackgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.all(_pagePadding(context)),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: GestureDetector(
+                  onTap: widget.onDrawerTap,
+                  child: Icon(Icons.menu, size: 30, color: appTextColor3),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: AppText(
+                  text: "Coming Soon...",
+                  size: 22,
+                  fontWeight: FontWeight.w600,
+                  color: appTextColor3,
+                  isCentered: true,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -666,27 +725,30 @@ class _AnimatedSearchField extends StatelessWidget {
                       opacity: isExpanded ? 1 : 0,
                       child: IgnorePointer(
                         ignoring: !isExpanded,
-                        child: TextField(
-                          autofocus: isExpanded,
-                          controller: controller,
-                          cursorColor: appTextColor,
-                          keyboardType: TextInputType.text,
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: fieldTextSize,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: "Search Orders",
-                            hintStyle: TextStyle(
-                              color: Colors.grey,
+                        child: TranslatedBuilder(
+                          text: "Search Orders",
+                          builder: (context, hintText) => TextField(
+                            autofocus: isExpanded,
+                            controller: controller,
+                            cursorColor: appTextColor,
+                            keyboardType: TextInputType.text,
+                            style: TextStyle(
+                              color: Colors.black87,
                               fontSize: fieldTextSize,
                               fontWeight: FontWeight.w400,
                             ),
-                            border: InputBorder.none,
-                            isCollapsed: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              vertical: fieldVerticalPadding,
+                            decoration: InputDecoration(
+                              hintText: hintText,
+                              hintStyle: TextStyle(
+                                color: Colors.grey,
+                                fontSize: fieldTextSize,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              border: InputBorder.none,
+                              isCollapsed: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: fieldVerticalPadding,
+                              ),
                             ),
                           ),
                         ),

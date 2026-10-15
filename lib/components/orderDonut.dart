@@ -63,8 +63,12 @@ class _RoundedArcPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 12;
-    final strokeWidth = thickness?? 15.0;
+    final strokeWidth = thickness ?? 15.0;
+    // Keep the stroke inside the box, otherwise a thick arc gets clipped.
+    final radius = max(
+      1.0,
+      min(size.width, size.height) / 2 - strokeWidth / 2 - 4,
+    );
     const startAngle = -pi / 2; // start from top
 
     // ── Track (background arc) ──────────────────────────────

@@ -1,7 +1,11 @@
 import 'package:dio/dio.dart';
 
 class IndividualMenuEditModel {
-  final String imageUrl;
+  // Local file path of a newly picked replacement image. Null/empty when the
+  // user kept the existing (remote) image unchanged — in that case the image
+  // field is omitted entirely so the backend keeps the current image, rather
+  // than trying to upload the remote URL as if it were a local file.
+  final String? newImagePath;
   final String itemName;
   final String itemDescription;
   final String itemPrice;
@@ -9,7 +13,7 @@ class IndividualMenuEditModel {
   final String menuId;
 
   IndividualMenuEditModel({
-    required this.imageUrl,
+    this.newImagePath,
     required this.itemName,
     required this.itemDescription,
     required this.itemPrice,
@@ -18,17 +22,22 @@ class IndividualMenuEditModel {
   });
 
   Future<FormData> toFormData() async {
-    return FormData.fromMap({
+    final map = <String, dynamic>{
       "item_name" : itemName,
       "item_price" : itemPrice,
       "item_description" : itemDescription,
-      "item_image" : await MultipartFile.fromFile(
-          imageUrl,
-        filename: imageUrl.split('/').last
-      ),
       "item_category" : itemCategory,
       "menu_id" : menuId
-    });
+    };
+
+    if (newImagePath != null && newImagePath!.isNotEmpty) {
+      map["item_image"] = await MultipartFile.fromFile(
+        newImagePath!,
+        filename: newImagePath!.split('/').last,
+      );
+    }
+
+    return FormData.fromMap(map);
   }
 
 }

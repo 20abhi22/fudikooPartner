@@ -5,6 +5,7 @@ import 'package:fudiko/models/individualMenuUpload/individual-menu-delete-model.
 import 'package:fudiko/models/individualMenuUpload/individual-menu-edit-model.dart';
 import 'package:fudiko/models/individualMenuUpload/individual-menu-list-model.dart';
 import 'package:fudiko/models/individualMenuUpload/individual-menu-upload-model.dart';
+import 'package:fudiko/utils/error_messages.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class IndividualMenuUploadService{
@@ -42,7 +43,13 @@ class IndividualMenuUploadService{
       if(response.statusCode == 200 || response.statusCode == 201){
         return IndividualMenuUploadResponseModel.fromJson(response.data);
       }else{
-        return IndividualMenuUploadResponseModel(status: false, message: "Error adding menu : ${response.statusCode}");
+        return IndividualMenuUploadResponseModel(
+          status: false,
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: "We could not add the menu item. Please try again.",
+          ),
+        );
       }
     } on DioException catch (e) {
       return IndividualMenuUploadResponseModel(
@@ -50,7 +57,13 @@ class IndividualMenuUploadService{
         message: _uploadErrorMessage(e),
       );
     } catch(e){
-      return IndividualMenuUploadResponseModel(status: false, message: "Something went wrong : $e");
+      return IndividualMenuUploadResponseModel(
+        status: false,
+        message: friendlyErrorMessage(
+          e,
+          fallback: "Menu item upload failed. Please try again.",
+        ),
+      );
     }
   }
 
@@ -87,7 +100,13 @@ class IndividualMenuUploadService{
         return IndividualMenuEditResponseModel.fromJson(response.data);
       }else{
         print(response.data);
-        return IndividualMenuEditResponseModel(status: false, message: "Menu update failed : ${response.statusCode}");
+        return IndividualMenuEditResponseModel(
+          status: false,
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: "We could not update the menu item. Please try again.",
+          ),
+        );
       }
     } on DioException catch (e) {
       return IndividualMenuEditResponseModel(
@@ -96,7 +115,13 @@ class IndividualMenuUploadService{
       );
     } catch(e){
       print(e);
-      return IndividualMenuEditResponseModel(status: false, message: "Something went wrong : $e");
+      return IndividualMenuEditResponseModel(
+        status: false,
+        message: friendlyErrorMessage(
+          e,
+          fallback: "We could not update the menu item. Please try again.",
+        ),
+      );
     }
   }
 
@@ -111,10 +136,22 @@ class IndividualMenuUploadService{
       if(response.statusCode == 200 || response.statusCode == 201){
         return IndividualMenuDeleteResponseModel.fromJson(response.data);
       }else{
-        return IndividualMenuDeleteResponseModel(status: false, message: "Menu delete failed! : ${response.statusCode}");
+        return IndividualMenuDeleteResponseModel(
+          status: false,
+          message: statusCodeMessage(
+            response.statusCode,
+            fallback: "We could not delete the menu item. Please try again.",
+          ),
+        );
       }
     }catch(e){
-      return IndividualMenuDeleteResponseModel(status: false, message: "Something went wrong : $e");
+      return IndividualMenuDeleteResponseModel(
+        status: false,
+        message: friendlyErrorMessage(
+          e,
+          fallback: "We could not delete the menu item. Please try again.",
+        ),
+      );
     }
   }
 

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "516612301555",
+    "project_id": "fudikoo",
+    "storage_bucket": "fudikoo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:516612301555:android:0556e79af6424ae6118d86",
+        "android_client_info": {
+          "package_name": "com.fudikoo.client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_Qh5I7a_Bch1RpV6sXBUZS6H9IiIDcps"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:516612301555:android:80a837c6eb317d83118d86",
+        "android_client_info": {
+          "package_name": "com.fudikoo.partner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_Qh5I7a_Bch1RpV6sXBUZS6H9IiIDcps"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -10,6 +10,8 @@ import 'package:fudiko/models/banquet/all-enquiry-model.dart';
 import 'package:fudiko/screens/others/nav/mainnav.dart';
 import 'package:fudiko/services/banquet-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class OfferSendPage extends StatefulWidget {
   final BanquetEnquiryModel enquiry;
@@ -45,9 +47,7 @@ class _OfferSendPageState extends State<OfferSendPage> {
 
   Future<void> _sendOffer() async {
     if (_amountController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please enter an amount")));
+      showErrorSnack(context, "Please enter an amount");
       return;
     }
     setState(() => _isLoading = true);
@@ -59,15 +59,18 @@ class _OfferSendPageState extends State<OfferSendPage> {
         comments: _commentsController.text,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? "Offer sent")),
+      showStatusSnack(
+        context,
+        result['status'] == true,
+        result['message'] ?? "Offer sent",
       );
       if (result['status'] == true) Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showErrorSnack(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Error sending offer")));
+        friendlyErrorMessage(e, fallback: 'Error sending offer'),
+      );
     }
     setState(() => _isLoading = false);
   }
@@ -260,23 +263,28 @@ class _OfferSendPageState extends State<OfferSendPage> {
                         ),
                       ],
                     ),
-                    child: TextField(
-                      controller: _commentsController,
-                      maxLines: isWideShortPhone ? 4 : 5,
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        hintText: "Comments",
-                        hintStyle: TextStyle(
-                          color: offerPageTextColor,
-                          fontSize: commentFontSize,
+                    // The hint is a plain String, so it needs TranslatedBuilder
+                    // to go through the same translation path as AppText.
+                    child: TranslatedBuilder(
+                      text: "Comments",
+                      builder: (context, hintText) => TextField(
+                        controller: _commentsController,
+                        maxLines: isWideShortPhone ? 4 : 5,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          hintText: hintText,
+                          hintStyle: TextStyle(
+                            color: offerPageTextColor,
+                            fontSize: commentFontSize,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(commentRadius),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: EdgeInsets.all(commentPadding),
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(commentRadius),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: EdgeInsets.all(commentPadding),
                       ),
                     ),
                   ),

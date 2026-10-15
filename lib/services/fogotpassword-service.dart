@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:fudiko/api/dio_client.dart';
 import 'package:fudiko/models/forgotpassword/changepassword-model.dart';
 import 'package:fudiko/models/forgotpassword/finduser-model.dart';
+import 'package:fudiko/utils/error_messages.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class ForgotPasswordService {
@@ -36,14 +37,13 @@ class ForgotPasswordService {
       return FindUserResponseModel(
         status: false,
         message:
-            responseData?['message']?.toString() ??
-            "Something went wrong : ${e.message}",
+            responseData?['message']?.toString() ?? friendlyErrorMessage(e),
         token: responseData?['token']?.toString(),
       );
     } catch (e) {
       return FindUserResponseModel(
         status: false,
-        message: "Something went wrong : $e",
+        message: friendlyErrorMessage(e),
       );
     }
   }
@@ -65,7 +65,10 @@ class ForgotPasswordService {
       }
 
       return NewPasswordResponseModel(
-        message: "Password change failed: ${response.statusCode}",
+        message: statusCodeMessage(
+          response.statusCode,
+          fallback: "We could not change your password. Please try again.",
+        ),
         status: false,
       );
     } on DioException catch (e) {
@@ -73,13 +76,12 @@ class ForgotPasswordService {
       return NewPasswordResponseModel(
         status: false,
         message:
-            responseData?['message']?.toString() ??
-            "Something went wrong : ${e.message}",
+            responseData?['message']?.toString() ?? friendlyErrorMessage(e),
       );
     } catch (e) {
       return NewPasswordResponseModel(
         status: false,
-        message: "Something went wrong : $e",
+        message: friendlyErrorMessage(e),
       );
     }
   }
@@ -101,7 +103,10 @@ class ForgotPasswordService {
       }
 
       return NewPasswordResponseModel(
-        message: "Password update failed: ${response.statusCode}",
+        message: statusCodeMessage(
+          response.statusCode,
+          fallback: "We could not update your password. Please try again.",
+        ),
         status: false,
       );
     } on DioException catch (e) {
@@ -109,13 +114,12 @@ class ForgotPasswordService {
       return NewPasswordResponseModel(
         status: false,
         message:
-            responseData?['message']?.toString() ??
-            "Something went wrong : ${e.message}",
+            responseData?['message']?.toString() ?? friendlyErrorMessage(e),
       );
     } catch (e) {
       return NewPasswordResponseModel(
         status: false,
-        message: "Something went wrong : $e",
+        message: friendlyErrorMessage(e),
       );
     }
   }

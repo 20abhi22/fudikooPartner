@@ -8,6 +8,8 @@ import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/screens/others/restaurantProfile.dart';
 import 'package:fudiko/services/profile-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/error_messages.dart';
+import 'package:fudiko/utils/snackbar.dart';
 
 class RestaurantBioEditPage extends StatefulWidget {
   final String establishmentName;
@@ -69,9 +71,7 @@ class _RestaurantBioEditPageState extends State<RestaurantBioEditPage> {
         _availableDishesController.text.isEmpty ||
         _addressController.text.isEmpty ||
         _phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+      showErrorSnack(context, 'Please fill all fields');
       return;
     }
 
@@ -92,12 +92,9 @@ class _RestaurantBioEditPageState extends State<RestaurantBioEditPage> {
       if (!mounted) return;
 
       if (response['status'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              response['message'] ?? 'Profile updated successfully',
-            ),
-          ),
+        showSuccessSnack(
+          context,
+          response['message'] ?? 'Profile updated successfully',
         );
         Navigator.pushAndRemoveUntil(
           context,
@@ -105,17 +102,20 @@ class _RestaurantBioEditPageState extends State<RestaurantBioEditPage> {
           (route) => false,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message'] ?? 'Failed to update profile'),
-          ),
+        showErrorSnack(
+          context,
+          response['message'] ?? 'Failed to update profile',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        showErrorSnack(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error updating profile: $e')));
+          friendlyErrorMessage(
+            e,
+            fallback: 'We could not update your profile. Please try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) {

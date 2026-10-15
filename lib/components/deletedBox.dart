@@ -84,7 +84,7 @@ class _DeletedBoxState extends State<DeletedBox> {
 
   String _formatDate(String dateString, {String format = "MMM dd"}) {
     try {
-      final date = DateTime.parse(dateString);
+      final date = DateTime.parse(dateString).toLocal();
       return DateFormat(format).format(date);
     } catch (e) {
       return dateString;
@@ -93,7 +93,7 @@ class _DeletedBoxState extends State<DeletedBox> {
 
   String _formatTime(String dateString) {
     try {
-      final dateTime = DateTime.parse(dateString);
+      final dateTime = DateTime.parse(dateString).toLocal();
       return DateFormat('hh:mm a').format(dateTime);
     } catch (e) {
       return dateString;
@@ -265,8 +265,6 @@ class _DeletedBoxState extends State<DeletedBox> {
                       size: 14,
                       fontWeight: FontWeight.w400,
                       color: appTextColor5,
-                      maxLines: isMobile ? null : 3,
-                      overflow: isMobile ? null : TextOverflow.ellipsis,
                       softWrap: true,
                     ),
                   ),

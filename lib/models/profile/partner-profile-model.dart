@@ -7,12 +7,22 @@ class RestaurantImageModel {
   const RestaurantImageModel({required this.uuid, required this.image});
 
   factory RestaurantImageModel.fromJson(Map<String, dynamic> json) {
+    final url = (json['image'] ?? json['url'] ?? json['path'])?.toString();
     return RestaurantImageModel(
-      uuid: json['uuid']?.toString() ?? '',
-      image: json['image'] != null
-          ? (json['image'] as String).replaceAll(r'\/', '/')
-          : '',
+      uuid: json['uuid']?.toString() ?? json['id']?.toString() ?? '',
+      image: url != null ? url.replaceAll(r'\/', '/') : '',
     );
+  }
+
+  /// Accepts either an object ({uuid, image}) or a bare URL string.
+  static RestaurantImageModel? tryParse(dynamic item) {
+    if (item is Map) {
+      return RestaurantImageModel.fromJson(Map<String, dynamic>.from(item));
+    }
+    if (item is String && item.isNotEmpty) {
+      return RestaurantImageModel(uuid: '', image: item.replaceAll(r'\/', '/'));
+    }
+    return null;
   }
 }
 
@@ -62,10 +72,11 @@ class PartnerProfileModel {
   });
 
   factory PartnerProfileModel.fromJson(Map<String, dynamic> json) {
-    final restaurantImages = json['images'] != null
-        ? (json['images'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map(RestaurantImageModel.fromJson)
+    final rawImages = json['images'];
+    final restaurantImages = rawImages is List
+        ? rawImages
+              .map(RestaurantImageModel.tryParse)
+              .whereType<RestaurantImageModel>()
               .where((image) => image.image.isNotEmpty)
               .toList()
         : null;

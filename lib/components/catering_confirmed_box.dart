@@ -25,7 +25,7 @@ class CateringConfirmedBox extends StatelessWidget {
   String _formatDate(String? rawDate, {String format = "MMM dd"}) {
     if (rawDate == null || rawDate.trim().isEmpty) return "Loading...";
 
-    final parsed = DateTime.tryParse(rawDate);
+    final parsed = DateTime.tryParse(rawDate)?.toLocal();
     if (parsed != null) return DateFormat(format).format(parsed);
 
     for (final pattern in ["yyyy-MM-dd", "dd-MM-yyyy", "MM/dd/yyyy"]) {
@@ -42,7 +42,7 @@ class CateringConfirmedBox extends StatelessWidget {
   String _formatTime(String? rawTime) {
     if (rawTime == null || rawTime.trim().isEmpty) return "Loading...";
 
-    final parsed = DateTime.tryParse(rawTime);
+    final parsed = DateTime.tryParse(rawTime)?.toLocal();
     if (parsed != null) return DateFormat('hh:mm a').format(parsed);
 
     for (final pattern in ["HH:mm:ss", "HH:mm", "hh:mm a", "h:mm a"]) {
@@ -263,8 +263,6 @@ class CateringConfirmedBox extends StatelessWidget {
                                 size: isMobile ? 13 : 14,
                                 fontWeight: FontWeight.w400,
                                 color: appTextColor5,
-                                maxLines: isMobile ? 3 : 2,
-                                overflow: TextOverflow.ellipsis,
                                 softWrap: true,
                               ),
                             ),

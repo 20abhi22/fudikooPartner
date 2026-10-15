@@ -11,6 +11,7 @@ import 'package:fudiko/core/responsive/responsive_builder.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/screens/auth/changepassword.dart';
 import 'package:fudiko/screens/auth/login.dart';
+import 'package:fudiko/screens/auth/updatePassword.dart';
 import 'package:fudiko/screens/others/about.dart';
 import 'package:fudiko/screens/others/agreement.dart';
 import 'package:fudiko/screens/others/badgeInfo.dart';
@@ -27,10 +28,15 @@ import 'package:fudiko/screens/others/scanner.dart';
 import 'package:fudiko/screens/others/scanner2.dart';
 import 'package:fudiko/screens/others/services.dart';
 import 'package:fudiko/screens/others/totalOrders.dart';
+import 'package:fudiko/services/badge_controller.dart';
+import 'package:fudiko/services/device-token-service.dart';
 import 'package:fudiko/services/profile-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tab_back_handler.dart';
+import 'package:fudiko/utils/tab_refreshable.dart';
 import 'package:fudiko/utils/tokens.dart';
+import 'package:fudiko/utils/translator_service.dart';
 
 class AppShell extends StatefulWidget {
   final int initialIndex;
@@ -56,6 +62,7 @@ class _AppShellState extends State<AppShell> {
   bool _banquetEnabled = true;
   bool _cateringEnabled = true;
   bool _takeawayEnabled = true;
+  int? _pendingRefreshTab;
 
   static const List<_ShellTab> _tabs = [
     _ShellTab(label: 'Reservation', icon: Icons.event_note_outlined),
@@ -70,24 +77,48 @@ class _AppShellState extends State<AppShell> {
     super.initState();
     currentIndex = widget.initialIndex;
     _fetchProfile();
+    // Listener only, no subscribe(): the bottom bar keeps the poll alive, and
+    // this just gives a popup-blocked refresh another chance each tick.
+    BadgeController.instance.addListener(_flushPendingRefresh);
   }
 
   @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        _handleBackNavigation();
-      },
-      child: ResponsiveBuilder(
-        mobile: (context, constraints) => _mobileShell(),
-        tablet: (context, constraints) => _tabletShell(),
-        desktop: (context, constraints) =>
-            _desktopShell(width: constraints.maxWidth),
-      ),
-    );
+  void dispose() {
+    BadgeController.instance.removeListener(_flushPendingRefresh);
+    super.dispose();
   }
+
+  @override
+  // Widget build(BuildContext context) {
+  //   return PopScope(
+  //     canPop: false,
+  //     onPopInvokedWithResult: (didPop, result) {
+  //       if (didPop) return;
+  //       _handleBackNavigation();
+  //     },
+  //     child: ResponsiveBuilder(
+  //       mobile: (context, constraints) => _mobileShell(),
+  //       tablet: (context, constraints) => _tabletShell(),
+  //       desktop: (context, constraints) =>
+  //           _desktopShell(width: constraints.maxWidth),
+  //     ),
+  //   );
+  // }
+
+  @override
+Widget build(BuildContext context) {
+  return PopScope(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, result) {
+      if (didPop) return;
+      _handleBackNavigation();
+    },
+    child: Scaffold(
+      backgroundColor: appSecondaryBackgroundColor,
+      body: _stackedContent(showBottomNav: true),
+    ),
+  );
+}
 
   Widget _mobileShell() {
     return Scaffold(
@@ -143,6 +174,8 @@ class _AppShellState extends State<AppShell> {
                     banquetEnabled: _banquetEnabled,
                     cateringEnabled: _cateringEnabled,
                     takeawayEnabled: _takeawayEnabled,
+                    // A bumped badge on the open tab means its list is stale.
+                    onSelectedTabBadgeChanged: () => _refreshTab(currentIndex),
                   ),
                 ),
               ),
@@ -179,6 +212,7 @@ class _AppShellState extends State<AppShell> {
       ),
       TakeAway(
         key: _tabKeys[4],
+        isEnabled: _takeawayEnabled,
         onDrawerTap: _toggleDrawer,
         partnerProfile: _partnerProfile,
       ),
@@ -227,9 +261,7 @@ class _AppShellState extends State<AppShell> {
 
   void onTabChanged(int index) {
     if (!_isTabEnabled(index)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_tabLabel(index)} is disabled in Services')),
-      );
+      showInfoSnack(context, '${_tabLabel(index)} is disabled in Services');
       return;
     }
 
@@ -238,12 +270,49 @@ class _AppShellState extends State<AppShell> {
       isDrawerOpen = false;
       _lastBackPressedAt = null;
     });
+
+    _refreshTab(index);
+  }
+
+  /// Reloads one tab.
+  ///
+  /// Held back while a dialog or bottom sheet covers the shell: reloading the
+  /// list underneath would pull the ground out from under whatever the partner
+  /// has open. The reload runs on the next badge poll once the popup is gone.
+  /// Tabs with their own inline overlays apply the same rule in `refresh()`.
+  void _refreshTab(int index) {
+    if (_isPopupOpen) {
+      _pendingRefreshTab = index;
+      return;
+    }
+
+    _pendingRefreshTab = null;
+    final tabState = _tabKeys[index].currentState;
+    if (tabState is TabRefreshable) {
+      (tabState as TabRefreshable).refresh();
+    }
+  }
+
+  /// True while a route (dialog, bottom sheet, pushed page) sits above the
+  /// shell.
+  bool get _isPopupOpen => ModalRoute.of(context)?.isCurrent == false;
+
+  /// Retries a refresh that a popup blocked. Driven by the badge poll, so it
+  /// gets a chance every tick until the popup closes.
+  void _flushPendingRefresh() {
+    final pending = _pendingRefreshTab;
+    if (pending == null || _isPopupOpen) return;
+    if (pending != currentIndex) {
+      _pendingRefreshTab = null;
+      return;
+    }
+    _refreshTab(pending);
   }
 
   bool _isTabEnabled(int index) {
     if (index == 1) return _banquetEnabled;
     if (index == 3) return _cateringEnabled;
-    if (index == 4) return _takeawayEnabled;
+    // Take Away stays reachable when off; it shows a Coming Soon page.
     return true;
   }
 
@@ -303,9 +372,7 @@ class _AppShellState extends State<AppShell> {
     }
 
     _lastBackPressedAt = now;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Press back again to exit')));
+    showInfoSnack(context, 'Press back again to exit');
   }
 
   // Widget _scannerButtonPositioned() {
@@ -474,16 +541,18 @@ class _AppShellState extends State<AppShell> {
   }
 
   double _drawerWidth(Size size) {
-    final width = size.width;
-    if (Breakpoints.isTabletDevice(size)) {
-      return (width * 0.42).clamp(320.0, 380.0);
-    }
-    if (Breakpoints.isWideShortPhone(size)) {
-      return (width * 0.58).clamp(320.0, 420.0);
-    }
-
-    return width * 0.75;
+  final width = size.width;
+  if (Breakpoints.isTabletDevice(size)) {
+    return (width * 0.42).clamp(320.0, 380.0);
   }
+  if (Breakpoints.isWideShortPhone(size)) {
+    return (width * 0.58).clamp(320.0, 420.0);
+  }
+
+  // Fallback for large/landscape screens that don't match the above
+  // (e.g. wide short-side >= 600 but width >= desktop breakpoint).
+  return (width * 0.75).clamp(320.0, 400.0);
+}
 
   Widget _drawerContent() {
     final size = MediaQuery.sizeOf(context);
@@ -540,7 +609,7 @@ class _AppShellState extends State<AppShell> {
                   _drawerItem(
                     'Change Password',
                     drawerChangePasswordIcon,
-                    ChangePassword(),
+                    UpdatePassword(),
                   ),
                   _drawerDivider(),
                   _drawerItem(
@@ -555,8 +624,8 @@ class _AppShellState extends State<AppShell> {
                   _drawerDivider(),
                   _drawerItem('Service', drawerServiceIcon, ServicePage()),
                   _drawerDivider(),
-                  _drawerItem('Promotions', drawerPromotionIcon),
-                  _drawerDivider(),
+                  // _drawerItem('Promotions', drawerPromotionIcon),
+                  // _drawerDivider(),
                 ],
               ),
             ),
@@ -746,7 +815,7 @@ class _AppShellState extends State<AppShell> {
         _drawerActionTile(
           icon: Icons.lock_outline,
           label: 'Change Password',
-          page: ChangePassword(),
+          page: UpdatePassword(),
         ),
         _drawerActionTile(
           icon: Icons.notifications_none,
@@ -825,7 +894,10 @@ class _AppShellState extends State<AppShell> {
   }
 
   Future<void> _logout() async {
+    await DeviceTokenService().unregisterDeviceToken();
     await removeToken();
+    // The next user starts in English; the language is per-login, not global.
+    await TranslatorService.setLanguage('en');
     if (!mounted) return;
     Navigator.pushReplacement(
       context,

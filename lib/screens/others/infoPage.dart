@@ -15,12 +15,14 @@ import 'package:fudiko/routetransitions.dart';
 import 'package:fudiko/screens/others/infoPage2.dart';
 import 'package:fudiko/services/map-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class InfoPage extends StatefulWidget {
   final String? authToken;
@@ -65,13 +67,6 @@ class _InfoPageState extends State<InfoPage> {
           _showSnack('Camera permission denied');
           return;
         }
-      } else {
-        final status = await Permission.photos.request();
-        if (!status.isGranted) {
-          if (!mounted) return;
-          _showSnack('Photo permission denied');
-          return;
-        }
       }
 
       final XFile? pickedFile = await _imagePicker.pickImage(source: source);
@@ -81,11 +76,16 @@ class _InfoPageState extends State<InfoPage> {
         });
       }
     } catch (e) {
-      _showSnack('Error picking image: $e');
+      _showSnack(
+        friendlyErrorMessage(e, fallback: 'Could not pick that image. Please try again.'),
+      );
     }
   }
 
   Future<void> _showImageSourceDialog() async {
+    // Put the keyboard away before the sheet slides up over the form.
+    FocusScope.of(context).unfocus();
+
     await showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -120,9 +120,14 @@ class _InfoPageState extends State<InfoPage> {
   }
 
   Future<void> _openMapPicker() async {
+    // Put the keyboard away before pushing the full-screen picker.
+    FocusScope.of(context).unfocus();
+
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
-      MaterialPageRoute(builder: (_) => const _MapPickerPage()),
+      MaterialPageRoute(
+        builder: (_) => _MapPickerPage(authToken: widget.authToken),
+      ),
     );
 
     if (result == null || !mounted) return;
@@ -137,9 +142,7 @@ class _InfoPageState extends State<InfoPage> {
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showErrorSnack(context, message);
   }
 
   void _continue() {
@@ -161,6 +164,9 @@ class _InfoPageState extends State<InfoPage> {
         establishmentName: _establishmentNameController.text,
         establishmentType: _selectedType,
         locationId: '$_selectedLat,$_selectedLng', // ✅ pass coordinates
+        // Carry the picked address forward so the Address field arrives
+        // pre-filled instead of making the partner retype it.
+        initialAddress: _selectedPlaceName,
         profileImage: _profileImage,
         authToken: widget.authToken,
       ),
@@ -509,7 +515,9 @@ class _InfoPageMetrics {
 }
 
 class _MapPickerPage extends StatefulWidget {
-  const _MapPickerPage();
+  final String? authToken;
+
+  const _MapPickerPage({this.authToken});
 
   @override
   State<_MapPickerPage> createState() => _MapPickerPageState();
@@ -538,6 +546,11 @@ class _MapPickerPageState extends State<_MapPickerPage> {
   bool _isSearchDropdownOpen = false;
   bool _showPickedMarker = false;
   static const String _recentSearchPrefsKey = 'recent_map_place_searches';
+
+  /// Secondary copy — subtitles, section headers, empty/error states.
+  /// [AppText] defaults its color to the brand orange, so body text has to
+  /// pass a color explicitly.
+  Color get _mutedTextColor => appTextColor5.withValues(alpha: 0.6);
 
   @override
   void initState() {
@@ -640,7 +653,7 @@ class _MapPickerPageState extends State<_MapPickerPage> {
       _hasSubmittedSearch = true;
     });
 
-    _placeSearchDebounce = Timer(const Duration(milliseconds: 1500), () {
+    _placeSearchDebounce = Timer(const Duration(milliseconds: 500), () {
       if (!mounted || requestId != _placeSearchRequestId) return;
       smartPlaceSearch();
     });
@@ -666,6 +679,7 @@ class _MapPickerPageState extends State<_MapPickerPage> {
       final results = await _mapService.smartPlaceSearchProgressive(
         query,
         // userLatLng: searchLocation,
+        tokenOverride: widget.authToken,
         onResults: (results, isLoadingMore) {
           if (!mounted || requestId != _placeSearchRequestId) return;
 
@@ -697,6 +711,23 @@ class _MapPickerPageState extends State<_MapPickerPage> {
   }
 
   Future<void> _selectSearchResult(MapPlacesResponse place) async {
+    // Predictions are listed before their coordinates are resolved, so fetch
+    // the details on tap instead of silently ignoring the selection.
+    if ((place.lat == null || place.lng == null) &&
+        (place.placeId ?? '').isNotEmpty) {
+      try {
+        place = await _mapService.fetchPlaceDetails(
+          place.placeId!,
+          tokenOverride: widget.authToken,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _placeSearchError = e is MapPlaceSearchException
+            ? e.message
+            : 'Could not load place details. Please try again.');
+        return;
+      }
+    }
     final lat = place.lat;
     final lng = place.lng;
     if (lat == null || lng == null) return;
@@ -707,6 +738,7 @@ class _MapPickerPageState extends State<_MapPickerPage> {
       place.secondaryText,
     ].where((value) => value != null && value.isNotEmpty).join(', ');
 
+    if (!mounted) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _pickedLocation = latLng;
@@ -801,44 +833,49 @@ class _MapPickerPageState extends State<_MapPickerPage> {
 
   Widget _buildPlaceSearchField({
     required bool isMobile,
-    required double panelRadius,
+    required double fieldRadius,
   }) {
     final hasText = _placeSearchController.text.trim().isNotEmpty;
     final iconSize = isMobile ? 22.0 : 20.0;
 
-    return TextField(
-      controller: _placeSearchController,
-      textInputAction: TextInputAction.search,
-      onTap: () => setState(() => _isSearchDropdownOpen = true),
-      onChanged: _onPlaceSearchChanged,
-      decoration: InputDecoration(
-        hintText: 'Search place',
-        prefixIcon: Icon(Icons.search, color: Colors.orange, size: iconSize),
-        suffixIcon: hasText
-            ? IconButton(
-                icon: Icon(Icons.close, color: Colors.orange, size: iconSize),
-                onPressed: () {
-                  _placeSearchDebounce?.cancel();
-                  _placeSearchRequestId++;
-                  setState(() {
-                    _placeSearchController.clear();
-                    _textSearchResults = [];
-                    _isSearchingPlaces = false;
-                    _isFetchingNextPage = false;
-                    _hasSubmittedSearch = false;
-                    _placeSearchError = null;
-                    _isSearchDropdownOpen = true;
-                  });
-                },
-              )
-            : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(panelRadius),
-          borderSide: BorderSide.none,
+    return TranslatedBuilder(
+      text: 'Search place',
+      builder: (context, hintText) => TextField(
+        controller: _placeSearchController,
+        textInputAction: TextInputAction.search,
+        onTap: () => setState(() => _isSearchDropdownOpen = true),
+        onChanged: _onPlaceSearchChanged,
+        style: TextStyle(fontSize: 14, color: appTextColor5),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: TextStyle(fontSize: 14, color: _mutedTextColor),
+          prefixIcon: Icon(Icons.search, color: appTextColor, size: iconSize),
+          suffixIcon: hasText
+              ? IconButton(
+                  icon: Icon(Icons.close, color: appTextColor, size: iconSize),
+                  onPressed: () {
+                    _placeSearchDebounce?.cancel();
+                    _placeSearchRequestId++;
+                    setState(() {
+                      _placeSearchController.clear();
+                      _textSearchResults = [];
+                      _isSearchingPlaces = false;
+                      _isFetchingNextPage = false;
+                      _hasSubmittedSearch = false;
+                      _placeSearchError = null;
+                      _isSearchDropdownOpen = true;
+                    });
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(fieldRadius),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: appSecondaryBackgroundColor,
+          contentPadding: EdgeInsets.symmetric(vertical: isMobile ? 12.h : 12.0),
         ),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        contentPadding: EdgeInsets.symmetric(vertical: isMobile ? 12.h : 12.0),
       ),
     );
   }
@@ -856,6 +893,74 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
       ),
       child: child,
+    );
+  }
+
+  Widget _buildPlaceSection({
+    required String title,
+    required List<MapPlacesResponse> places,
+    required IconData icon,
+    required bool isMobile,
+    required ValueChanged<MapPlacesResponse> onTap,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            isMobile ? 14.w : 14.0,
+            isMobile ? 10.h : 10.0,
+            isMobile ? 14.w : 14.0,
+            isMobile ? 4.h : 4.0,
+          ),
+          child: AppText(
+            text: title,
+            size: 12,
+            fontWeight: FontWeight.w600,
+            color: _mutedTextColor,
+          ),
+        ),
+        ...places.map(
+          (place) => _buildPlaceTile(
+            place: place,
+            icon: icon,
+            isMobile: isMobile,
+            onTap: () => onTap(place),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaceTile({
+    required MapPlacesResponse place,
+    required IconData icon,
+    required bool isMobile,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      dense: true,
+      leading: Icon(icon, color: appTextColor, size: isMobile ? 24.0 : 22.0),
+      // AppText already scales its size responsively, so pass the base value.
+      title: AppText(
+        text: place.mainText ?? '',
+        size: 14,
+        fontWeight: FontWeight.w500,
+        color: appTextColor5,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: (place.secondaryText ?? '').isEmpty
+          ? null
+          : AppText(
+              text: place.secondaryText!,
+              size: 12,
+              fontWeight: FontWeight.w400,
+              color: _mutedTextColor,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+      onTap: onTap,
     );
   }
 
@@ -899,11 +1004,13 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         maxHeight: maxHeight,
         panelRadius: panelRadius,
         child: Padding(
-          padding: EdgeInsets.all(isMobile ? 14.w : 14.0),
-          child: Text(
-            _placeSearchError!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.black54),
+          padding: const EdgeInsets.all(14),
+          child: AppText(
+            text: _placeSearchError!,
+            size: 13,
+            fontWeight: FontWeight.w400,
+            color: _mutedTextColor,
+            isCentered: true,
           ),
         ),
       );
@@ -914,14 +1021,14 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         maxHeight: maxHeight,
         panelRadius: panelRadius,
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: isMobile ? 18.h : 18.0),
-          child: const Center(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          child: Center(
             child: SizedBox(
               height: 20,
               width: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Colors.orange,
+                color: appTextColor,
               ),
             ),
           ),
@@ -929,22 +1036,22 @@ class _MapPickerPageState extends State<_MapPickerPage> {
       );
     }
 
-    if (_textSearchResults.isEmpty && !_isSearchingPlaces) {
+    if (_textSearchResults.isEmpty) {
       return _buildListShell(
         maxHeight: maxHeight,
         panelRadius: panelRadius,
         child: Padding(
-          padding: EdgeInsets.all(isMobile ? 14.w : 14.0),
-          child: const Text(
-            'No places found',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.black54),
+          padding: const EdgeInsets.all(14),
+          child: AppText(
+            text: 'No places found',
+            size: 13,
+            fontWeight: FontWeight.w400,
+            color: _mutedTextColor,
+            isCentered: true,
           ),
         ),
       );
     }
-
-    if (_textSearchResults.isEmpty) return const SizedBox.shrink();
 
     return _buildListShell(
       maxHeight: maxHeight,
@@ -954,18 +1061,18 @@ class _MapPickerPageState extends State<_MapPickerPage> {
         padding: EdgeInsets.zero,
         itemCount: _textSearchResults.length + (_isFetchingNextPage ? 1 : 0),
         separatorBuilder: (_, __) =>
-            Divider(height: 1, color: Colors.grey.withValues(alpha: 0.18)),
+            Divider(height: 1, color: appTextColor5.withValues(alpha: 0.12)),
         itemBuilder: (context, index) {
           if (index >= _textSearchResults.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
               child: Center(
                 child: SizedBox(
                   height: 18,
                   width: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.orange,
+                    color: appTextColor,
                   ),
                 ),
               ),
@@ -984,67 +1091,212 @@ class _MapPickerPageState extends State<_MapPickerPage> {
     );
   }
 
-  Widget _buildPlaceSection({
-    required String title,
-    required List<MapPlacesResponse> places,
-    required IconData icon,
-    required bool isMobile,
-    required ValueChanged<MapPlacesResponse> onTap,
+  /// White circular control that floats over the map — back arrow,
+  /// my-location. [size] is both the width and the height so it stays round.
+  Widget _floatingCircle({
+    required double size,
+    required Widget child,
+    required VoidCallback? onTap,
+    String? tooltip,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            isMobile ? 14.w : 14.0,
-            isMobile ? 10.h : 10.0,
-            isMobile ? 14.w : 14.0,
-            isMobile ? 4.h : 4.0,
+    final button = Material(
+      color: Colors.white,
+      elevation: 4,
+      shadowColor: Colors.black26,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(child: child),
+        ),
+      ),
+    );
+
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
+  }
+
+  /// White pill that floats over the map — the title, Confirm, and the
+  /// resolved-address panel.
+  Widget _floatingCapsule({
+    required double radius,
+    required Widget child,
+    EdgeInsets? padding,
+    double? height,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      elevation: 4,
+      shadowColor: Colors.black26,
+      borderRadius: BorderRadius.circular(radius),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: height,
+          padding: padding,
+          // widthFactor shrink-wraps the pill around its label, while the
+          // alignment still centres that label inside the pill's fixed height.
+          // Setting Container.alignment instead would stretch the pill to fill
+          // whatever width it is offered.
+          child: Align(
+            alignment: Alignment.center,
+            widthFactor: 1.0,
+            child: child,
           ),
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(_MapPickerMetrics metrics) {
+    final capsulePadding = EdgeInsets.symmetric(
+      horizontal: metrics.capsulePadding,
+    );
+
+    return Row(
+      children: [
+        _floatingCircle(
+          size: metrics.controlHeight,
+          onTap: () => Navigator.pop(context),
+          child: Image.asset(
+            backOrange,
+            width: metrics.backIconSize,
+            height: metrics.backIconSize,
+          ),
+        ),
+        SizedBox(width: metrics.controlGap),
+        _floatingCapsule(
+          radius: metrics.controlRadius,
+          height: metrics.controlHeight,
+          padding: capsulePadding,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: metrics.titleMaxWidth),
+            child: AppText(
+              text: 'Select Location',
+              size: metrics.titleTextSize,
               fontWeight: FontWeight.w600,
+              color: appTextColor5,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
-        ...places.map(
-          (place) => _buildPlaceTile(
-            place: place,
-            icon: icon,
-            isMobile: isMobile,
-            onTap: () => onTap(place),
+        SizedBox(width: metrics.controlGap),
+        _confirmCapsule(
+          radius: metrics.controlRadius,
+          height: metrics.controlHeight,
+          padding: capsulePadding,
+          onTap: () {
+            Navigator.pop(context, {
+              'lat': _pickedLocation.latitude,
+              'lng': _pickedLocation.longitude,
+              'place': _placeName,
+            });
+          },
+          child: AppText(
+            text: 'Confirm',
+            size: metrics.titleTextSize,
+            fontWeight: FontWeight.w600,
+            color: appTextColor,
+            maxLines: 1,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildPlaceTile({
-    required MapPlacesResponse place,
-    required IconData icon,
-    required bool isMobile,
+  /// Wraps the Confirm pill so it takes the row's leftover width and stays
+  /// pinned to the right edge while the title pill hugs its label.
+  Widget _confirmCapsule({
+    required double radius,
+    required double height,
+    required EdgeInsets padding,
     required VoidCallback onTap,
+    required Widget child,
   }) {
-    return ListTile(
-      dense: true,
-      leading: Icon(icon, color: Colors.orange, size: isMobile ? 24.0 : 22.0),
-      title: AppText(
-        text: place.mainText ?? '',
-        size: isMobile ? 14.sp : 14.0,
-        fontWeight: FontWeight.w500,
+    return Expanded(
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: _floatingCapsule(
+          radius: radius,
+          height: height,
+          padding: padding,
+          onTap: onTap,
+          child: child,
+        ),
       ),
-      subtitle: (place.secondaryText ?? '').isEmpty
-          ? null
-          : Text(
-              place.secondaryText!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
+    );
+  }
+
+  Widget _buildBottomBar(_MapPickerMetrics metrics) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: _floatingCapsule(
+            radius: metrics.bottomCapsuleRadius,
+            padding: metrics.bottomPanelPadding,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.location_on,
+                  color: appTextColor,
+                  size: metrics.bottomIconSize,
+                ),
+                SizedBox(width: metrics.isMobile ? 10.w : 10.0),
+                Expanded(
+                  child: _isGeocoding
+                      ? SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: appTextColor,
+                          ),
+                        )
+                      : AppText(
+                          text: _placeName,
+                          size: 14,
+                          fontWeight: FontWeight.w500,
+                          color: appTextColor5,
+                          maxLines: metrics.isMobile ? 2 : 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                ),
+              ],
             ),
-      onTap: onTap,
+          ),
+        ),
+        SizedBox(width: metrics.controlGap),
+        TranslatedBuilder(
+          text: 'Use current location',
+          builder: (context, tooltip) => _floatingCircle(
+            size: metrics.locationButtonSize,
+            tooltip: tooltip,
+            onTap: _isFetchingCurrentLocation
+                ? null
+                : () => _getCurrentLocation(selectLocation: true),
+            child: _isFetchingCurrentLocation
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: appTextColor,
+                    ),
+                  )
+                : Icon(
+                    Icons.my_location,
+                    color: appTextColor,
+                    size: metrics.bottomIconSize,
+                  ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1054,31 +1306,9 @@ class _MapPickerPageState extends State<_MapPickerPage> {
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: const Text('Select Location'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context, {
-                'lat': _pickedLocation.latitude,
-                'lng': _pickedLocation.longitude,
-                'place': _placeName,
-              });
-            },
-            child: const Text(
-              'Confirm',
-              style: TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: appSecondaryBackgroundColor,
+      // No AppBar — the controls float over the map instead, so the map fills
+      // the screen and every control reads as a card above it.
       body: Stack(
         children: [
           GoogleMap(
@@ -1092,7 +1322,10 @@ class _MapPickerPageState extends State<_MapPickerPage> {
             },
             markers: _markers,
             myLocationEnabled: true,
-            myLocationButtonEnabled: true,
+            // Native grey controls are off; the floating orange my-location
+            // button drives recentering instead.
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
             onTap: (latLng) async {
               setState(() {
                 _pickedLocation = latLng;
@@ -1103,43 +1336,59 @@ class _MapPickerPageState extends State<_MapPickerPage> {
             },
           ),
           Positioned(
-            top: metrics.overlayTop,
-            left: metrics.overlayPadding,
-            right: metrics.overlayPadding,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: metrics.searchPanelMaxWidth,
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  metrics.overlayPadding,
+                  metrics.overlayTop,
+                  metrics.overlayPadding,
+                  0,
                 ),
-                child: Column(
-                  children: [
-                    Material(
-                      color: Colors.white,
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(metrics.panelRadius),
-                      child: _buildPlaceSearchField(
-                        isMobile: metrics.isMobile,
-                        panelRadius: metrics.panelRadius,
-                      ),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: metrics.searchPanelMaxWidth,
                     ),
-                    if (_canShowRecentSearches()) ...[
-                      SizedBox(height: metrics.suggestionGap),
-                      _buildRecentSearches(
-                        isMobile: metrics.isMobile,
-                        maxHeight: metrics.suggestionMaxHeight,
-                        panelRadius: metrics.panelRadius,
-                      ),
-                    ],
-                    if (_hasSubmittedSearch) ...[
-                      SizedBox(height: metrics.suggestionGap),
-                      _buildTextSearchResults(
-                        isMobile: metrics.isMobile,
-                        maxHeight: metrics.suggestionMaxHeight,
-                        panelRadius: metrics.panelRadius,
-                      ),
-                    ],
-                  ],
+                    child: Column(
+                      children: [
+                        _buildTopBar(metrics),
+                        SizedBox(height: metrics.topBarGap),
+                        Material(
+                          color: Colors.white,
+                          elevation: 4,
+                          shadowColor: Colors.black26,
+                          borderRadius: BorderRadius.circular(
+                            metrics.controlRadius,
+                          ),
+                          child: _buildPlaceSearchField(
+                            isMobile: metrics.isMobile,
+                            fieldRadius: metrics.controlRadius,
+                          ),
+                        ),
+                        if (_canShowRecentSearches()) ...[
+                          SizedBox(height: metrics.suggestionGap),
+                          _buildRecentSearches(
+                            isMobile: metrics.isMobile,
+                            maxHeight: metrics.suggestionMaxHeight,
+                            panelRadius: metrics.panelRadius,
+                          ),
+                        ],
+                        if (_hasSubmittedSearch) ...[
+                          SizedBox(height: metrics.suggestionGap),
+                          _buildTextSearchResults(
+                            isMobile: metrics.isMobile,
+                            maxHeight: metrics.suggestionMaxHeight,
+                            panelRadius: metrics.panelRadius,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1148,65 +1397,22 @@ class _MapPickerPageState extends State<_MapPickerPage> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: Padding(
-              padding: metrics.bottomPanelMargin,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: metrics.bottomPanelMaxWidth,
-                  ),
-                  child: Container(
-                    padding: metrics.bottomPanelPadding,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: metrics.bottomPanelRadius,
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black26, blurRadius: 8),
-                      ],
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  metrics.overlayPadding,
+                  0,
+                  metrics.overlayPadding,
+                  metrics.bottomInset,
+                ),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: metrics.bottomPanelMaxWidth,
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.orange),
-                        SizedBox(width: metrics.isMobile ? 10.w : 10.0),
-                        Expanded(
-                          child: _isGeocoding
-                              ? const SizedBox(
-                                  height: 16,
-                                  width: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  _placeName,
-                                  maxLines: metrics.isMobile ? 2 : 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                        ),
-                        IconButton(
-                          onPressed: _isFetchingCurrentLocation
-                              ? null
-                              : () => _getCurrentLocation(selectLocation: true),
-                          icon: _isFetchingCurrentLocation
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.orange,
-                                  ),
-                                )
-                              : const Icon(Icons.my_location),
-                          color: Colors.orange,
-                          tooltip: 'Use current location',
-                        ),
-                      ],
-                    ),
+                    child: _buildBottomBar(metrics),
                   ),
                 ),
               ),
@@ -1240,8 +1446,61 @@ class _MapPickerMetrics {
   double get overlayTop => isCompactLandscape
       ? 10.0
       : isMobile
-      ? 16.h
-      : 24.0;
+      ? 12.h
+      : 20.0;
+
+  // ── Floating controls ───────────────────────────────────────────────────
+  // Circles and pills share one height so the top row lines up. The values
+  // stay plain doubles: a circle needs the same number on both axes.
+
+  double get controlHeight {
+    if (isCompactLandscape) return 40.0;
+    if (isTabletDevice) return 52.0;
+    return 46.0;
+  }
+
+  double get controlRadius => controlHeight / 2;
+  double get controlGap => isCompactLandscape ? 8.0 : 10.0;
+  double get capsulePadding => isCompactLandscape ? 14.0 : 18.0;
+  double get backIconSize => isCompactLandscape ? 18.0 : 20.0;
+
+  double get titleTextSize {
+    if (isCompactLandscape) return 13.0;
+    if (isTabletDevice) return 16.0;
+    return 15.0;
+  }
+
+  double get topBarGap => isCompactLandscape ? 8.0 : 12.0;
+
+  /// Ceiling for the title pill so an unusually long label ellipsizes instead
+  /// of squeezing the Confirm pill off the row.
+  double get titleMaxWidth {
+    if (isCompactLandscape) return 150.0;
+    if (isTabletDevice) return 260.0;
+    return math.min(200.0, width * 0.42);
+  }
+
+  double get locationButtonSize {
+    if (isCompactLandscape) return 44.0;
+    if (isTabletDevice) return 56.0;
+    return 50.0;
+  }
+
+  double get bottomIconSize => isCompactLandscape ? 20.0 : 22.0;
+  double get bottomCapsuleRadius => isCompactLandscape ? 20.0 : 26.0;
+  double get bottomInset => isCompactLandscape ? 10.0 : 16.0;
+
+  EdgeInsets get bottomPanelPadding => EdgeInsets.symmetric(
+    horizontal: isMobile ? 18.w : 18.0,
+    vertical: isCompactLandscape
+        ? 10.0
+        : isMobile
+        ? 14.h
+        : 14.0,
+  );
+
+  // ── Search dropdown ─────────────────────────────────────────────────────
+
   double get panelRadius => isMobile || isCompactLandscape ? 14.r : 14.0;
   double get suggestionGap => isCompactLandscape
       ? 6.0
@@ -1264,20 +1523,4 @@ class _MapPickerMetrics {
 
   double get searchPanelMaxWidth => isMobile ? double.infinity : 560.0;
   double get bottomPanelMaxWidth => isMobile ? double.infinity : 680.0;
-  EdgeInsets get bottomPanelMargin {
-    if (isMobile || isCompactLandscape) return EdgeInsets.zero;
-    return const EdgeInsets.all(24);
-  }
-
-  EdgeInsets get bottomPanelPadding => EdgeInsets.symmetric(
-    horizontal: isMobile ? 20.w : 20.0,
-    vertical: isCompactLandscape
-        ? 10.0
-        : isMobile
-        ? 16.h
-        : 14.0,
-  );
-
-  BorderRadius get bottomPanelRadius =>
-      BorderRadius.circular(isMobile || isCompactLandscape ? 0 : 18.0);
 }

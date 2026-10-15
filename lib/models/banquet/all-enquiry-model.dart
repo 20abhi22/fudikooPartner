@@ -1,3 +1,5 @@
+import 'package:fudiko/utils/menu_formatter.dart';
+
 class BanquetEnquiryModel {
   final String uuid;
   final String enquiryId;
@@ -47,7 +49,7 @@ class BanquetEnquiryModel {
       customerId: json['customer_id']?.toString() ?? '',
       lat: json['lat']?.toString() ?? '',
       lng: json['lng']?.toString() ?? '',
-      menuItems: json['menu_items'] ?? '',
+      menuItems: formatMenuItems(json['menu_items']),
       people: json['people'] ?? 0,
       date: json['date'] ?? '',
       time: json['time'] ?? '',

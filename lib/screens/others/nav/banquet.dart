@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
 import 'package:fudiko/components/allEnquiryBox.dart';
 import 'package:fudiko/components/appbutton.dart';
 import 'package:fudiko/components/appfilterdropdown.dart';
 import 'package:fudiko/components/apptext.dart';
 import 'package:fudiko/components/banquetCompletedBox.dart';
 import 'package:fudiko/components/banquetConfirmedBox.dart';
+import 'package:fudiko/components/completedDateRangeDialog.dart';
+import 'package:fudiko/components/dateFilterSheet.dart';
 import 'package:fudiko/components/deletedBox.dart';
 import 'package:fudiko/components/sentBox.dart';
 import 'package:fudiko/core/responsive/app_dimensions.dart';
@@ -16,16 +17,10 @@ import 'package:fudiko/models/banquet/sent-enquiry-model.dart';
 import 'package:fudiko/models/profile/partner-profile-model.dart';
 import 'package:fudiko/services/banquet-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/snackbar.dart';
 import 'package:fudiko/utils/tab_back_handler.dart';
-
-// Top-level helper to format a date for range display. When [other] is provided
-// and is in the same year, the year is omitted for a cleaner range like
-// "5 Jan - 15 Mar".
-String formatDateForRange(DateTime date, [DateTime? other]) {
-  final dayMonth = DateFormat('d MMM').format(date);
-  if (other != null && other.year == date.year) return dayMonth;
-  return DateFormat('d MMM yyyy').format(date);
-}
+import 'package:fudiko/utils/tab_refreshable.dart';
+import 'package:fudiko/utils/error_messages.dart';
 
 class Banquet extends StatefulWidget {
   final VoidCallback? onDrawerTap;
@@ -36,7 +31,8 @@ class Banquet extends StatefulWidget {
   State<Banquet> createState() => _BanquetState();
 }
 
-class _BanquetState extends State<Banquet> implements TabBackHandler {
+class _BanquetState extends State<Banquet>
+    implements TabBackHandler, TabRefreshable {
   String selectedStatus = "All Enquiries";
   String _previousStatus = "All Enquiries";
   bool isDeleteClicked = false;
@@ -70,7 +66,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
 
     final picked = await showDialog<DateTimeRange>(
       context: context,
-      builder: (context) => _BanquetDateRangeDialog(
+      builder: (context) => CompletedDateRangeDialog(
         initialStartDate: initialRange.start,
         initialEndDate: initialRange.end,
         firstDate: DateTime(now.year - 2),
@@ -167,9 +163,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     }
 
     if (isDeleteClicked) {
-      setState(() {
-        isDeleteClicked = false;
-      });
+      _dismissDeleteConfirm();
       return true;
     }
 
@@ -272,6 +266,29 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     }
   }
 
+  /// Set when a refresh arrives while the delete confirmation is up, so the
+  /// reload can run once it is dismissed.
+  bool _refreshPending = false;
+
+  @override
+  Future<void> refresh() async {
+    // Reloading under the confirmation would rebuild the list the partner is
+    // confirming against, so it waits for the dialog to close instead.
+    if (isDeleteClicked) {
+      _refreshPending = true;
+      return;
+    }
+    await _refreshEnquiries();
+  }
+
+  /// Runs a refresh that was held back while the confirmation was open.
+  void _dismissDeleteConfirm() {
+    setState(() => isDeleteClicked = false);
+    if (!_refreshPending) return;
+    _refreshPending = false;
+    _refreshEnquiries();
+  }
+
   Future<void> _refreshEnquiries() async {
     await Future.wait([
       _fetchEnquiries(),
@@ -322,9 +339,11 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      "Close",
-                      style: TextStyle(color: appButtonColor),
+                    child: AppText(
+                      text: "Close",
+                      size: 14,
+                      fontWeight: FontWeight.w400,
+                      color: appButtonColor,
                     ),
                   ),
                 ),
@@ -335,8 +354,9 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error loading enquiry details")),
+      showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Error loading enquiry details'),
       );
     }
   }
@@ -567,7 +587,15 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
       child: isLoading
           ? const Center(child: CircularProgressIndicator())
           : isEmpty
-          ? Center(child: Text(emptyText))
+          ? Center(
+              child: AppText(
+                text: emptyText,
+                size: 15,
+                fontWeight: FontWeight.w500,
+                color: appTextColor2,
+                isCentered: true,
+              ),
+            )
           : ListView.builder(
               itemCount: itemCount,
               shrinkWrap: true,
@@ -599,7 +627,15 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
         child: _isSentLoading
             ? const Center(child: CircularProgressIndicator())
             : _sentEnquiries.isEmpty
-            ? const Center(child: Text("No Sent Enquiries"))
+            ? Center(
+                child: AppText(
+                  text: "No Sent Enquiries",
+                  size: 15,
+                  fontWeight: FontWeight.w500,
+                  color: appTextColor2,
+                  isCentered: true,
+                ),
+              )
             : ListView.builder(
                 itemCount: _sentEnquiries.length,
                 shrinkWrap: true,
@@ -612,29 +648,20 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                         final result = await _enquiryService
                             .confirmPartyResponse(_sentEnquiries[index].uuid);
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: AppText(
-                              text: result['message'] ?? "Confirmed",
-                              size: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
+                        showStatusSnack(
+                          context,
+                          result['status'] == true,
+                          result['message'] ?? "Confirmed",
                         );
                         if (result['status'] == true) {
                           await _refreshEnquiries();
                         }
                       } catch (e) {
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: AppText(
-                              text: "Error confirming party response",
-                              size: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        );
+                        showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Error confirming party response'),
+      );
                       }
                     },
                     onDelete: () async {
@@ -643,29 +670,20 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                           _sentEnquiries[index].uuid,
                         );
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: AppText(
-                              text: result['message'] ?? "Deleted",
-                              size: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
+                        showStatusSnack(
+                          context,
+                          result['status'] == true,
+                          result['message'] ?? "Deleted",
                         );
                         if (result['status'] == true) {
                           await _refreshEnquiries();
                         }
                       } catch (e) {
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: AppText(
-                              text: "Error deleting sent enquiry",
-                              size: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        );
+                        showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Error deleting sent enquiry'),
+      );
                       }
                     },
                   );
@@ -679,7 +697,15 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
         child: _isConfirmedLoading
             ? const Center(child: CircularProgressIndicator())
             : _confirmedEnquiries.isEmpty
-            ? const Center(child: Text("No Confirmed Enquiries"))
+            ? Center(
+                child: AppText(
+                  text: "No Confirmed Enquiries",
+                  size: 15,
+                  fontWeight: FontWeight.w500,
+                  color: appTextColor2,
+                  isCentered: true,
+                ),
+              )
             : ListView.builder(
                 itemCount: _confirmedEnquiries.length,
                 shrinkWrap: true,
@@ -692,19 +718,16 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                       _showConfirmedEnquiryDetails(enquiry.uuid);
                     },
                     onRemindTap: () async {
-                      final messenger = ScaffoldMessenger.of(context);
                       final response = await _enquiryService.remindReservation(
                         enquiry.uuid,
                       );
                       if (!mounted) return;
 
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            response['message']?.toString() ??
-                                'Reminder sent successfully',
-                          ),
-                        ),
+                      showStatusSnack(
+                        context,
+                        response['status'] == true,
+                        response['message']?.toString() ??
+                            'Reminder sent successfully',
                       );
                     },
                   );
@@ -714,9 +737,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     }
 
     if (selectedStatus == "Completed") {
-      final width = _screenWidth(context);
       final isWideShortPhone = _isWideShortPhone(context);
-      final filterWidth = (width * 0.42).clamp(190.0, 320.0);
 
       return _responsiveContent(
         child: Column(
@@ -725,74 +746,42 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
             Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: filterWidth,
-                  child: AppFilterDropDown(
-                    fieldBorderRadius: 6,
-                    height: isWideShortPhone ? 35.0 : 35.h,
-                    hint:
-                        _selectedDateFilter == "Custom range" &&
-                            _customDateRange != null
-                        ? "${formatDateForRange(_customDateRange!.start, _customDateRange!.end)} - ${formatDateForRange(_customDateRange!.end, _customDateRange!.start)}"
-                        : _selectedDateFilter,
-                    iconImage: "assets/images/filter_icon.png",
-                    icon: Icons.tune,
-                    toogleDropdown: () async {
-                      await showModalBottomSheet(
-                        backgroundColor: Colors.white,
-                        context: context,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(25.r),
-                          ),
-                        ),
-                        builder: (context) => Padding(
-                          padding: EdgeInsets.all(20.w),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 40.w,
-                                height: 5.h,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(10.r),
-                                ),
-                              ),
-                              SizedBox(height: 16.h),
-                              for (final option in [
-                                "Last 7 days",
-                                "Last 30 days",
-                                "Last 3 months",
-                              ])
-                                ListTile(
-                                  title: Text(option),
-                                  trailing: _selectedDateFilter == option
-                                      ? Icon(Icons.check, color: appButtonColor)
-                                      : null,
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedDateFilter = option;
-                                      _customDateRange = null;
-                                    });
-                                    Navigator.pop(context);
-                                  },
-                                ),
-                              ListTile(
-                                title: Text("Custom date range"),
-                                trailing: _selectedDateFilter == "Custom range"
-                                    ? Icon(Icons.check, color: appButtonColor)
-                                    : null,
-                                onTap: () async {
-                                  Navigator.pop(context);
-                                  await _pickCustomDateRange();
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: 130,
+                    maxWidth: 230,
+                  ),
+                  child: IntrinsicWidth(
+                    child: AppFilterDropDown(
+                      fieldBorderRadius: 6,
+                      height: isWideShortPhone ? 35.0 : 35.h,
+                      hint:
+                          _selectedDateFilter == "Custom range" &&
+                              _customDateRange != null
+                          ? "${formatDateForRange(_customDateRange!.start, _customDateRange!.end)} - ${formatDateForRange(_customDateRange!.end, _customDateRange!.start)}"
+                          : _selectedDateFilter,
+                      iconImage: "assets/images/filter_icon.png",
+                      icon: Icons.tune,
+                      toogleDropdown: () async {
+                        await showDateFilterSheet(
+                          context: context,
+                          options: const [
+                            "Last 7 days",
+                            "Last 30 days",
+                            "Last 3 months",
+                          ],
+                          selectedValue: _selectedDateFilter,
+                          customValue: "Custom range",
+                          onOptionSelected: (option) {
+                            setState(() {
+                              _selectedDateFilter = option;
+                              _customDateRange = null;
+                            });
+                          },
+                          onCustomTap: _pickCustomDateRange,
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -813,7 +802,15 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
             _isCompletedLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _completedEnquiries.isEmpty
-                ? const Center(child: Text("No Completed Enquiries"))
+                ? Center(
+                    child: AppText(
+                      text: "No Completed Enquiries",
+                      size: 15,
+                      fontWeight: FontWeight.w500,
+                      color: appTextColor2,
+                      isCentered: true,
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: _completedEnquiries.length,
                     shrinkWrap: true,
@@ -860,7 +857,15 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
         child: _isDeletedLoading
             ? const Center(child: CircularProgressIndicator())
             : _deletedEnquiries.isEmpty
-            ? const Center(child: Text("No Deleted Enquiries"))
+            ? Center(
+                child: AppText(
+                  text: "No Deleted Enquiries",
+                  size: 15,
+                  fontWeight: FontWeight.w500,
+                  color: appTextColor2,
+                  isCentered: true,
+                ),
+              )
             : ListView.builder(
                 itemCount: _deletedEnquiries.length,
                 shrinkWrap: true,
@@ -870,18 +875,15 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                     enquiry: _deletedEnquiries[index],
                     onCallBackPressed: () async {
                       final enquiry = _deletedEnquiries[index];
-                      final messenger = ScaffoldMessenger.of(context);
                       final response = await _enquiryService
                           .callbackReservation(enquiry.uuid);
                       if (!mounted) return;
 
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            response['message']?.toString() ??
-                                'Reservation recalled successfully',
-                          ),
-                        ),
+                      showStatusSnack(
+                        context,
+                        response['status'] == true,
+                        response['message']?.toString() ??
+                            'Reservation recalled successfully',
                       );
 
                       if (response['status'] == true) {
@@ -942,10 +944,16 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
     return const SizedBox.shrink();
   }
 
+  bool get _isLandscape =>
+      MediaQuery.orientationOf(context) == Orientation.landscape;
+
+  double get _keyboardInset => MediaQuery.viewInsetsOf(context).bottom;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: appSecondaryBackgroundColor,
+      resizeToAvoidBottomInset: !_isLandscape,
 
       body: SafeArea(
         minimum: EdgeInsets.only(top: _usesTabletLayout(context) ? 12.0 : 0.0),
@@ -969,6 +977,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                           _buildTopSection(),
                           SizedBox(height: _contentGap(context)),
                           _buildSelectedTabContent(),
+                          if (_isLandscape) SizedBox(height: _keyboardInset),
                         ],
                       ),
                     ),
@@ -1036,30 +1045,23 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                                         Navigator.pop(
                                           context,
                                         ); // close dialog isn't needed since it's Stack, just:
-                                        setState(() => isDeleteClicked = false);
+                                        _dismissDeleteConfirm();
                                         try {
                                           final result = await _enquiryService
                                               .deleteEnquiry(
                                                 _selectedEnquiryUuid,
                                               );
-                                          ScaffoldMessenger.of(
+                                          showStatusSnack(
                                             context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                result['message'] ?? "Deleted",
-                                              ),
-                                            ),
+                                            result['status'] == true,
+                                            result['message'] ?? "Deleted",
                                           );
                                           _fetchEnquiries(); // refresh list
                                         } catch (e) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text("Error deleting"),
-                                            ),
-                                          );
+                                          showErrorSnack(
+        context,
+        friendlyErrorMessage(e, fallback: 'Error deleting'),
+      );
                                         }
                                       },
                                       size: 12,
@@ -1075,9 +1077,7 @@ class _BanquetState extends State<Banquet> implements TabBackHandler {
                                     height: 35.h,
                                     child: AppButton(
                                       text: "No",
-                                      onPressed: () {
-                                        setState(() => isDeleteClicked = false);
-                                      },
+                                      onPressed: _dismissDeleteConfirm,
                                       size: 12,
                                       borderRadius: 5,
                                       bgColor1: Colors.red,
@@ -1649,28 +1649,31 @@ class _AnimatedSearchField extends StatelessWidget {
                       opacity: isExpanded ? 1 : 0,
                       child: IgnorePointer(
                         ignoring: !isExpanded,
-                        child: TextField(
-                          autofocus: isExpanded,
-                          controller: controller,
-                          cursorColor: appTextColor,
-                          keyboardType: TextInputType.text,
-                          onChanged: onChanged,
-                          style: TextStyle(
-                            color: Colors.black87,
-                            fontSize: fieldTextSize,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: "Coupon Number",
-                            hintStyle: TextStyle(
-                              color: Colors.grey,
+                        child: TranslatedBuilder(
+                          text: "Coupon Number",
+                          builder: (context, hintText) => TextField(
+                            autofocus: isExpanded,
+                            controller: controller,
+                            cursorColor: appTextColor,
+                            keyboardType: TextInputType.text,
+                            onChanged: onChanged,
+                            style: TextStyle(
+                              color: Colors.black87,
                               fontSize: fieldTextSize,
                               fontWeight: FontWeight.w400,
                             ),
-                            border: InputBorder.none,
-                            isCollapsed: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              vertical: verticalPadding,
+                            decoration: InputDecoration(
+                              hintText: hintText,
+                              hintStyle: TextStyle(
+                                color: Colors.grey,
+                                fontSize: fieldTextSize,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              border: InputBorder.none,
+                              isCollapsed: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: verticalPadding,
+                              ),
                             ),
                           ),
                         ),
@@ -1708,512 +1711,4 @@ class _AnimatedSearchField extends StatelessWidget {
       ),
     );
   }
-}
-
-class _BanquetDateRangeDialog extends StatefulWidget {
-  final DateTime? initialStartDate;
-  final DateTime? initialEndDate;
-  final DateTime firstDate;
-  final DateTime lastDate;
-
-  const _BanquetDateRangeDialog({
-    required this.initialStartDate,
-    required this.initialEndDate,
-    required this.firstDate,
-    required this.lastDate,
-  });
-
-  @override
-  State<_BanquetDateRangeDialog> createState() =>
-      _BanquetDateRangeDialogState();
-}
-
-class _BanquetDateRangeDialogState extends State<_BanquetDateRangeDialog> {
-  late DateTime _displayMonth;
-  late int _pickerYear;
-  DateTime? _startDate;
-  DateTime? _endDate;
-  bool _showMonthYearPicker = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _startDate = widget.initialStartDate;
-    _endDate = widget.initialEndDate;
-    final seedDate = _startDate ?? widget.lastDate;
-    _displayMonth = DateTime(seedDate.year, seedDate.month);
-    _pickerYear = _displayMonth.year;
-  }
-
-  void _prevMonth() {
-    final previous = DateTime(_displayMonth.year, _displayMonth.month - 1);
-    if (previous.isBefore(
-      DateTime(widget.firstDate.year, widget.firstDate.month),
-    )) {
-      return;
-    }
-    setState(() => _displayMonth = previous);
-  }
-
-  void _nextMonth() {
-    final next = DateTime(_displayMonth.year, _displayMonth.month + 1);
-    if (next.isAfter(DateTime(widget.lastDate.year, widget.lastDate.month))) {
-      return;
-    }
-    setState(() => _displayMonth = next);
-  }
-
-  void _togglePicker() {
-    setState(() {
-      _showMonthYearPicker = !_showMonthYearPicker;
-      _pickerYear = _displayMonth.year;
-    });
-  }
-
-  void _selectDate(DateTime date) {
-    setState(() {
-      if (_startDate == null || (_startDate != null && _endDate != null)) {
-        _startDate = date;
-        _endDate = null;
-        return;
-      }
-
-      if (date.isBefore(_startDate!)) {
-        _endDate = _startDate;
-        _startDate = date;
-      } else {
-        _endDate = date;
-      }
-    });
-  }
-
-  void _selectMonthYear(int month, int year) {
-    setState(() {
-      _displayMonth = DateTime(year, month);
-      _showMonthYearPicker = false;
-    });
-  }
-
-  bool _isSameMonth(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month;
-  }
-
-  bool _isDateDisabled(DateTime date) {
-    final first = DateTime(
-      widget.firstDate.year,
-      widget.firstDate.month,
-      widget.firstDate.day,
-    );
-    final last = DateTime(
-      widget.lastDate.year,
-      widget.lastDate.month,
-      widget.lastDate.day,
-    );
-    return date.isBefore(first) || date.isAfter(last);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final canApply = _startDate != null && _endDate != null;
-    final monthName = _monthName(_displayMonth.month);
-
-    return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.r)),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: _showMonthYearPicker ? null : _prevMonth,
-                ),
-                GestureDetector(
-                  onTap: _togglePicker,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$monthName  ${_displayMonth.year}',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      SizedBox(width: 4.w),
-                      Icon(
-                        _showMonthYearPicker
-                            ? Icons.arrow_drop_up
-                            : Icons.arrow_drop_down,
-                        color: Colors.black54,
-                        size: 20.sp,
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: _showMonthYearPicker ? null : _nextMonth,
-                ),
-              ],
-            ),
-            if (_showMonthYearPicker) ...[
-              SizedBox(height: 6.h),
-              _buildMonthYearPicker(),
-            ] else ...[
-              SizedBox(height: 6.h),
-              _buildWeekdayLabels(),
-              SizedBox(height: 6.h),
-              _buildDayGrid(),
-            ],
-            SizedBox(height: 12.h),
-            _buildSelectedRangeLabel(),
-            SizedBox(height: 8.h),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10.w),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(
-                      'Cancel',
-                      style: TextStyle(color: Colors.black54, fontSize: 14.sp),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: canApply
-                        ? () => Navigator.pop(
-                            context,
-                            DateTimeRange(start: _startDate!, end: _endDate!),
-                          )
-                        : null,
-                    child: Text(
-                      'Apply',
-                      style: TextStyle(
-                        color: canApply ? appButtonColor : Colors.black26,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSelectedRangeLabel() {
-    final label = _startDate == null
-        ? 'Select start date'
-        : _endDate == null
-        ? 'Select end date'
-        : '${formatDateForRange(_startDate!, _endDate!)} - ${formatDateForRange(_endDate!, _startDate!)}';
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 9.h),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Colors.black87,
-          fontSize: 13.sp,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonthYearPicker() {
-    final firstYear = widget.firstDate.year;
-    final lastYear = widget.lastDate.year;
-
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left, size: 20),
-              onPressed: _pickerYear > firstYear
-                  ? () => setState(() => _pickerYear--)
-                  : null,
-            ),
-            GestureDetector(
-              onTap: () => _showYearScrollPicker(context),
-              child: Text(
-                '$_pickerYear',
-                style: TextStyle(
-                  fontSize: 15.sp,
-                  fontWeight: FontWeight.w600,
-                  color: appButtonColor,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right, size: 20),
-              onPressed: _pickerYear < lastYear
-                  ? () => setState(() => _pickerYear++)
-                  : null,
-            ),
-          ],
-        ),
-        SizedBox(height: 8.h),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 12,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 2.2,
-          ),
-          itemBuilder: (context, index) {
-            final month = index + 1;
-            final monthDate = DateTime(_pickerYear, month);
-            final isSelected = _isSameMonth(monthDate, _displayMonth);
-            final isDisabled =
-                monthDate.isBefore(
-                  DateTime(widget.firstDate.year, widget.firstDate.month),
-                ) ||
-                monthDate.isAfter(
-                  DateTime(widget.lastDate.year, widget.lastDate.month),
-                );
-
-            return GestureDetector(
-              onTap: isDisabled
-                  ? null
-                  : () => _selectMonthYear(month, _pickerYear),
-              child: Container(
-                height: 50.h,
-                decoration: BoxDecoration(
-                  color: isSelected ? appButtonColor : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8.r),
-                  border: Border.all(
-                    color: isSelected ? appButtonColor : Colors.black12,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    _shortMonth(month),
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white
-                          : isDisabled
-                          ? Colors.black26
-                          : Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-        SizedBox(height: 8.h),
-      ],
-    );
-  }
-
-  void _showYearScrollPicker(BuildContext context) {
-    final years = List.generate(
-      widget.lastDate.year - widget.firstDate.year + 1,
-      (index) => widget.firstDate.year + index,
-    );
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
-      ),
-      builder: (_) => SizedBox(
-        height: 250.h,
-        child: ListView.builder(
-          itemCount: years.length,
-          itemBuilder: (context, index) {
-            final year = years[index];
-            final isSelected = year == _pickerYear;
-            return ListTile(
-              onTap: () {
-                setState(() => _pickerYear = year);
-                Navigator.pop(context);
-              },
-              title: Center(
-                child: Text(
-                  '$year',
-                  style: TextStyle(
-                    fontSize: 15.sp,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                    color: isSelected ? appButtonColor : Colors.black87,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWeekdayLabels() {
-    return Container(
-      color: const Color(0xFFF5F7FA),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-            .map(
-              (day) => SizedBox(
-                width: 36.w,
-                child: Center(
-                  child: Text(
-                    day,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildDayGrid() {
-    final today = DateTime.now();
-    final daysInMonth = DateUtils.getDaysInMonth(
-      _displayMonth.year,
-      _displayMonth.month,
-    );
-    final firstWeekday =
-        DateTime(_displayMonth.year, _displayMonth.month, 1).weekday % 7;
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: firstWeekday + daysInMonth,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 0,
-        childAspectRatio: 1,
-      ),
-      itemBuilder: (context, index) {
-        if (index < firstWeekday) return const SizedBox();
-
-        final day = index - firstWeekday + 1;
-        final date = DateTime(_displayMonth.year, _displayMonth.month, day);
-        final isDisabled = _isDateDisabled(date);
-        final isStart =
-            _startDate != null && DateUtils.isSameDay(date, _startDate);
-        final isEnd = _endDate != null && DateUtils.isSameDay(date, _endDate);
-        final isSelected = isStart || isEnd;
-        final isToday = DateUtils.isSameDay(date, today);
-        final isInRange =
-            _startDate != null &&
-            _endDate != null &&
-            date.isAfter(_startDate!) &&
-            date.isBefore(_endDate!);
-
-        return GestureDetector(
-          onTap: isDisabled ? null : () => _selectDate(date),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 34.w,
-                height: 32.w,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? appButtonColor
-                      : isInRange
-                      ? appButtonColor.withValues(alpha: 0.14)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                child: Center(
-                  child: Text(
-                    '$day',
-                    style: TextStyle(
-                      fontSize: 13.sp,
-                      fontWeight: isSelected || isToday
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                      color: isSelected
-                          ? Colors.white
-                          : isDisabled
-                          ? Colors.black26
-                          : Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 2.h),
-              isToday
-                  ? Container(
-                      width: 5.w,
-                      height: 5.w,
-                      decoration: const BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                      ),
-                    )
-                  : SizedBox(height: 5.w),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // _shortDate removed: using top-level formatDateForRange for consistent display
-
-  String _monthName(int month) => const [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ][month - 1];
-
-  String _shortMonth(int month) => const [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ][month - 1];
 }

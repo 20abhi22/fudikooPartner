@@ -1,7 +1,6 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
-import 'package:flutter/foundation.dart';  // ✅ add this
+import 'package:flutter/foundation.dart';
+import 'package:fudiko/api/api_config.dart';
 import 'package:fudiko/utils/tokens.dart';
 
 class DioClient {
@@ -10,7 +9,7 @@ class DioClient {
   static Dio _createDio() {
     final dio = Dio(
       BaseOptions(
-        baseUrl: 'https://fudikko.bitwissenddev.in/api',
+        baseUrl: ApiConfig.baseUrl,
         connectTimeout: const Duration(seconds: 20),
         sendTimeout: const Duration(minutes: 2),
         receiveTimeout: const Duration(minutes: 2),
@@ -38,20 +37,16 @@ class DioClient {
           handler.next(err);
         },
       ),
-      LogInterceptor(requestBody: true, responseBody: true, requestHeader: true),
     ]);
 
-    // ✅ Only apply on mobile/desktop, not web
-    if (!kIsWeb) {
-      dio.httpClientAdapter = IOHttpClientAdapter(
-        createHttpClient: () {
-          final client = HttpClient();
-          client.badCertificateCallback =
-              (X509Certificate cert, String host, int port) => true;
-          return client;
-        },
+    // Request logging includes the bearer token and response bodies, so it is
+    // limited to debug builds.
+    if (kDebugMode) {
+      dio.interceptors.add(
+        LogInterceptor(requestBody: true, responseBody: true, requestHeader: true),
       );
     }
+
 
     return dio;
   }

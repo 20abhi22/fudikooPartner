@@ -8,6 +8,8 @@ import 'package:fudiko/core/responsive/breakpoints.dart';
 import 'package:fudiko/models/offer/offer-status-change-model.dart';
 import 'package:fudiko/services/offer-service.dart';
 import 'package:fudiko/utils/constants.dart';
+import 'package:fudiko/utils/error_messages.dart';
+import 'package:fudiko/utils/snackbar.dart';
 
 class OfferCard extends StatefulWidget {
   final String url;
@@ -76,19 +78,18 @@ class _OfferCardState extends State<OfferCard> {
           currentStatus = updatedStatus;
         });
         widget.onStatusChanged?.call(updatedStatus);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(response.message)));
       }
+      showStatusSnack(context, response.status, response.message);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      showErrorSnack(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        friendlyErrorMessage(
+          e,
+          fallback: 'We could not change the offer status. '
+              'Please try again.',
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
