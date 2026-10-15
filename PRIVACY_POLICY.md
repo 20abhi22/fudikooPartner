@@ -1,28 +1,26 @@
-# Privacy Policy – Fudikoo Partner (Restaurant App)
+# Privacy Policy – Fudikoo (Customer App)
 
-**Effective date:** 16 October 2026
-**Package:** com.fudikoo.partner
+**Effective date:** 15 October 2026
+**Package:** com.fudikoo.client
 
-Fudikoo Partner ("the app") is for restaurant partners to manage their listing, menu, reservations and customer orders on the Fudikoo platform. This policy explains what information the app collects and how it is used.
+Fudikoo ("we", "us") provides a food ordering app that lets you browse nearby restaurants and place orders. This policy explains what information the app collects and how it is used.
 
 ## Information we collect
-- **Business and account information:** your name, phone number, email address, restaurant name, address, and business details you provide.
-- **Location:** approximate and precise location, used to set your restaurant's position on the map. Location is requested only with your permission.
-- **Camera:** used to scan customer QR codes/coupons and to capture photos. Images are not stored unless you choose to upload them.
-- **Photos and files:** images and documents you choose to upload (for example, menu items, restaurant photos or business documents). We access only what you select.
-- **Order and reservation data:** bookings, inquiries, orders and related customer details needed to fulfil them.
-- **Device and notification data:** a device token used to send alerts through Firebase Cloud Messaging, plus basic technical data (device type, app version).
+- **Account information:** name, phone number, email address and delivery addresses you provide.
+- **Location:** approximate and precise location, used to show nearby restaurants and set delivery addresses. Location is only requested with your permission.
+- **Photos:** images you choose to upload (for example, a profile picture). We access only the photos you select.
+- **Order information:** items ordered, order history and related details.
+- **Device and notification data:** a device token used to send order updates and notifications through Firebase Cloud Messaging, plus basic technical data (device type, app version).
 
 ## How we use information
-- To create and manage your partner account and restaurant listing.
-- To receive, manage and respond to orders, reservations and inquiries.
-- To verify customer coupons and reservations via QR scanning.
-- To send notifications about new bookings and updates.
+- To create and manage your account and process orders.
+- To show nearby restaurants and enable delivery.
+- To send order status updates and notifications.
 - To maintain, secure and improve the app.
 
 ## Sharing
 We do not sell your personal information. We share data only with:
-- Customers, as needed to fulfil their orders and reservations (for example, your restaurant name, address and menu).
+- Restaurants and delivery partners, as needed to fulfil your order.
 - Service providers such as Google (Firebase, Google Maps) that help us operate the app.
 - Authorities, where required by law.
 
@@ -33,16 +31,18 @@ We keep your data while your account is active or as needed to provide the servi
 Data is transmitted over encrypted connections. No method of transmission or storage is completely secure, but we take reasonable measures to protect your information.
 
 ## Children
-The app is intended for business users and is not directed at children.
+The app is not directed at children under 13, and we do not knowingly collect their data.
 
 ## Permissions
-- Location (fine/coarse): restaurant location on the map
-- Camera: QR code scanning and photo capture
-- Notifications: booking and order alerts
-- Internet: communicate with our servers
+- Location (fine/coarse): nearby restaurants and delivery address
+- Notifications: order updates
+- Internet/network state: communicate with our servers
 
 ## Changes
 We may update this policy; the effective date above will change when we do.
 
 ## Contact
-Email: 20abhi22@gmail.com
+Email: admin@kernalscape.com
+
+
+
